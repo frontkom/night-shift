@@ -38,6 +38,8 @@ There are four bundles. Each bundle is a group of related tasks that run togethe
 | **code-fixes** | Adds tests, fixes accessibility, completes translations | Direct to main |
 | **audits** | Finds security / bug / SEO / performance issues | Opens one PR per issue area |
 
+> **Note:** if your trigger plan only allows 3 enabled triggers, you can run `docs` and `code-fixes` together in one trigger via `bundles/multi-docs-and-code-fixes.md`. The bundles themselves stay separate in `manifest.yml` — only the trigger composition combines them.
+
 See `manifest.yml` for the full list of tasks in each bundle, what each task does, and the order they run in. **`manifest.yml` is the single source of truth** — to add a task, rename one, change ordering, or move a task to a different bundle, edit only that file.
 
 ## Stopping Night Shift on a project
