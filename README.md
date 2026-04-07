@@ -6,19 +6,35 @@ While you sleep, an AI agent runs maintenance jobs across your repositories. You
 
 ## Get started
 
-Open Claude Code in any project and paste this:
+Night Shift installs as a Claude Code skill — a local file in `~/.claude/skills/`. Once installed, type `/night-shift` in any project to set up, run, or manage it.
+
+**Install (run in your shell, not in Claude):**
+
+```bash
+mkdir -p ~/.claude/skills/night-shift && \
+  curl -fsSL https://raw.githubusercontent.com/perandre/night-shift/main/skill/SKILL.md \
+  -o ~/.claude/skills/night-shift/SKILL.md
+```
+
+That fetches one file into your local skills directory. No code execution, no Claude trust required — you can read the file before or after with `cat ~/.claude/skills/night-shift/SKILL.md`.
+
+**Use:**
+
+In any Claude Code session, type:
 
 ```
-Set up Night Shift on my account. It's a scheduled-job framework (https://github.com/perandre/night-shift) that creates three nightly triggers running maintenance tasks across my repos. Read SETUP.md from that repo as the configuration reference, then walk me through interactively: ask which GitHub repos to include, confirm the schedule, and confirm with me before creating each scheduled trigger.
+/night-shift
 ```
 
-Claude will read the runbook, ask you which repositories to manage, confirm the schedule, and create three nightly scheduled jobs in your account. Two minutes, no manual config.
+Claude will ask what you want to do (set up, test once, add a repo, status), walk you through it interactively, and confirm with you before creating any scheduled triggers.
 
-Want to try one bundle locally before scheduling anything? Paste this in any project instead. It runs all four bundles against the current repo and asks you to confirm before each commit:
+**Why a skill instead of a paste-able prompt?**
 
-```
-Run the Night Shift bundles (https://github.com/perandre/night-shift) against this repo as a one-shot test. Read bundles/all.md from that repo for the bundle order and rules, then walk me through it — ask before committing or pushing anything.
-```
+Skills are loaded from your local trusted directory, not fetched at runtime. That means Claude has full context about what Night Shift is and what setup means *before* you ask for anything. A blind "fetch this URL and follow it" prompt would (correctly) be refused as a prompt-injection vector by any well-aligned Claude. A locally-installed skill carries the same information without the trust problem.
+
+**Update later:**
+
+Re-run the install command above. It overwrites the file with the latest version.
 
 ## What you'll find in your repo tomorrow morning
 
