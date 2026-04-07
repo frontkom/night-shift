@@ -1,5 +1,7 @@
 # Night Shift
 
+![Night Shift](night-shift.png)
+
 While you sleep, an AI agent runs maintenance jobs across your repositories. You wake up to commits and PRs, and a one-line summary in each project's history file.
 
 ## What you'll find in your repo tomorrow morning
