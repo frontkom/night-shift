@@ -30,15 +30,16 @@ Recommended execution order: `00 → 01-04 → 05 → 06 → 07 → 08 → 09 �
 
 ## Bundles
 
-Three orchestration files in `bundles/` that run several tasks per scheduled session:
+Four orchestration files in `bundles/` that run groups of tasks per scheduled session:
 
-| Bundle | Tasks | Ordering |
-|---|---|---|
-| `1-plans-docs.md` | 00 → 01, 02, 03, 04 | 00 first; 01–04 independent |
-| `2-code-verified.md` | 05 → 06 → 07 | strictly sequential, must keep tests green between |
-| `3-audits-prs.md` | 08, 09, 10, 11 | independent; each opens its own PR |
+| Bundle | Tasks | Mode | Notes |
+|---|---|---|---|
+| `1-plans.md` | 00 | one PR per plan | Implements one pending plan phase per repo per night. Heavyweight. |
+| `2-docs.md` | 01, 02, 03, 04 | direct to main | Independent doc tasks. Lightweight. |
+| `3-code-verified.md` | 05 → 06 → 07 | direct to main | Strictly sequential, must keep tests green between. |
+| `4-audits-prs.md` | 08, 09, 10, 11 | one PR per task | Independent audits, each opens its own PR. |
 
-Use bundles when your plan limits daily scheduled triggers — three bundles cover all 12 tasks in three slots.
+Bundles 1 and 4 are PR-based. Bundles 2 and 3 commit directly to the default branch.
 
 ## Multi-repo wrappers
 
@@ -46,9 +47,10 @@ When running across many client projects, use the multi-repo wrappers in `bundle
 
 | Wrapper | Inner bundle |
 |---|---|
-| `multi-1-plans-docs.md` | bundle 1 |
-| `multi-2-code-verified.md` | bundle 2 |
-| `multi-3-audits-prs.md` | bundle 3 |
+| `multi-1-plans.md` | bundle 1 |
+| `multi-2-docs.md` | bundle 2 |
+| `multi-3-code-verified.md` | bundle 3 |
+| `multi-4-audits-prs.md` | bundle 4 |
 
 Each wrapper auto-discovers cloned repos, skips ones without `## Night Shift Config` in their `CLAUDE.md`, and continues on per-repo failures. It prints a summary table at the end for the morning review. See `bundles/_multi-runner.md` for the shared loop protocol.
 

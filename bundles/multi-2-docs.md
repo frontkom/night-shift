@@ -1,13 +1,13 @@
-# Multi-repo Bundle 2 — Code Self-Verified
+# Multi-repo Bundle 2 — Docs
 
-You are running the Night Shift **Code self-verified** bundle across **all repositories** cloned into this session.
+You are running the Night Shift **Docs** bundle across **all repositories** cloned into this session.
 
 ## Discover repos
-List sibling directories from your starting working directory. For each candidate, run `git rev-parse --show-toplevel` to confirm it's a git repository. Build the list of valid repos before starting the loop.
+List sibling directories from your starting working directory. For each candidate, run `git rev-parse --show-toplevel` to confirm it is a git repository. Build the list of valid repos before starting the loop.
 
 ## Per-repo loop — isolated subagent per repo
 
-**Context isolation requirement:** dispatch one `Task` subagent per repo. The main wrapper never executes bundle work itself and never echoes the subagent's intermediate output into its own context.
+**Context isolation requirement:** dispatch one `Task` subagent per repo. The main wrapper never executes bundle work itself.
 
 For each discovered repo, in directory-name order:
 
@@ -20,12 +20,12 @@ For each discovered repo, in directory-name order:
    ```
    Your working directory is {REPO_PATH}. cd into it now.
 
-   Fetch https://raw.githubusercontent.com/perandre/night-shift/v4/bundles/2-code-verified.md
-   and execute it against this repository. The bundle runs tasks 05 → 06 → 07 strictly in
-   order and stops on a failed test or build.
+   Fetch https://raw.githubusercontent.com/perandre/night-shift/v6/bundles/2-docs.md
+   and execute it against this repository. The bundle runs tasks 01–04 (changelog,
+   user manual, ADR, suggestions). They are independent and direct-to-main.
 
    CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply the
-   defaults from https://raw.githubusercontent.com/perandre/night-shift/v4/bundles/_multi-runner.md.
+   defaults from https://raw.githubusercontent.com/perandre/night-shift/v6/bundles/_multi-runner.md.
 
    When you are done, return EXACTLY ONE LINE in this format:
    <ok|failed> | <terse note, max 80 chars>
@@ -39,9 +39,9 @@ If a subagent dispatch itself fails, record `failed | dispatch error: <reason>` 
 After processing all repos, print a single summary table and stop. No prose after the table.
 
 ```
-Night Shift bundle 2 (Code Self-Verified) — multi-repo summary
+Night Shift bundle 2 (Docs) — multi-repo summary
 
 | Repo | Status | Notes |
 |------|--------|-------|
-| ...  | ok / skipped / dirty-skip / opted-out / failed | <terse> |
+| ...  | ok / opted-out / dirty-skip / failed | <terse> |
 ```
