@@ -52,7 +52,9 @@ When running across many client projects, use the multi-repo wrappers in `bundle
 
 Each wrapper auto-discovers cloned repos, skips ones without `## Night Shift Config` in their `CLAUDE.md`, and continues on per-repo failures. It prints a summary table at the end for the morning review. See `bundles/_multi-runner.md` for the shared loop protocol.
 
-**To add a project:** add its repo URL to the `sources[]` array of all 3 triggers in your scheduled-trigger config. No prompt edits needed — the wrapper picks it up automatically next run. Make sure the project's `CLAUDE.md` has the **Night Shift Config** section, otherwise it'll be `no-config-skip`'d.
+**To add a project:** add its repo URL to the `sources[]` array of all 3 triggers in your scheduled-trigger config. No prompt edits needed — the wrapper picks it up automatically next run. `CLAUDE.md` is **optional**: without one, the wrapper falls back to the defaults documented in `bundles/_multi-runner.md`. Add a `## Night Shift Config` section only when you want to override those defaults.
+
+**To opt a repo out of the night shift entirely:** create an empty file `.nightshift-skip` at the repo root, or add a line `Night Shift: skip` to `CLAUDE.md` / `AGENTS.md` / `README.md`. The wrapper will see it and report `opted-out` in the morning summary instead of running anything.
 
 **Trade-offs:** all repos are processed sequentially in one session. Long sessions can hit timeouts and accumulate context bloat. For 2–4 small projects this is the cheapest way to cover everything; for 5+ or large repos, consider per-project triggers (more slots) or splitting bundles.
 

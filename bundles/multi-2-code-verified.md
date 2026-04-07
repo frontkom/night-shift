@@ -10,7 +10,7 @@ For each repo, in directory-name order:
 
 1. `cd` into the repo.
 2. `git status --porcelain` — if the tree is dirty, log `dirty-skip` and continue with the next repo.
-3. Look for a `## Night Shift Config` section in `CLAUDE.md` (fallback: `AGENTS.md`). If neither exists, log `no-config-skip` and continue.
+3. Check opt-out signals: skip with `opted-out` if `.nightshift-skip` exists at the repo root, or any of `CLAUDE.md` / `AGENTS.md` / `README.md` contains the line `Night Shift: skip`. Otherwise proceed — `CLAUDE.md` is optional, defaults apply when missing (see `_multi-runner.md`).
 4. Fetch and execute the per-repo bundle:
    **https://raw.githubusercontent.com/perandre/night-shift/v3/bundles/2-code-verified.md**
    That bundle runs tasks 05 → 06 → 07 strictly in order and stops the per-repo run on a failed test or build. That stop is **per repo only**.
@@ -25,5 +25,5 @@ Night Shift bundle 2 (Code Self-Verified) — multi-repo summary
 
 | Repo | Status | Notes |
 |------|--------|-------|
-| ...  | ok / skipped / dirty-skip / no-config-skip / failed | <terse> |
+| ...  | ok / skipped / dirty-skip / opted-out / failed | <terse> |
 ```
