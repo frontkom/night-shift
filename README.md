@@ -1,128 +1,105 @@
 # Night Shift
 
-Centralized prompt library for scheduled Claude Code maintenance tasks across multiple projects.
+While you sleep, an AI agent runs maintenance jobs across your repositories. You wake up to commits and PRs, and a one-line summary in each project's history file.
 
-Two layers of prompts a scheduled trigger can fetch and execute against any repo:
+## What you'll find in your repo tomorrow morning
 
-- **`tasks/`** — 12 atomic task prompts. Self-contained, one job each. Pick & choose per project.
-- **`bundles/`** — 3 orchestration prompts that run multiple tasks in the right order with the right parallelism/sequencing rules. Designed for accounts with limited daily-trigger slots (e.g. 3 enabled triggers).
+- **Planned features partly built** — picks the next phase from a `docs/*-PLAN.md` file and opens a PR
+- **Updated docs** — changelog entries, user guide pages, decision records
+- **New test coverage** — fills coverage gaps following your existing test patterns
+- **Fixed accessibility issues** — WCAG AA violations on key pages
+- **Translated UI strings** — moves hardcoded English (or whatever) into your i18n system
+- **Audit PRs** — security, bug, SEO, and performance issues, each as its own PR you can review or close
 
-Project-specific details (test commands, key pages, doc language, push protocol) live in each project's `CLAUDE.md` under a **Night Shift Config** section — prompts here stay client-agnostic.
+Each affected repository gets a one-line entry appended to `docs/NIGHTSHIFT-HISTORY.md` so anyone with repo access can see what's been happening.
 
-## Tasks
+## What it looks like
 
-| # | Task | Mode |
-|---|------|------|
-| 00 | Implement plans | code, self-verified, direct to main |
-| 01 | Changelog | docs, direct to main |
-| 02 | User manual | docs, direct to main |
-| 03 | ADR | docs, direct to main |
-| 04 | Suggestions | docs, direct to main |
-| 05 | Tests | code, self-verified, direct to main |
-| 06 | Accessibility | code, self-verified, direct to main |
-| 07 | i18n completeness | code, self-verified, direct to main |
-| 08 | Security audit | one PR per issue |
-| 09 | Bug hunt | one PR per issue |
-| 10 | SEO & metadata | one big PR |
-| 11 | Performance | one big PR |
+After a run, the trigger dashboard shows a summary table like this:
 
-Recommended execution order: `00 → 01-04 → 05 → 06 → 07 → 08 → 09 → 10 → 11`.
-
-## Bundles
-
-Four orchestration files in `bundles/` that run groups of tasks per scheduled session:
-
-| Bundle | Tasks | Mode | Notes |
-|---|---|---|---|
-| `1-plans.md` | 00 | one PR per plan | Implements one pending plan phase per repo per night. Heavyweight. |
-| `2-docs.md` | 01, 02, 03, 04 | direct to main | Independent doc tasks. Lightweight. |
-| `3-code-verified.md` | 05 → 06 → 07 | direct to main | Strictly sequential, must keep tests green between. |
-| `4-audits-prs.md` | 08, 09, 10, 11 | one PR per task | Independent audits, each opens its own PR. |
-
-Bundles 1 and 4 are PR-based. Bundles 2 and 3 commit directly to the default branch.
-
-## Multi-repo wrappers
-
-When running across many client projects, use the multi-repo wrappers in `bundles/multi-*.md` instead. They run the same bundle against **every cloned repo** in the session:
-
-| Wrapper | Inner bundle |
-|---|---|
-| `multi-1-plans.md` | bundle 1 |
-| `multi-2-docs.md` | bundle 2 |
-| `multi-3-code-verified.md` | bundle 3 |
-| `multi-4-audits-prs.md` | bundle 4 |
-
-Each wrapper auto-discovers cloned repos, skips ones without `## Night Shift Config` in their `CLAUDE.md`, and continues on per-repo failures. It prints a summary table at the end for the morning review. See `bundles/_multi-runner.md` for the shared loop protocol.
-
-**To add a project:** add its repo URL to the `sources[]` array of all 3 triggers in your scheduled-trigger config. No prompt edits needed — the wrapper picks it up automatically next run. `CLAUDE.md` is **optional**: without one, the wrapper falls back to the defaults documented in `bundles/_multi-runner.md`. Add a `## Night Shift Config` section only when you want to override those defaults.
-
-**To opt a repo out of the night shift entirely:** create an empty file `.nightshift-skip` at the repo root, or add a line `Night Shift: skip` to `CLAUDE.md` / `AGENTS.md` / `README.md`. The wrapper will see it and report `opted-out` in the morning summary instead of running anything.
-
-**Trade-offs:** all repos are processed sequentially in one session. Long sessions can hit timeouts and accumulate context bloat. For 2–4 small projects this is the cheapest way to cover everything; for 5+ or large repos, consider per-project triggers (more slots) or splitting bundles.
-
-## How triggers use it
-
-In each project's scheduled trigger, use a thin wrapper prompt.
-
-**Single task:**
 ```
-Fetch https://raw.githubusercontent.com/perandre/night-shift/v2/tasks/05-tests.md
-and execute it against this repository. Read CLAUDE.md for the Night Shift Config
-section (test commands, build commands, key pages, push protocol, etc.).
+Night Shift docs — multi-repo summary
+
+| Repo         | Status   | Notes                                    |
+|--------------|----------|------------------------------------------|
+| frisk-survey | ok       | 2 ADRs added; suggestions updated        |
+| snippy       | silent   | no user-facing changes since last run    |
+| phone-home   | ok       | changelog entry for v0.4 release         |
 ```
 
-**Bundle (recommended when trigger slots are limited):**
-```
-Fetch https://raw.githubusercontent.com/perandre/night-shift/v2/bundles/2-code-verified.md
-and execute it against this repository. Read CLAUDE.md for the Night Shift Config
-section.
-```
+## The bundles
 
-The trigger contains no orchestration logic — all of it lives here.
+There are four bundles. Each bundle is a group of related tasks that run together. Bundles can be scheduled independently — typically plans nightly, the others on a slower cadence.
 
-## Per-project config
+| Bundle | What it does | Mode |
+|---|---|---|
+| **plans** | Implements the next phase of a planning document | Opens one PR per plan |
+| **docs** | Updates changelog, user guide, ADRs, suggestions | Direct to main |
+| **code-fixes** | Adds tests, fixes accessibility, completes translations | Direct to main |
+| **audits** | Finds security / bug / SEO / performance issues | Opens one PR per issue area |
 
-Add a **Night Shift Config** section to each project's `CLAUDE.md`. Recommended template:
+See `manifest.yml` for the full list of tasks in each bundle, what each task does, and the order they run in. **`manifest.yml` is the single source of truth** — to add a task, rename one, change ordering, or move a task to a different bundle, edit only that file.
+
+## Stopping Night Shift on a project
+
+Add **either** of these to opt a project out:
+- An empty file `.nightshift-skip` at the repo root
+- A line `Night Shift: skip` in `CLAUDE.md`, `AGENTS.md`, or `README.md`
+
+The wrapper will report `opted-out` for that repo and move on without touching anything.
+
+## Customising per project
+
+A project can override the defaults by adding a `## Night Shift Config` section to its `CLAUDE.md`. All fields are optional — anything unset uses sensible defaults. Example:
 
 ```markdown
 ## Night Shift Config
-- Tasks: 0, 1, 2, 4, 5, 6, 8, 9
+- Tasks: build-planned-features, update-changelog, add-tests, find-security-issues
 - Doc language: Norwegian (nb)
 - Test command: npm test
 - Build command: npm run build
 - Push: git push mirror main && git push origin main
-- Key pages: /dashboard, /surveys, /people, /survey/demo
+- Key pages: /dashboard, /surveys, /people
 - Changelog format: "## Uke NN / ### Title / - Bullet"
 ```
 
-Adjust the task list, push protocol, key pages, and language to match the project.
+If you don't add this section, Night Shift autodetects test/build commands from your `package.json` and runs every applicable task.
 
-### Is config strictly required?
+## How to add a project, add a task, or run something now
 
-No — the bundles will still run without it, but behavior will be uneven:
+See **[HOW-TO.md](HOW-TO.md)** — five copy-paste recipes covering the common operations.
 
-**What breaks without config:**
-- **Task subset filter** — every task in a bundle attempts to run. Tasks self-skip when there's nothing to do, so this is mostly noise, not damage.
-- **Key pages** — a11y (06), SEO (10), perf (11) won't know which routes to focus on and will guess from the codebase.
-- **Push protocol** — if you push to multiple remotes (e.g. `mirror` + `origin`), only `origin` gets the commits unless the config says otherwise.
-- **Doc language** — changelog, user manual, ADR, suggestions will pick whatever the existing docs use, or default to English.
-- **Changelog format** — task 01 will mimic existing entries; if there are none, it'll invent one.
+## How it works under the hood
 
-**What still works without config:**
-- Test/build commands — tasks autodetect from `package.json` (`npm test`, `pnpm test`, etc.).
-- Git default branch — read from `git remote show origin`.
+(For night shift maintainers — feel free to skip.)
 
-## Version pinning
+The `tasks/` directory contains one prompt file per task. The `bundles/` directory contains one prompt per bundle (which references its tasks) and one `multi-*.md` wrapper per bundle (which loops over multiple repos via subagents). A scheduled trigger fetches a `multi-*.md` URL and executes it. Each target repo is processed in its own `Task` subagent so context stays clean across repos.
 
-Triggers reference a tagged version in the raw URL (`v2`, `v2`, ...).
+`manifest.yml` is the source of truth for what tasks exist and how they're grouped. Bundle prompts reference task IDs from the manifest.
 
-- **Update all projects:** create a new tag, bump the version in each project's triggers.
-- **Test changes:** point one project at a branch URL before tagging.
-- **Roll back:** point triggers at the previous tag.
+Versioning uses git tags (`v1`, `v2`, ...) on this repo. Triggers reference a tagged version in the raw URL so prompt edits don't go live until you cut a new tag.
 
-## Adding a new project
+## Layout
 
-1. Add the **Night Shift Config** section to the project's `CLAUDE.md`.
-2. Create scheduled triggers for the desired task subset, each fetching from `https://raw.githubusercontent.com/perandre/night-shift/v2/tasks/NN-*.md`.
-3. Run each task once manually (daytime) to validate output quality.
-4. Enable the schedule.
+```
+night-shift/
+├── manifest.yml             ← single source of truth
+├── README.md                ← you are here
+├── HOW-TO.md                ← copy-paste recipes
+├── tasks/                   ← one prompt file per task
+│   ├── build-planned-features.md
+│   ├── update-changelog.md
+│   └── ...
+├── bundles/                 ← one prompt per bundle + multi-repo wrappers
+│   ├── plans.md
+│   ├── docs.md
+│   ├── code-fixes.md
+│   ├── audits.md
+│   ├── multi-plans.md
+│   ├── multi-docs.md
+│   ├── multi-code-fixes.md
+│   ├── multi-audits.md
+│   └── _multi-runner.md
+└── runs/                    ← historical run logs across all projects
+    └── YYYY-MM.md
+```

@@ -1,0 +1,138 @@
+# Night Shift manifest
+#
+# This is the single source of truth for what tasks exist, what they do,
+# what bundle they belong to, and what order they run in. Edit this file
+# to add a task, rename one, change ordering, or move a task between bundles.
+#
+# Task ids match filenames in tasks/<id>.md (without the .md extension).
+# Bundle ids match filenames in bundles/<id>.md.
+#
+# Mode values:
+#   direct-to-main  — task commits straight to the default branch
+#   pull-request    — task creates a feature branch and opens a PR
+#
+# Parallelism values (per bundle):
+#   independent     — tasks can run in any order, no inter-task dependency
+#   sequential      — tasks must run in declared order, with verification between
+#
+# stop_on_failure (per bundle): if true, abort the bundle when a task fails
+# verification. Use for code-changing bundles where each task assumes a green baseline.
+
+bundles:
+  plans:
+    title: Build planned features
+    description: Picks one pending phase from a docs/*-PLAN.md file and implements it.
+    schedule_hint: nightly
+    parallelism: independent
+    stop_on_failure: false
+  docs:
+    title: Update documentation
+    description: Refresh changelog, user guide, decision records, and suggestion list.
+    schedule_hint: weekly
+    parallelism: independent
+    stop_on_failure: false
+  code-fixes:
+    title: Fix code quality issues
+    description: Add tests, fix accessibility issues, complete missing translations.
+    schedule_hint: weekly
+    parallelism: sequential
+    stop_on_failure: true
+  audits:
+    title: Audit and propose PRs
+    description: Find security, bug, SEO, and performance issues. Open one PR per area.
+    schedule_hint: weekly
+    parallelism: independent
+    stop_on_failure: false
+
+tasks:
+  - id: build-planned-features
+    title: Build planned features
+    description: Picks the next pending phase from a docs/*-PLAN.md file and implements it on a feature branch.
+    bundle: plans
+    mode: pull-request
+    order: 1
+    needs: [test, build]
+
+  - id: update-changelog
+    title: Update changelog
+    description: Adds entries for any user-facing changes since the last release.
+    bundle: docs
+    mode: direct-to-main
+    order: 1
+
+  - id: update-user-guide
+    title: Update user guide
+    description: Generates and refreshes end-user documentation from UI routes.
+    bundle: docs
+    mode: direct-to-main
+    order: 2
+
+  - id: document-decisions
+    title: Document decisions
+    description: Captures architectural decisions visible in code and git history as ADRs.
+    bundle: docs
+    mode: direct-to-main
+    order: 3
+
+  - id: suggest-improvements
+    title: Suggest improvements
+    description: Analyzes the codebase for improvement ideas to pitch to stakeholders.
+    bundle: docs
+    mode: direct-to-main
+    order: 4
+
+  - id: add-tests
+    title: Add tests
+    description: Finds coverage gaps and adds one new test following project conventions.
+    bundle: code-fixes
+    mode: direct-to-main
+    order: 1
+    needs: [test, build]
+
+  - id: improve-accessibility
+    title: Improve accessibility
+    description: Audits key pages for WCAG 2.1 AA violations and fixes one issue.
+    bundle: code-fixes
+    mode: direct-to-main
+    order: 2
+    needs: [test, build]
+
+  - id: translate-ui
+    title: Translate UI
+    description: Finds hardcoded UI strings and extracts them to translation files.
+    bundle: code-fixes
+    mode: direct-to-main
+    order: 3
+    needs: [test, build]
+
+  - id: find-security-issues
+    title: Find security issues
+    description: Scans for OWASP Top 10 patterns and opens a PR for each issue found.
+    bundle: audits
+    mode: pull-request
+    order: 1
+    needs: [test, build]
+
+  - id: find-bugs
+    title: Find bugs
+    description: Looks for subtle bugs, race conditions, and edge cases. Opens a PR per bug.
+    bundle: audits
+    mode: pull-request
+    order: 2
+    needs: [test, build]
+
+  - id: improve-seo
+    title: Improve SEO
+    description: Reviews page metadata, Open Graph tags, structured data, and robots directives.
+    bundle: audits
+    mode: pull-request
+    order: 3
+    needs: [test, build]
+
+  - id: improve-performance
+    title: Improve performance
+    description: Reviews bundle size, image optimization, render-blocking resources, and database query patterns.
+    bundle: audits
+    mode: pull-request
+    order: 4
+    needs: [test, build]
