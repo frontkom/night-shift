@@ -62,18 +62,35 @@ The trigger contains no orchestration logic — all of it lives here.
 
 ## Per-project config
 
-Each project's `CLAUDE.md` should include a section like:
+Add a **Night Shift Config** section to each project's `CLAUDE.md`. Recommended template:
 
 ```markdown
 ## Night Shift Config
-- Tasks: 1, 2, 3, 5, 8, 10
-- Doc language: Norwegian
-- Changelog format: "## Uke NN / ### Title / - Bullet"
+- Tasks: 0, 1, 2, 4, 5, 6, 8, 9
+- Doc language: Norwegian (nb)
 - Test command: npm test
 - Build command: npm run build
 - Push: git push mirror main && git push origin main
-- Key pages: /dashboard, /surveys, /people
+- Key pages: /dashboard, /surveys, /people, /survey/demo
+- Changelog format: "## Uke NN / ### Title / - Bullet"
 ```
+
+Adjust the task list, push protocol, key pages, and language to match the project.
+
+### Is config strictly required?
+
+No — the bundles will still run without it, but behavior will be uneven:
+
+**What breaks without config:**
+- **Task subset filter** — every task in a bundle attempts to run. Tasks self-skip when there's nothing to do, so this is mostly noise, not damage.
+- **Key pages** — a11y (06), SEO (10), perf (11) won't know which routes to focus on and will guess from the codebase.
+- **Push protocol** — if you push to multiple remotes (e.g. `mirror` + `origin`), only `origin` gets the commits unless the config says otherwise.
+- **Doc language** — changelog, user manual, ADR, suggestions will pick whatever the existing docs use, or default to English.
+- **Changelog format** — task 01 will mimic existing entries; if there are none, it'll invent one.
+
+**What still works without config:**
+- Test/build commands — tasks autodetect from `package.json` (`npm test`, `pnpm test`, etc.).
+- Git default branch — read from `git remote show origin`.
 
 ## Version pinning
 
