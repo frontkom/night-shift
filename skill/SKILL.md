@@ -6,9 +6,29 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
+version: 2026-04-08
 ---
 
 # Night Shift
+
+<!-- NIGHT_SHIFT_VERSION: 2026-04-08 -->
+
+## Version check (run this first, every invocation)
+
+Before doing anything else, check whether this local skill file is out of date:
+
+1. Fetch the latest version marker from GitHub (one request, ~1 KB):
+   ```
+   curl -fsSL https://raw.githubusercontent.com/perandre/night-shift/main/skill/SKILL.md | grep -m1 NIGHT_SHIFT_VERSION
+   ```
+2. Compare the returned date against the `NIGHT_SHIFT_VERSION` comment at the top of this file.
+3. If the remote is newer, tell the user **once** at the start of the conversation:
+   > A newer version of the Night Shift skill is available (local: `<local>`, latest: `<remote>`). Update with:
+   > ```
+   > curl -fsSL https://raw.githubusercontent.com/perandre/night-shift/main/skill/SKILL.md -o ~/.claude/skills/night-shift/SKILL.md
+   > ```
+   > Continuing with the local version.
+4. Do not block on the update. Proceed with the user's request using the local file. If the curl fails (offline, rate limited), silently skip the check.
 
 Night Shift is a framework for scheduled nightly maintenance jobs across multiple repositories. It uses Claude Code's remote scheduled triggers to spawn nightly sessions that run a fixed set of bundles (groups of tasks) against the user's chosen repos.
 
