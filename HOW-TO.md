@@ -1,60 +1,40 @@
 # Night Shift — How To
 
-Five recipes for the common operations. Each one is a single edit or click.
+## For users
 
-## 1. Add a new project
+### Set up, add a project, check status
+Type `/night-shift` in any Claude Code session. The skill walks you through it and asks before any scheduled-trigger change.
 
-You want Night Shift to start running on a new repository.
+### Pause Night Shift on a project
+In the project repo, do either of these:
+- `touch .nightshift-skip` at the repo root
+- Add a line `Night Shift: skip` to `CLAUDE.md`, `AGENTS.md`, or `README.md`
 
-1. Decide if you want to override any defaults. If yes, add a `## Night Shift Config` section to that project's `CLAUDE.md` (see the section "Customising per project" in `README.md`). If you're happy with defaults, skip this — Night Shift will autodetect test/build commands and run every applicable task.
-2. Open https://claude.ai/code/scheduled and edit each Night Shift trigger you want this project included in. Add a new entry to the `sources[]` array:
-   ```json
-   {"git_repository": {"url": "https://github.com/your-org/your-new-repo"}}
-   ```
-3. That's it. The next scheduled run picks it up. The first morning you'll see `docs/NIGHTSHIFT-HISTORY.md` appear in the new repo with a one-line entry.
+The next run reports `opted-out` and skips it. Remove the marker to re-enable.
 
-## 2. Add a new task
+### Run a bundle now without waiting
+Open https://claude.ai/code/scheduled, click a trigger, click **Run now**. The summary table appears in the run output.
 
-You want Night Shift to do something it doesn't currently do — say, "check for outdated dependencies".
+### Customise per project
+Add a `## Night Shift Config` section to the project's `CLAUDE.md`. All fields optional — see the example in `README.md`. Without it, Night Shift autodetects sensible defaults.
 
-1. Create `tasks/check-outdated-deps.md` describing what to do, how to verify, and how to commit. Use any existing task file as a template — they all follow the same structure.
-2. Add an entry to `manifest.yml`:
+## For framework maintainers
+
+### Add a new task
+1. Create `tasks/<task-id>.md` with the full task prompt. Copy any existing task file as a template.
+2. Add an entry under `tasks:` in `manifest.yml`:
    ```yaml
    - id: check-outdated-deps
      title: Check for outdated dependencies
-     description: Reports outdated packages and opens a PR with the safest upgrades.
-     bundle: audits           # or whichever bundle fits
-     mode: pull-request       # or direct-to-main
-     order: 5                 # last in its bundle
+     description: Reports outdated packages and opens a PR.
+     bundle: audits
+     mode: pull-request
+     order: 5
    ```
-3. Commit and push to `main`. Triggers fetch from `main` at runtime, so the change is live on the next scheduled run. The bundle prompt resolves its task list from `manifest.yml` dynamically — **no bundle file edit needed**.
+3. Commit and push to `main`. The bundle prompt resolves its task list from `manifest.yml` at runtime — **no bundle file edit needed**. Live on the next run.
 
-## 3. Rename a task
+### Rename or reorder a task
+Edit `manifest.yml`. If the `id` changes, `git mv` the `tasks/<id>.md` file to match. Commit and push to `main`. Live on the next run.
 
-You want `find-bugs` to be called `hunt-for-bugs` instead.
-
-1. `git mv tasks/find-bugs.md tasks/hunt-for-bugs.md`
-2. Update the `id:` and `title:` in `manifest.yml`.
-3. Commit and push to `main`. The change is live on the next scheduled run. The bundle file does **not** need updating — it resolves task IDs from the manifest dynamically.
-
-(Renaming bundles is similar: rename the file in `bundles/`, update its key under `bundles:` in the manifest, and update the multi-* wrapper that calls it.)
-
-## 4. Stop Night Shift on a project
-
-You want Night Shift to leave a project alone, but you don't want to remove it from the trigger configuration.
-
-In the project repo, do **either** of these:
-- `touch .nightshift-skip` at the repo root
-- Add a line `Night Shift: skip` anywhere in `CLAUDE.md`, `AGENTS.md`, or `README.md`
-
-The next run will report `opted-out` for that project and skip it. Removing the marker re-enables it.
-
-## 5. Run a bundle right now without waiting
-
-You don't want to wait for the schedule.
-
-1. Open https://claude.ai/code/scheduled.
-2. Click the trigger you want to run.
-3. Click **"Run now"**.
-
-That's it. The summary table appears in the run output when it finishes — usually a few minutes per repo, longer if a plan implementation is involved.
+### Add or rename a bundle
+Edit the `bundles:` map in `manifest.yml`, then rename/create the matching `bundles/<id>.md` and `bundles/multi-<id>.md` files. Update the trigger prompt to point at the new `multi-*` URL.
