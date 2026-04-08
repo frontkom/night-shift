@@ -1,4 +1,4 @@
-# Task 05 — Tests
+# Tests
 
 Find coverage gaps and add tests following the project's existing patterns.
 

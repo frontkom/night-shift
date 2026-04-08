@@ -27,54 +27,35 @@ That's the canonical reference. If you ever need to check what a bundle does, lo
 
 ## Operations
 
-When invoked, ask the user what they want to do:
-
-- **Set up** — create the three scheduled triggers (most common; see below)
-- **Test once** — run all bundles against the current repo as a one-shot, no scheduling
-- **Add a project** — add one or more repos to existing triggers
-- **Remove a project** — remove a repo from triggers (or have them add `.nightshift-skip` for soft pause)
-- **Status** — list the user's current Night Shift triggers and what they do
-- **Update the skill** — re-fetch this SKILL.md to get the latest version
+Default to **Setup** unless the user clearly asks for something else (test once, add/remove a repo, status, update the skill).
 
 ## Setup runbook
 
-**Step 1 — Greet briefly.**
+**Step 1 — Welcome and explain, then ask one question.**
 
-> I'll set up Night Shift on your account. It creates three nightly scheduled jobs: one for plans, one for docs + code fixes, one for audits. I need a list of GitHub repositories to manage. You can change them later.
+Send a single message that welcomes, states what Night Shift will do for them, and asks only for the repo list. Example:
 
-**Step 2 — Collect the repo list.**
+> **Welcome to Night Shift.** I'll set up three scheduled jobs that run every night on your chosen repos:
+>
+> - **Plans** — implements any plan files you've left in the repo
+> - **Docs + code fixes** — keeps docs in sync with code and fixes small issues
+> - **Audits** — opens PRs for security, bugs, SEO, and performance findings
+>
+> You can pause, add, or remove repos any time.
+>
+> **One question to get started: which GitHub repositories should Night Shift manage?** Paste URLs, one per line or comma-separated (`owner/repo` or full URL, personal or org, both work).
 
-Ask:
+Accept any of: `https://github.com/owner/repo`, `owner/repo`, `git@github.com:owner/repo.git`. Normalise to `https://github.com/owner/repo` (strip `.git`). If the user gives zero repos, stop and tell them to come back when they have at least one.
 
-> Which GitHub repositories should Night Shift manage? Paste the URLs (one per line, or comma-separated). Personal and org repos both work, as long as the remote environment can clone and push to them.
+**Step 2 — Confirm and create.**
 
-Accept any of: `https://github.com/owner/repo`, `owner/repo`, `git@github.com:owner/repo.git`. Normalise to `https://github.com/owner/repo` (strip `.git`). If the user gives zero repos, abort and tell them to come back when they have at least one.
+Once you have the repo list, pick sensible defaults for everything else (schedule below, Europe/Oslo unless you already know otherwise) and show a single concise confirmation:
 
-**Step 3 — Confirm the schedule.**
+> About to create three nightly triggers on your account for: `<repo list>`. Schedule: plans 01:00, docs+fixes 03:00, audits 05:00 (Europe/Oslo). Proceed?
 
-Default schedule (Europe/Oslo local time → UTC for cron):
+Default schedule → UTC cron: plans `0 23 * * *`, docs+code-fixes `0 1 * * *`, audits `0 3 * * *`. If the user wants to tweak schedule or timezone, do it now, then proceed on explicit confirmation. If they decline, stop.
 
-| Job | Local | UTC cron |
-|---|---|---|
-| plans | 01:00 | `0 23 * * *` |
-| docs + code-fixes | 03:00 | `0 1 * * *` |
-| audits | 05:00 | `0 3 * * *` |
-
-Show this and ask:
-
-> Schedule looks like this. Press enter to accept, or tell me a different timezone or hour for any of them.
-
-If they change anything, recompute UTC and confirm. Ask for the user's timezone if you don't already know it.
-
-**Step 4 — Confirm before creating.**
-
-Before calling any tool, summarise what you're about to do:
-
-> I'm going to create three scheduled triggers in your account, each cloning these repos: <list>. Each trigger fetches a multi-repo wrapper from github.com/perandre/night-shift/main and dispatches a Task subagent per repo. Confirm to proceed?
-
-Wait for explicit user confirmation. If they decline, stop.
-
-**Step 5 — Create the triggers.**
+**Step 3 — Create the triggers.**
 
 Use the `/schedule` skill or the `RemoteTrigger` tool, whichever is available. All three triggers must use:
 
@@ -110,7 +91,7 @@ Use the `/schedule` skill or the `RemoteTrigger` tool, whichever is available. A
   Fetch https://raw.githubusercontent.com/perandre/night-shift/main/bundles/multi-audits.md and execute it. The wrapper auto-discovers all target repositories cloned into this session, dispatches a Task subagent per target repo to run find-security-issues, find-bugs, improve-seo, and improve-performance (each opening its own PR).
   ```
 
-**Step 6 — Handle the trigger cap.**
+**Step 4 — Handle the trigger cap.**
 
 If the user's plan rejects the create with `trigger_limit_reached`, tell them:
 
@@ -118,7 +99,7 @@ If the user's plan rejects the create with `trigger_limit_reached`, tell them:
 
 The cap appears to count enabled triggers. Disabled ones may also count, depending on plan tier.
 
-**Step 7 — Summarise.**
+**Step 5 — Summarise.**
 
 Once all three triggers are created, print:
 

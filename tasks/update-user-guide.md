@@ -1,4 +1,4 @@
-# Task 02 — User Manual
+# User Manual
 
 Generate or update end-user documentation derived from UI routes and components.
 

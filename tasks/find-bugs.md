@@ -1,4 +1,4 @@
-# Task 09 — Bug Hunt
+# Bug Hunt
 
 Look for subtle bugs, missing logic, race conditions, and edge cases. **One PR per issue.**
 

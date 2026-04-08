@@ -1,4 +1,4 @@
-# Task 04 — Suggestions
+# Suggestions
 
 Analyze the codebase for improvement ideas to pitch to the client. This is a **discovery** task — do not change code.
 

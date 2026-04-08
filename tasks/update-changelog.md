@@ -1,4 +1,4 @@
-# Task 01 — Changelog
+# Changelog
 
 Update the project's changelog if there are new user-facing changes since the last entry.
 

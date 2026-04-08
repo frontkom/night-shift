@@ -1,4 +1,4 @@
-# Task 06 — Accessibility
+# Accessibility
 
 Audit key pages for WCAG 2.1 AA violations and fix one issue tonight.
 

@@ -1,4 +1,4 @@
-# Task 08 — Security Audit
+# Security Audit
 
 Scan for OWASP Top 10 patterns. **One PR per issue.**
 

@@ -1,4 +1,4 @@
-# Task 03 — ADR (Architectural Decision Records)
+# ADR (Architectural Decision Records)
 
 Document architectural decisions visible in code, config, and git history.
 

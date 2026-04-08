@@ -1,4 +1,4 @@
-# Task 07 — i18n Completeness
+# i18n Completeness
 
 Find hardcoded UI strings that should be localized and fix them.
 

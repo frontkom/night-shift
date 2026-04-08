@@ -1,4 +1,4 @@
-# Task 00 — Implement Plans
+# Implement Plans
 
 Scan `docs/` for plan files matching `*-PLAN.md`. If any contain unimplemented phases with concrete file paths and code specs, implement the **next pending phase only** and open it as a PR (one PR per plan touched).
 

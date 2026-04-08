@@ -1,4 +1,4 @@
-# Task 10 — SEO & Metadata
+# SEO & Metadata
 
 Review page metadata across the site. **One PR with all fixes.**
 

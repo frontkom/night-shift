@@ -1,4 +1,4 @@
-# Task 11 — Performance
+# Performance
 
 Review performance across key pages. **One PR with all fixes.**
 
