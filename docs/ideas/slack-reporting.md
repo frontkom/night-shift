@@ -16,7 +16,10 @@ workspace.
 - The audits wrapper reads each repo's `docs/NIGHTSHIFT-HISTORY.md` for the
   night's rows from all three bundles, composes a Block Kit message, and
   `curl`s it to a Slack incoming webhook.
-- Message layout: one section per repo with inline PR links.
+- Message layout: one section per repo with inline PR links. For monorepos
+  with `apps:` configured, `scope: app` rows are grouped under the app so
+  reviewers can see at a glance which team owns each finding. `scope: repo`
+  rows (ADRs, suggestions, secret scans) appear once at the repo level.
   ```
   🌙 Night Shift — 2026-04-09
 
@@ -24,6 +27,15 @@ workspace.
     ✓ plans: implemented 2 plans → #142
     ✓ docs: synced README → #143
     • audits: 1 security finding → #144
+
+  owner/turbo-site
+    apps/web
+      ✓ plans: phase 3 implemented → #210
+      ✓ audits: perf sweep → #211
+    apps/admin
+      • audits: 1 bug fix → #212
+    (repo-wide)
+      ✓ docs: 1 ADR added
 
   owner/repo-b
     — skipped (.nightshift-skip)

@@ -17,6 +17,14 @@
 #
 # stop_on_failure (per bundle): if true, abort the bundle when a task fails
 # verification. Use for code-changing bundles where each task assumes a green baseline.
+#
+# Scope values (per task):
+#   app             — (default) in a monorepo with `apps:` configured, the
+#                     multi-runner dispatches one subagent per app. In single-app
+#                     repos this behaves identically to `repo`.
+#   repo            — always runs once per repo, even when `apps:` is set. Use
+#                     for cross-cutting work (ADRs, repo-wide suggestions,
+#                     secret scans) that shouldn't be duplicated per app.
 
 bundles:
   plans:
@@ -51,6 +59,7 @@ tasks:
     bundle: plans
     mode: pull-request
     order: 1
+    scope: app
     needs: [test, build]
 
   - id: update-changelog
@@ -59,6 +68,7 @@ tasks:
     bundle: docs
     mode: direct-to-main
     order: 1
+    scope: app
 
   - id: update-user-guide
     title: Update user guide
@@ -66,6 +76,7 @@ tasks:
     bundle: docs
     mode: direct-to-main
     order: 2
+    scope: app
 
   - id: document-decisions
     title: Document decisions
@@ -73,6 +84,7 @@ tasks:
     bundle: docs
     mode: direct-to-main
     order: 3
+    scope: repo
 
   - id: suggest-improvements
     title: Suggest improvements
@@ -80,6 +92,7 @@ tasks:
     bundle: docs
     mode: direct-to-main
     order: 4
+    scope: repo
 
   - id: add-tests
     title: Add tests
@@ -87,6 +100,7 @@ tasks:
     bundle: code-fixes
     mode: direct-to-main
     order: 1
+    scope: app
     needs: [test, build]
 
   - id: improve-accessibility
@@ -95,6 +109,7 @@ tasks:
     bundle: code-fixes
     mode: direct-to-main
     order: 2
+    scope: app
     needs: [test, build]
 
   - id: translate-ui
@@ -103,6 +118,7 @@ tasks:
     bundle: code-fixes
     mode: direct-to-main
     order: 3
+    scope: app
     needs: [test, build]
 
   - id: find-security-issues
@@ -111,6 +127,7 @@ tasks:
     bundle: audits
     mode: pull-request
     order: 1
+    scope: app
     needs: [test, build]
 
   - id: find-bugs
@@ -119,6 +136,7 @@ tasks:
     bundle: audits
     mode: pull-request
     order: 2
+    scope: app
     needs: [test, build]
 
   - id: improve-seo
@@ -127,6 +145,7 @@ tasks:
     bundle: audits
     mode: pull-request
     order: 3
+    scope: app
     needs: [test, build]
 
   - id: improve-performance
@@ -135,4 +154,5 @@ tasks:
     bundle: audits
     mode: pull-request
     order: 4
+    scope: app
     needs: [test, build]

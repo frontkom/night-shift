@@ -3,10 +3,12 @@
 Document architectural decisions visible in code, config, and git history.
 
 ## Read project config first
-Read `CLAUDE.md` for **Night Shift Config**: doc language, push protocol. If task 3 is not in the task list, exit.
+Read `CLAUDE.md` for **Night Shift Config**: doc language, push protocol. If this task is not in the task list, exit.
+
+**Scoping.** This task is `scope: repo` in `manifest.yml`. ADRs describe repo-wide architectural choices, so even in a monorepo with `apps:` configured, this task runs **once per repo**, not once per app. Ignore any `app_path` passed by the multi-runner — the multi-docs-and-code-fixes wrapper will only dispatch this task during the first work-item of a repo.
 
 ## Steps
-1. Look in `docs/adr/` (create if missing). Read existing ADRs to learn the project's format and numbering.
+1. Look in `docs/adr/` at the **repo root** (create if missing). Read existing ADRs to learn the project's format and numbering. Do not write ADRs inside an app subdirectory.
 2. Scan the codebase and `git log` for decisions that are not yet documented:
    - Framework / library choices (auth, db, cache, queue, AI provider, etc.)
    - Notable architectural patterns (monorepo layout, server vs client boundaries, caching strategies)
