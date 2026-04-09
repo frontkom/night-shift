@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-08
+version: 2026-04-09
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-08 -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-09 -->
 
 ## Version check (run this first, every invocation)
 
@@ -50,6 +50,31 @@ That's the canonical reference. If you ever need to check what a bundle does, lo
 Default to **Setup** unless the user clearly asks for something else (test once, add/remove a repo, status, update the skill).
 
 ## Setup runbook
+
+**Step 0 — Check for existing Night Shift triggers first.**
+
+Before welcoming the user, list their scheduled triggers via the `RemoteTrigger` tool (`action: "list"`) and filter to names starting with `night-shift-bundle-`. Then:
+
+- **If none exist** → proceed to Step 1 (fresh setup).
+- **If some or all three exist** → don't run fresh setup. Instead, show the user what's already in place and ask what they want to do:
+
+  > Night Shift is already set up on your account:
+  >
+  > | Job | Schedule | Repos |
+  > |---|---|---|
+  > | plans | `<local time>` | `<repo list>` |
+  > | docs + code-fixes | `<local time>` | `<repo list>` |
+  > | audits | `<local time>` | `<repo list>` |
+  >
+  > What would you like to do?
+  > - **Add a repo** to all three jobs
+  > - **Remove a repo** from all three jobs
+  > - **Change the schedule** of one or more jobs
+  > - **Pause** a job (disable it)
+  > - **Delete everything** and start over
+  > - **Nothing** — just wanted to check
+
+  Dispatch to the matching runbook section (Add/remove a repo, Status, etc.) based on their answer. Never silently re-create triggers that already exist.
 
 **Step 1 — Welcome and explain, then ask one question.**
 
