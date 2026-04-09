@@ -6,14 +6,7 @@
 Type `/night-shift` in any Claude Code session. The skill walks you through it and asks before any scheduled-trigger change.
 
 ### Pick which tasks run per repo
-During setup, for each repo in your list, the picker shows all 12 tasks grouped by bundle (plans / docs / code-fixes / audits) with checkboxes. Defaults are all-on; the 4 audit tasks get a warning that they open PRs nightly when they find issues. Commands:
-
-- `3 5 8` — toggle tasks by number
-- `only 9 10` — select exclusively (turn off everything else)
-- `all plans` / `none audits` — bundle-level shortcuts
-- `all` / `none` — reset all on / off for this repo
-- `next` — accept and move to next repo
-- `back` — return to previous repo
+During setup, for each repo in your list, the skill opens a real keyboard-navigable checklist (Claude Code's `AskUserQuestion` UI) showing all 12 tasks in bundle order: plans, docs, code-fixes, audits. Use arrows + space to toggle, enter to confirm. Defaults are all-on; the 4 audit tasks come with a warning that they open PRs nightly when they find issues.
 
 The selection lives inside the trigger prompts as a `<night-shift-config>` YAML block, not in any per-repo file. To change a repo's selection after setup, run `/night-shift` and pick **Change tasks for a repo**.
 

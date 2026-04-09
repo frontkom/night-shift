@@ -11,7 +11,7 @@ version: 2026-04-09c
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-09c -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-09d -->
 
 ## Version check (run this first, every invocation)
 
@@ -99,50 +99,17 @@ For each repo in the list, in the order the user gave them, run the picker loop 
 
 **Picker defaults:** all 12 tasks on per repo. The 4 audit tasks get a one-line warning so the user understands the blast radius before accepting.
 
-**Picker loop** (repeat per repo until the user says `next`):
+**Picker loop** (one `AskUserQuestion` call per repo, in order):
 
-1. Render this block, pulling titles/descriptions from `manifest.yml` (fetch it once and cache for the session):
+1. Fetch `manifest.yml` once and cache it for the session. Build the 12 options in this fixed bundle order: plans (1), docs (2–5), code-fixes (6–8), audits (9–12).
 
-   ```
-   ─── <repo url> (repo N of M) ───
+2. Call `AskUserQuestion` with `multiSelect: true`. Use the repo url and progress (`repo N of M`) in the question text, and warn that the 4 audit tasks open a PR every night when they find something. Each option's `label` is the task id (e.g. `find-bugs`) and `description` is the human title from `manifest.yml`. **All 12 must be pre-selected as defaults** — the user deselects what they don't want.
 
-   Pick which Night Shift tasks should run on this repo. Defaults are all-on;
-   deselect what you don't want. The 4 audit tasks (9–12) open a PR every night
-   when they find something — enable deliberately.
+   The tool renders a real keyboard-navigable checklist (arrows + space to toggle, enter to confirm). Do not print a fake text checklist or ask for typed commands like "3 5 8" or "all plans" — those are gone.
 
-   Plans
-     [x] 1. build-planned-features — Build planned features
-   Docs
-     [x] 2. update-changelog       — Update changelog
-     [x] 3. update-user-guide      — Update user guide
-     [x] 4. document-decisions     — Document decisions (ADRs)
-     [x] 5. suggest-improvements   — Suggest improvements
-   Code fixes
-     [x] 6. add-tests              — Add tests
-     [x] 7. improve-accessibility  — Improve accessibility
-     [x] 8. translate-ui           — Translate UI strings
-   Audits  (each opens a PR every night when issues are found)
-     [x] 9. find-security-issues   — Find security issues
-     [x] 10. find-bugs             — Find bugs
-     [x] 11. improve-seo           — Improve SEO
-     [x] 12. improve-performance   — Improve performance
+3. Record the returned ids as `selection[repo]` and move to the next repo. If the user selected nothing, that's fine — record the empty set and the create step will skip the repo from `sources[]` for every trigger.
 
-   Commands:  "3 5 8" toggle   "only 9 10" select-exclusive
-              "all plans"      "none audits"  (bundle shortcuts)
-              "all" / "none"   "next"  "back"
-   ```
-
-2. Read the user's response. Apply the command to the current selection for this repo:
-   - Bare numbers (`3 5 8`) → toggle each.
-   - `only N M …` → set selection to exactly those ids.
-   - `all` / `none` → all 12 on / all 12 off.
-   - `all <bundle>` / `none <bundle>` → all tasks in that bundle (`plans`, `docs`, `code-fixes`, `audits`) on or off.
-   - `next` → store the selection for this repo and advance. If this was the last repo, exit the loop.
-   - `back` → pop to the previous repo, restore its selection, and re-render.
-
-3. **Reprint the full list with updated checkboxes every turn** so the user never loses track across conversational turns. Don't reply with only a diff.
-
-4. If a repo's final selection is empty, that's fine — it means "this repo has no nightly work at all". Record it and move on; the create step will skip it from `sources[]` on every trigger.
+4. There is no `back` step. If the user wants to change a previous repo's picks, they can use "Change tasks for a repo" after setup completes.
 
 **Step 3 — Schedule confirm.**
 

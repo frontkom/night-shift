@@ -5,8 +5,7 @@ Covers two things:
      in sync, no stale references, task files contain the right allowlist
      checks).
   2. Behavioural tests of the reference implementations in nightshift_ref.py
-     (YAML parsing, filter logic, picker state machine, parse-merge-rewrite
-     of trigger prompts).
+     (YAML parsing, filter logic, parse-merge-rewrite of trigger prompts).
 
 Run with:  python3 -m unittest tests.test_nightshift -v
 Or:        python3 tests/test_nightshift.py
@@ -30,7 +29,6 @@ if str(TESTS_DIR) not in sys.path:
 from nightshift_ref import (  # noqa: E402
     CLOSE,
     OPEN,
-    PickerState,
     add_repo,
     change_repo_tasks,
     filter_bundle_for_repo,
@@ -210,6 +208,7 @@ class TestSkillAndDocs(unittest.TestCase):
     def test_skill_has_picker(self):
         content = SKILL_PATH.read_text()
         self.assertIn("Per-repo task picker", content)
+        self.assertIn("AskUserQuestion", content)
         self.assertIn("<night-shift-config>", content)
         self.assertIn("Change tasks for a repo", content)
         self.assertIn("parse-merge-rewrite", content.lower().replace("–", "-"))
@@ -229,7 +228,7 @@ class TestSkillAndDocs(unittest.TestCase):
 
     def test_howto_documents_picker(self):
         content = HOWTO_PATH.read_text()
-        self.assertIn("picker", content.lower())
+        self.assertIn("checklist", content.lower())
         self.assertIn("Change tasks for a repo", content)
 
     def test_version_marker_present(self):
@@ -357,71 +356,6 @@ class TestBundleFilter(unittest.TestCase):
         self.assertTrue(any("typo-task" in w for w in warns))
 
 
-class TestPickerStateMachine(unittest.TestCase):
-    def setUp(self):
-        self.manifest = load_manifest()
-        self.ids = [t["id"] for t in self.manifest["tasks"]]
-        self.bundle_of = {t["id"]: t["bundle"] for t in self.manifest["tasks"]}
-        self.p = PickerState(
-            repos=["https://github.com/a/b", "https://github.com/c/d"],
-            all_task_ids=self.ids,
-            bundle_of=self.bundle_of,
-        )
-
-    def test_starts_all_on(self):
-        self.assertEqual(self.p.current(), set(self.ids))
-
-    def test_toggle_by_number(self):
-        self.p.apply("3 5")
-        self.assertNotIn(self.ids[2], self.p.current())
-        self.assertNotIn(self.ids[4], self.p.current())
-        # toggling again re-adds
-        self.p.apply("3")
-        self.assertIn(self.ids[2], self.p.current())
-
-    def test_only(self):
-        self.p.apply("only 1 2")
-        self.assertEqual(self.p.current(), {self.ids[0], self.ids[1]})
-
-    def test_none_then_all(self):
-        self.p.apply("none")
-        self.assertEqual(self.p.current(), set())
-        self.p.apply("all")
-        self.assertEqual(self.p.current(), set(self.ids))
-
-    def test_bundle_shortcut_none_audits(self):
-        self.p.apply("none audits")
-        audits = {t for t, b in self.bundle_of.items() if b == "audits"}
-        self.assertEqual(self.p.current() & audits, set())
-        # other bundles intact
-        self.assertTrue(self.p.current() - audits)
-
-    def test_bundle_shortcut_all_plans_after_none(self):
-        self.p.apply("none")
-        self.p.apply("all plans")
-        plans = {t for t, b in self.bundle_of.items() if b == "plans"}
-        self.assertEqual(self.p.current(), plans)
-
-    def test_next_and_back(self):
-        self.p.apply("none")
-        self.p.apply("next")
-        self.assertEqual(self.p.idx, 1)
-        self.assertEqual(self.p.current(), set(self.ids))  # second repo default
-        self.p.apply("back")
-        self.assertEqual(self.p.idx, 0)
-        self.assertEqual(self.p.current(), set())  # preserved
-
-    def test_next_past_end_sets_done(self):
-        self.p.apply("next")
-        self.p.apply("next")
-        self.assertTrue(self.p.done())
-
-    def test_back_at_start_noop(self):
-        result = self.p.apply("back")
-        self.assertEqual(result, "noop")
-        self.assertEqual(self.p.idx, 0)
-
-
 class TestParseMergeRewrite(unittest.TestCase):
     def test_add_repo_to_existing_block(self):
         new = add_repo(VALID_PROMPT, "https://github.com/x/y", ["add-tests"])
@@ -495,17 +429,10 @@ class TestEndToEndPipeline(unittest.TestCase):
         self.by_bundle = task_ids_by_bundle()
         self.manifest_ids = set(self.ids)
 
-    def _run_picker(self, repos: list[str], commands: list[list[str]]) -> list[set[str]]:
-        p = PickerState(
-            repos=repos,
-            all_task_ids=self.ids,
-            bundle_of=self.bundle_of,
-        )
-        for cmds in commands:
-            for c in cmds:
-                p.apply(c)
-            p.apply("next")
-        return p.selections
+    def _select(self, picks: list[set[str]]) -> list[set[str]]:
+        """Picker is now Claude Code's AskUserQuestion — selections come back
+        as plain sets per repo. Helper just echoes the test's intent."""
+        return picks
 
     def _build_trigger_prompt(
         self,
@@ -532,14 +459,13 @@ class TestEndToEndPipeline(unittest.TestCase):
         #   repo-a: everything except audits
         #   repo-b: only audits
         #   repo-c: nothing
-        selections = self._run_picker(
-            [repo_a, repo_b, repo_c],
-            [
-                ["none audits"],        # repo-a
-                ["only 9 10 11 12"],    # repo-b
-                ["none"],                # repo-c
-            ],
-        )
+        all_ids = set(self.ids)
+        audits = set(self.by_bundle["audits"])
+        selections = self._select([
+            all_ids - audits,  # repo-a
+            audits,            # repo-b
+            set(),             # repo-c
+        ])
         sel_map = {
             repo_a: selections[0],
             repo_b: selections[1],
@@ -595,7 +521,7 @@ class TestEndToEndPipeline(unittest.TestCase):
         skip creating that trigger. The reference check: filtered repos_map
         would be empty, which the skill interprets as 'don't create'."""
         repo = "https://github.com/user/lonely-repo"
-        selections = self._run_picker([repo], [["none"]])
+        selections = self._select([set()])
         sel_map = {repo: selections[0]}
 
         for bundle_key, bundle_ids in [
