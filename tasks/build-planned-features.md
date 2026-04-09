@@ -1,6 +1,6 @@
 # Implement Plans
 
-Scan the configured plans directory for plan files matching `*-PLAN.md`. If any contain unimplemented phases with concrete file paths and code specs, implement the **next pending phase only** and open it as a PR (one PR per plan touched).
+Implement the next pending phase of **one** plan file and open a PR for it. One PR per plan. The multi-plans wrapper fans out — it dispatches one subagent per plan file, so every pending plan gets its own run and its own PR on the same night. **Never scan for or process plans beyond the one you were given.**
 
 ## Read project config first
 Read `CLAUDE.md` for the **Night Shift Config** section (test command, build command, default branch, plans dir). If not present, use the defaults documented in `bundles/_multi-runner.md`. If this task is explicitly excluded by the config, exit silently.
@@ -15,10 +15,10 @@ Read `CLAUDE.md` for the **Night Shift Config** section (test command, build com
 When no `app_path` is provided (single-app repo), the plans directory defaults to `docs/` and branch / PR titles omit the app slug — the pre-monorepo behaviour.
 
 ## Steps
-1. Resolve `PLANS_DIR`: `<app_path>/<plans dir>` when scoped, else `<plans dir>` (default `docs`). List `$PLANS_DIR/*-PLAN.md`. Skip plans marked **deferred**, **blocked**, or **on hold**.
-2. For each remaining plan, identify phases. A phase is "implemented" if its referenced files / migrations / exports already exist with the described shape. Skip phases already done.
-3. Pick the **first** plan with a pending phase. Implement only that one phase tonight. (One phase per night, ever — never two in one run.)
-4. Check for an existing open PR for this plan to avoid duplicates:
+1. You were given a specific `PLAN_FILE` by the dispatcher. Read **only that file**. Do not list or scan the plans directory. If no `PLAN_FILE` was supplied (single-agent fallback, e.g. running this task directly on one repo), resolve `PLANS_DIR` and pick the first `*-PLAN.md` with a pending phase — but the normal path through the multi-plans wrapper always supplies `PLAN_FILE`.
+2. Identify the phases in `PLAN_FILE`. A phase is "implemented" if its referenced files / migrations / exports already exist with the described shape. Find the first pending phase. If none, exit silently.
+3. Implement exactly that one phase. One phase per plan per run — never advance two phases of the same plan in one run.
+4. Check for an existing open PR for this plan + phase to avoid duplicates:
    ```
    gh pr list --search "nightshift/plan in:title" --state open --json title
    ```
@@ -63,6 +63,6 @@ EOF
 ```
 
 ## Idempotency
-- One phase per night, ever. Never implement two phases in one run, even across different plans.
-- If no pending phases exist across all plans, exit silently.
-- If a PR for the same plan + phase is already open, exit silently — do not stack.
+- One phase per plan per run. Never advance two phases of the same plan in one run. Different plans run in different subagents and each get their own PR on the same night — that is the intended behaviour.
+- If the supplied `PLAN_FILE` has no pending phases, exit silently.
+- If a PR for the same plan + phase (+ app, when scoped) is already open, exit silently — do not stack.
