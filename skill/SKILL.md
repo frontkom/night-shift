@@ -181,7 +181,7 @@ Use the `RemoteTrigger` tool with `action: "create"`. **Do not** include `https:
   "job_config": {
     "ccr": {
       "session_context": {
-        "model": "claude-sonnet-4-6",
+        "model": "claude-opus-4-6[1m]",
         "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"],
         "sources": [
           { "git_repository": { "url": "https://github.com/owner/repo" } }
