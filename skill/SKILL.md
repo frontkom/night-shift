@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-09e
+version: 2026-04-09f
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-09e -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-09f -->
 
 ## Version check (run this first, every invocation)
 
@@ -105,11 +105,11 @@ For each repo in the list, in the order the user gave them, run the picker loop 
 
 2. Call `AskUserQuestion` with **3 questions**, all `multiSelect: true`. Mention the repo URL and progress (`repo N of M`) in the first question. Each option's `label` is the task id (e.g. `find-bugs`) and `description` is the human title from `manifest.yml`. Phrase questions to make clear all tasks are recommended.
 
-   **Question 1 — "Plans + Docs"** (header: `Plans+Docs`):
+   **Question 1 — "Plans"** (header: `Plans`):
    - `build-planned-features` — Build planned features
-   - `update-docs` — Update all documentation (changelog, user guide, ADRs, suggestions)
 
-   **Question 2 — "Code fixes"** (header: `Code fixes`):
+   **Question 2 — "Docs + Code fixes"** (header: `Docs+Code`):
+   - `update-docs` — Update all documentation (changelog, user guide, ADRs, suggestions)
    - `add-tests` — Add tests
    - `improve-accessibility` — Improve accessibility
    - `translate-ui` — Translate UI
