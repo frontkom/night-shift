@@ -123,7 +123,7 @@ Accept any of: `https://github.com/owner/repo`, `owner/repo`, `git@github.com:ow
 
 For each repo in the list, in the order the user gave them, run the picker loop below. You build up an in-memory map `selection[repo] = [task_id, …]` that gets baked into the trigger prompts in Step 4.
 
-**Picker defaults:** all 12 tasks recommended per repo.
+**Picker defaults:** all tasks recommended per repo.
 
 **Picker loop** (one `AskUserQuestion` call per repo, 3 questions per call):
 
@@ -148,7 +148,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    - `find-security-issues` — Find security issues
    - `find-bugs` — Find bugs
 
-   **Meta-option expansion.** `update-docs` is a picker shorthand, not a real task id. When building `selection[repo]`, expand it to the four individual doc task ids: `update-changelog`, `update-user-guide`, `document-decisions`, `suggest-improvements`. The allowlist and trigger config always use real task ids from `manifest.yml` — never the meta-option name.
+   **Meta-option expansion.** `update-docs` is a picker shorthand, not a real task id. When building `selection[repo]`, expand it to the five individual doc task ids: `update-changelog`, `update-user-guide`, `document-decisions`, `suggest-improvements`, `weekly-digest`. The allowlist and trigger config always use real task ids from `manifest.yml` — never the meta-option name.
 
 3. Merge selected ids from all 3 questions into `selection[repo]` and move to the next repo. If the user selected nothing across all questions, record the empty set — the create step will skip the repo.
 
