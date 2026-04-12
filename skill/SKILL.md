@@ -11,7 +11,7 @@ version: 2026-04-09j
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-12b -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-12c -->
 
 ## Version check (run this first, every invocation)
 
@@ -367,14 +367,23 @@ This runbook is used when the user chooses **GitHub Actions** in Step 0b. The Sc
 
 **GA-Step 1 — Welcome and explain, then ask for repos.**
 
-> **Welcome to Night Shift (GitHub Actions mode).** I'll generate a workflow file for each repo that runs nightly maintenance on GitHub's infrastructure.
+> **Welcome to Night Shift (GitHub Actions mode).** I'll generate a workflow file for each repo and create PRs on GitHub.
 >
-> **You'll need:**
-> - An `ANTHROPIC_API_KEY` in your GitHub **org secrets** (one key covers all repos)
->   (Org Settings → Secrets and variables → Actions → New organization secret)
->   Or per-repo if you prefer: repo Settings → Secrets and variables → Actions
+> **Prerequisites:**
+> - **GitHub CLI** (`gh`) — installed and authenticated (`gh auth status` to check)
+> - **`ANTHROPIC_API_KEY`** in your GitHub **org secrets** (one key covers all repos)
+>   Org Settings → Secrets and variables → Actions → New organization secret
+>   *(Or per-repo if you prefer: repo Settings → Secrets and variables → Actions)*
+>
+> That's it — no other tools or libraries needed. The workflow installs everything it needs on the runner automatically.
 >
 > **Which GitHub repositories should Night Shift manage?** Paste URLs, one per line or comma-separated.
+
+Before proceeding, verify `gh` is available and authenticated:
+```bash
+gh auth status
+```
+If not installed, tell the user to install it (`brew install gh` on macOS, or see https://cli.github.com) and authenticate with `gh auth login`. Do not proceed until `gh` is working.
 
 Accept any of: `https://github.com/owner/repo`, `owner/repo`, `git@github.com:owner/repo.git`. Normalise to `https://github.com/owner/repo`.
 
