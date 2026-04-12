@@ -18,7 +18,8 @@ In the project repo, do either of these:
 The next run reports `opted-out` and skips it. Remove the marker to re-enable.
 
 ### Run a bundle now without waiting
-Open https://claude.ai/code/scheduled, click a trigger, click **Run now**. The summary table appears in the run output.
+- **Schedule backend:** Open https://claude.ai/code/scheduled, click a trigger, click **Run now**.
+- **GitHub Actions:** Go to the repo's Actions tab → Night Shift → **Run workflow**.
 
 ### Customise per project
 Add a `## Night Shift Config` section to the project's `CLAUDE.md`. All fields optional — see the example in `README.md`. Without it, Night Shift autodetects sensible defaults.

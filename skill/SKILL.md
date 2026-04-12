@@ -11,7 +11,7 @@ version: 2026-04-09j
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-12c -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-12d -->
 
 ## Version check (run this first, every invocation)
 
@@ -96,7 +96,7 @@ Ask the user how they want Night Shift to run:
 > **How should Night Shift run?**
 >
 > - **Schedule** — runs via your Claude account's remote triggers (no API key needed, included in your subscription)
-> - **GitHub Actions** — runs on GitHub's infrastructure (requires an `ANTHROPIC_API_KEY` in your repo/org secrets)
+> - **GitHub Actions** — runs on GitHub's infrastructure (requires `gh` CLI and an `ANTHROPIC_API_KEY` in your org/repo secrets — see [setup docs](https://github.com/perandre/night-shift#github-actions))
 
 - If **Schedule** → continue to Step 1 below (existing flow, unchanged).
 - If **GitHub Actions** → jump to the **GitHub Actions setup runbook** section below.
@@ -369,13 +369,7 @@ This runbook is used when the user chooses **GitHub Actions** in Step 0b. The Sc
 
 > **Welcome to Night Shift (GitHub Actions mode).** I'll generate a workflow file for each repo and create PRs on GitHub.
 >
-> **Prerequisites:**
-> - **GitHub CLI** (`gh`) — installed and authenticated (`gh auth status` to check)
-> - **`ANTHROPIC_API_KEY`** in your GitHub **org secrets** (one key covers all repos)
->   Org Settings → Secrets and variables → Actions → New organization secret
->   *(Or per-repo if you prefer: repo Settings → Secrets and variables → Actions)*
->
-> That's it — no other tools or libraries needed. The workflow installs everything it needs on the runner automatically.
+> **Prerequisite:** GitHub CLI (`gh`) — installed and authenticated.
 >
 > **Which GitHub repositories should Night Shift manage?** Paste URLs, one per line or comma-separated.
 
@@ -448,9 +442,7 @@ PRs created:
 
 Next steps:
   1. Review and merge the PRs
-  2. Add ANTHROPIC_API_KEY to your GitHub org secrets (one key covers all repos)
-     (Org Settings → Secrets and variables → Actions → New organization secret)
-  3. Test with: Actions tab → Night Shift → Run workflow
+  2. Test with: Actions tab → Night Shift → Run workflow
 
 To pause Night Shift on a repo, disable the workflow in the Actions tab
 or add a .nightshift-skip file at the repo root.

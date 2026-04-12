@@ -26,7 +26,14 @@ In any Claude Code session, type:
 /night-shift
 ```
 
-Claude will ask what you want to do (set up, test once, add a repo, change tasks for a repo, status), walk you through it interactively, and confirm with you before creating any scheduled triggers.
+Claude will walk you through setup interactively — pick repos, choose tasks, confirm before anything is created.
+
+Night Shift supports two backends:
+
+| Backend | How it runs | Requirements |
+|---|---|---|
+| **Schedule** | Claude Code remote triggers (runs on your account) | Claude subscription — no API key needed |
+| **GitHub Actions** | GitHub-hosted runners via a reusable workflow | `ANTHROPIC_API_KEY` in org/repo secrets + `gh` CLI |
 
 During setup, `/night-shift` runs a **per-repo task picker** — for each repo you add, you choose which of the 12 tasks should run nightly. Defaults are all-on, with a warning that the 4 audit tasks open PRs when they find issues. To change a repo's selection later, re-run `/night-shift` and pick **Change tasks for a repo**.
 
@@ -52,6 +59,19 @@ Each affected repo gets a one-line entry in `docs/NIGHTSHIFT-HISTORY.md`.
 | **audits** | Finds security / bug / SEO / performance issues | One PR per area |
 
 `manifest.yml` is the single source of truth for what tasks exist, what they do, what bundle they belong to, and what order they run in. Edit one file to add, rename, reorder, or move tasks.
+
+## GitHub Actions
+
+To use the GitHub Actions backend, an org admin needs to add `ANTHROPIC_API_KEY` as an **organization secret**:
+
+1. Go to your org's **Settings → Secrets and variables → Actions**
+2. Click **New organization secret**
+3. Name: `ANTHROPIC_API_KEY`, Value: your Anthropic API key
+4. Repository access: select the repos Night Shift will manage (or "All repositories")
+
+This is a one-time setup. Once the secret exists, any repo member can run `/night-shift`, choose **GitHub Actions**, and the skill will create PRs with the workflow file — no local clone needed.
+
+You also need the [GitHub CLI](https://cli.github.com) (`gh`) installed and authenticated on your machine for the setup process.
 
 ## Stopping Night Shift on a project
 
