@@ -62,6 +62,15 @@ tasks:
     scope: app
     needs: [test, build]
 
+  - id: work-on-issues
+    title: Work on tagged issues
+    description: Picks up GitHub Issues labeled "night-shift" and implements fixes/features as PRs.
+    bundle: plans
+    mode: pull-request
+    order: 2
+    scope: repo
+    needs: [test, build]
+
   - id: update-changelog
     title: Update changelog
     description: Adds entries for any user-facing changes since the last release.
