@@ -11,7 +11,7 @@ version: 2026-04-09j
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-12f -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-12g -->
 
 ## Version check (run this first, every invocation)
 
@@ -197,6 +197,14 @@ A trigger is created only if at least one repo's selection has a non-empty inter
 
 Use the `RemoteTrigger` tool with `action: "create"`. **Do not** include `https://github.com/perandre/night-shift` in sources — that repo is public and writing run logs to it would leak private project information.
 
+**Fetching the environment_id (required, one-time).** The API requires a real `environment_id` — using `"default"` causes sessions to silently hang. To get it:
+
+1. Call `RemoteTrigger` with `action: "list"`.
+2. If any triggers exist, grab `job_config.ccr.environment_id` from one of them.
+3. If **no triggers exist** (new user), ask the user to create a throwaway scheduled task from the claude.ai UI (any prompt, any repo). Then `list` again to capture the `environment_id`. The throwaway trigger can be deleted afterwards.
+
+Cache the `environment_id` for all triggers in this session — it's the same for every trigger on the account.
+
 **Exact API body structure.** The RemoteTrigger API nests settings inside `job_config.ccr`. Here is a complete example for one trigger — follow this structure exactly:
 
 ```json
@@ -206,7 +214,7 @@ Use the `RemoteTrigger` tool with `action: "create"`. **Do not** include `https:
   "enabled": true,
   "job_config": {
     "ccr": {
-      "environment_id": "<real environment_id from an existing UI-created trigger — use RemoteTrigger list to find it; never use 'default'>",
+      "environment_id": "<real environment_id — see fetching instructions above; NEVER use 'default'>",
       "session_context": {
         "model": "claude-opus-4-6[1m]",
         "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"],
