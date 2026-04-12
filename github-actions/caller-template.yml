@@ -29,3 +29,6 @@ jobs:
       tasks: 'build-planned-features,update-changelog,update-user-guide,document-decisions,suggest-improvements,add-tests,improve-accessibility,translate-ui,find-security-issues,find-bugs,improve-seo,improve-performance'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      # Uncomment to enable Slack notifications after each Night Shift run.
+      # Add SLACK_WEBHOOK_URL to your repo secrets (Settings → Secrets → Actions).
+      # SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

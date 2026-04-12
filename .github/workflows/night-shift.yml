@@ -30,6 +30,8 @@ on:
         required: true
       NIGHTSHIFT_REPORT_URL:
         required: false
+      SLACK_WEBHOOK_URL:
+        required: false
 
 jobs:
   night-shift:
@@ -130,7 +132,7 @@ jobs:
 
           echo "${OUTPUT}"
 
-          # Persist output and duration for the reporting step
+          # Persist output and duration for reporting and Slack steps
           echo "${OUTPUT}" > /tmp/nightshift-output.txt
           echo "duration=${DURATION}" >> "$GITHUB_OUTPUT"
 
@@ -253,3 +255,67 @@ jobs:
           name: nightshift-report
           path: /tmp/nightshift-report/event.json
           retention-days: 90
+
+      - name: Notify Slack (success)
+        if: success() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          REPO="${{ github.repository }}"
+          REPO_NAME="${REPO#*/}"
+          DATE="$(date -u +%Y-%m-%d)"
+
+          OUTPUT=""
+          if [ -f /tmp/nightshift-output.txt ]; then
+            OUTPUT=$(cat /tmp/nightshift-output.txt)
+          fi
+
+          # Extract the summary table from output (lines starting with |)
+          SUMMARY_TABLE=$(echo "${OUTPUT}" | grep '^|' || echo "No summary table found.")
+
+          PAYLOAD=$(jq -n \
+            --arg text "*Night Shift — ${REPO_NAME}*  ·  ${DATE}" \
+            --arg table "${SUMMARY_TABLE}" \
+            '{
+              blocks: [
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: ($text + "\n\n```\n" + $table + "\n```")
+                  }
+                }
+              ]
+            }')
+
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "${PAYLOAD}" \
+            "${SLACK_WEBHOOK_URL}"
+
+      - name: Notify Slack (failure)
+        if: failure() && env.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          REPO="${{ github.repository }}"
+          REPO_NAME="${REPO#*/}"
+          DATE="$(date -u +%Y-%m-%d)"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          PAYLOAD=$(jq -n \
+            --arg text "*Night Shift — ${REPO_NAME}*  ·  ${DATE}\n\n:x: *Run failed.* <${RUN_URL}|View logs>" \
+            '{
+              blocks: [
+                {
+                  type: "section",
+                  text: {
+                    type: "mrkdwn",
+                    text: $text
+                  }
+                }
+              ]
+            }')
+
+          curl -sf -X POST -H 'Content-type: application/json' \
+            --data "${PAYLOAD}" \
+            "${SLACK_WEBHOOK_URL}"
