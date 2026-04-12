@@ -133,6 +133,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
 
    **Question 1 — "Plans + Docs"** (header: `Plans+Docs`):
    - `build-planned-features` — Build planned features
+   - `work-on-issues` — Work on tagged GitHub issues
    - `update-docs` — Update all documentation (changelog, user guide, ADRs, suggestions)
 
    **Question 2 — "Improve code quality"** (header: `Improve`):
