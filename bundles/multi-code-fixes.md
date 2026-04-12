@@ -28,7 +28,7 @@ For each discovered target repo, in directory-name order:
 
    At the end of your run, append ONE LINE to docs/NIGHTSHIFT-HISTORY.md (create the
    file if missing) under the `## Runs` heading at the top of the runs list. Format:
-       - YYYY-MM-DD code-fixes <ok|silent|failed>  <terse note, max 80 chars>
+       - YYYY-MM-DD code-fixes <app_path or —>  <ok|silent|failed>  <terse note, max 80 chars>
    Then commit + push the history file.
 
    Return EXACTLY ONE LINE to me in this format:

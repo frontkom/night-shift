@@ -28,7 +28,7 @@ jobs:
     # Update the SHA when you want to pick up new Night Shift features.
     uses: perandre/night-shift/.github/workflows/night-shift.yml@COMMIT_SHA
     with:
-      tasks: 'build-planned-features,update-changelog,update-user-guide,document-decisions,suggest-improvements,add-tests,improve-accessibility,translate-ui,find-security-issues,find-bugs,improve-seo,improve-performance'
+      tasks: 'build-planned-features,work-on-issues,update-changelog,update-user-guide,document-decisions,suggest-improvements,weekly-digest,add-tests,improve-accessibility,translate-ui,find-security-issues,find-bugs,improve-seo,improve-performance'
     secrets:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       # Uncomment to enable Slack notifications after each Night Shift run.

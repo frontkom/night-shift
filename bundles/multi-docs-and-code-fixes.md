@@ -44,7 +44,7 @@ For each discovered target repo, in directory-name order:
    Scoped config: {SCOPED_CONFIG}
    Docs allowed tasks: {DOCS_ALLOWED}     # YAML list; may be empty
    Code-fixes allowed tasks: {FIXES_ALLOWED}  # YAML list; may be empty
-   Run scope:repo tasks: {RUN_REPO_SCOPED_TASKS}  # when false, skip document-decisions + suggest-improvements
+   Run scope:repo tasks: {RUN_REPO_SCOPED_TASKS}  # when false, skip document-decisions, suggest-improvements, weekly-digest
 
    You are running TWO night-shift bundles in sequence: docs, then code-fixes.
 
@@ -53,9 +53,9 @@ For each discovered target repo, in directory-name order:
    Otherwise, fetch https://raw.githubusercontent.com/perandre/night-shift/main/bundles/docs.md
    and execute it against this repository, scoped to {APP_PATH} when it is not "—".
    Pass `allowed_tasks: DOCS_ALLOWED` to the inner bundle so each task self-filters.
-   When RUN_REPO_SCOPED_TASKS is false, also skip the `document-decisions` and
-   `suggest-improvements` tasks — they already ran in another app's subagent for
-   this repo. Capture the outcome (ok / silent / failed) as the docs result.
+   When RUN_REPO_SCOPED_TASKS is false, also skip the `document-decisions`,
+   `suggest-improvements`, and `weekly-digest` tasks — they already ran in another
+   app's subagent for this repo. Capture the outcome (ok / silent / failed) as the docs result.
 
    Step 2 — CODE FIXES (always run, regardless of docs outcome):
    If FIXES_ALLOWED is empty, skip this step with outcome `silent` (note: not-selected).

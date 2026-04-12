@@ -19,8 +19,8 @@ For each discovered target repo, in directory-name order:
    Your working directory is {REPO_PATH}. cd into it now.
 
    Fetch https://raw.githubusercontent.com/perandre/night-shift/main/bundles/docs.md
-   and execute it against this repository. The bundle runs the four doc tasks
-   (update-changelog, update-user-guide, document-decisions, suggest-improvements).
+   and execute it against this repository. The bundle runs the five doc tasks
+   (update-changelog, update-user-guide, document-decisions, suggest-improvements, weekly-digest).
 
    CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
    the defaults from
@@ -28,7 +28,7 @@ For each discovered target repo, in directory-name order:
 
    At the end of your run, append ONE LINE to docs/NIGHTSHIFT-HISTORY.md (create the
    file if missing) under the `## Runs` heading at the top of the runs list. Format:
-       - YYYY-MM-DD docs       <ok|silent|failed>  <terse note, max 80 chars>
+       - YYYY-MM-DD docs       <app_path or —>  <ok|silent|failed>  <terse note, max 80 chars>
    Then commit + push the history file.
 
    Return EXACTLY ONE LINE to me in this format:

@@ -9,7 +9,7 @@ Before discovering repos, scan **your own invocation prompt** for a `<night-shif
 - If the block is absent or malformed, treat as "no allowlist supplied" and log `allowlist: none (running all tasks)` in the final summary.
 - Otherwise, for each repo key, the value is a list of task ids from `manifest.yml` that are allowed for that repo. Unknown ids → warn and ignore. A repo absent from the map → all tasks allowed.
 
-For the **plans** bundle, the only relevant task id is `build-planned-features`. A repo whose allowlist does not include `build-planned-features` must be recorded as `not-selected` and dispatched to no subagents — skip the plan-file discovery entirely for it.
+For the **plans** bundle, the relevant task ids are `build-planned-features` and `work-on-issues`. A repo whose allowlist does not include **either** of these must be recorded as `not-selected` and dispatched to no subagents. If only one of the two is allowed, run only that task's dispatch logic and skip the other.
 
 ## Discover repos
 List sibling directories at the top of your working tree. For each candidate, confirm it is a git repository via `git rev-parse --show-toplevel`.
@@ -69,6 +69,32 @@ For each discovered target repo, in directory-name order:
 
 If a subagent dispatch itself fails, record `failed | PR: — | dispatch error: <reason>`.
 
+## work-on-issues dispatch (scope: repo, once per repo)
+
+After all plan-file work-items for a repo are dispatched, check if `work-on-issues` is in the repo's allowlist. If so, dispatch **one additional `Task` subagent per repo** (not per app — `work-on-issues` is `scope: repo`):
+
+```
+Your working directory is {REPO_PATH}. cd into it now.
+
+Fetch https://raw.githubusercontent.com/perandre/night-shift/main/tasks/work-on-issues.md
+and execute it against this repository. Process up to 3 open GitHub Issues
+labeled "night-shift", opening one PR per issue.
+
+CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
+the defaults from
+https://raw.githubusercontent.com/perandre/night-shift/main/bundles/_multi-runner.md.
+
+At the end of your run, append ONE LINE to docs/NIGHTSHIFT-HISTORY.md (create the
+file if missing) under the `## Runs` heading at the top of the runs list. Format:
+    - YYYY-MM-DD plans  —  work-on-issues  <ok|silent|failed>  <terse note, max 80 chars>
+Then commit + push the history file.
+
+Return EXACTLY ONE LINE to me in this format:
+    <ok|silent|failed> | PRs: <comma-separated URLs or —> | <terse note, max 60 chars>
+```
+
+Record the result as a row with `App = —`, `Plan = work-on-issues`.
+
 ## Final report
 Print this summary table and stop. The summary table is the primary artifact — it appears in the trigger dashboard and is how the user reviews the run. **Do not** write the summary to any external repo or location; the per-repo `docs/NIGHTSHIFT-HISTORY.md` files in each target repo are the only persisted history.
 
@@ -80,6 +106,6 @@ Night Shift plans — multi-repo summary
 | ...  | <app_path or —> | <plan-slug or —> | ok / silent / not-selected / opted-out / dirty-skip / failed | <url or —> | <terse> |
 ```
 
-One row per (repo, app, plan). `App` is `—` for single-app repos. `Plan` is `—` when the app-scope had no plan files (the row will be `silent`). A repo excluded from the allowlist produces one row with `App = —`, `Plan = —`, `Status = not-selected`.
+One row per (repo, app, plan). `App` is `—` for single-app repos. `Plan` is `—` when the app-scope had no plan files (the row will be `silent`). `Plan` is `work-on-issues` for the issues dispatch. A repo excluded from the allowlist produces one row with `App = —`, `Plan = —`, `Status = not-selected`.
 
 Include any `allowlist: …` or `allowlist warning: …` lines from the parsing step as bullet points beneath the table so the user sees them on the trigger dashboard.
