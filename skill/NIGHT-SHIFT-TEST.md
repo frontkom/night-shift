@@ -12,17 +12,51 @@ version: 2026-04-12a
 
 Quick end-to-end testing for Night Shift tasks against a sandbox repo (`perandre/night-shift-sandbox`). Runs tasks locally — no triggers or GitHub Actions needed.
 
-## Operations
+## Entry point — interview the user
 
-Parse the user's input to determine the operation:
+When invoked, check if the user already specified what to do in their message (e.g., `/night-shift-test reset`). If they did, skip straight to that operation. Otherwise, use `AskUserQuestion` with **2 questions**:
 
-- `/night-shift-test <task-id>` — run one task (e.g., `find-bugs`, `update-docs`)
-- `/night-shift-test <bundle-name>` — run one bundle (e.g., `audits`, `code-fixes`, `docs`, `plans`)
-- `/night-shift-test all` — full pipeline (all 4 bundles in order)
-- `/night-shift-test reset` — wipe sandbox back to seed state
-- `/night-shift-test setup` — first-time setup (create repo, push seed)
-- `/night-shift-test status` — show sandbox state (open PRs, branches, history)
-- `/night-shift-test cleanup` — close all open PRs, delete nightshift/* branches, reset to main
+**Question 1** — "What do you want to do?" (header: `Action`, single-select):
+- **Run a task** — "Test a specific Night Shift task against the sandbox"
+- **Run a bundle** — "Test a full bundle (group of tasks) against the sandbox"
+- **Run everything** — "Full pipeline: all 4 bundles in order"
+- **Manage sandbox** — "Reset, cleanup, or check status"
+
+**Question 2** — depends on Q1 answer. Since you can't branch mid-question, always show this second question (header: `Which one`, single-select):
+- **Find bugs** — "Look for subtle bugs, race conditions, edge cases"
+- **Find security issues** — "Scan for XSS, SQL injection, OWASP Top 10"
+- **Improve accessibility** — "Audit against WCAG 2.1 AA and fix violations"
+- **Add tests** — "Find coverage gaps and add tests"
+
+If the user picked "Run a task" in Q1, use the Q2 answer directly.
+
+If the user picked "Run a bundle", "Run everything", or "Manage sandbox" in Q1 — **ignore Q2** and instead ask a follow-up `AskUserQuestion`:
+
+- For **Run a bundle** (header: `Bundle`, single-select):
+  - **Plans** — "Build planned features + work on tagged issues"
+  - **Docs** — "Changelog, user guide, ADRs, suggestions, weekly digest"
+  - **Code fixes** — "Add tests, improve a11y, translate UI"
+  - **Audits** — "Security, bugs, SEO, performance — opens one PR per finding"
+
+- For **Manage sandbox** (header: `Manage`, single-select):
+  - **Status** — "Show open PRs, branches, history, and issues"
+  - **Reset** — "Wipe sandbox back to clean seed state"
+  - **Cleanup** — "Close PRs and delete branches, keep current code"
+  - **Setup** — "Create the sandbox repo from scratch"
+
+If the user picked a task in Q2 that doesn't match the full list, or picked "Other", read `manifest.yml` and present ALL tasks not covered by Q2 as a follow-up `AskUserQuestion` (header: `More tasks`, single-select):
+  - **Build planned features** — "Implement the next pending phase from a plan file"
+  - **Work on issues** — "Pick up GitHub Issues labeled night-shift"
+  - **Update changelog** — "Add entries for recent user-facing changes"
+  - **Update user guide** — "Refresh all project documentation"
+  - **Document decisions** — "Capture architectural decisions as ADRs"
+  - **Suggest improvements** — "Analyze codebase for improvement ideas"
+  - **Weekly digest** — "Summarize the past week's Night Shift activity"
+  - **Translate UI** — "Extract hardcoded strings to translation files"
+  - **Improve SEO** — "Review metadata, OG tags, structured data"
+  - **Improve performance** — "Review bundle size, images, queries"
+
+Map the user's selection to the corresponding task id from `manifest.yml` and proceed.
 
 ## Setup (first-time or when sandbox doesn't exist)
 
