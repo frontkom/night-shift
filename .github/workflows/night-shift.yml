@@ -1,0 +1,111 @@
+# Night Shift — reusable GitHub Actions workflow
+#
+# Called by repos that opt into Night Shift. Runs Claude Code with the
+# appropriate bundle prompts against the calling repo.
+#
+# Usage: see github-actions/caller-template.yml for the minimal caller file.
+# Docs:  https://github.com/perandre/night-shift
+
+name: Night Shift
+
+on:
+  workflow_call:
+    inputs:
+      tasks:
+        description: >
+          Comma-separated task IDs from manifest.yml
+          (e.g. "build-planned-features,update-changelog,add-tests,find-bugs")
+        type: string
+        required: true
+      model:
+        description: 'Claude model to use'
+        type: string
+        default: 'claude-opus-4-6'
+      max-turns:
+        description: 'Maximum conversation turns per run'
+        type: number
+        default: 100
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+
+jobs:
+  night-shift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Claude Code
+        run: npm i -g @anthropic-ai/claude-code
+
+      - name: Configure git identity
+        run: |
+          git config user.name "Night Shift[bot]"
+          git config user.email "night-shift[bot]@users.noreply.github.com"
+
+      - name: Run Night Shift
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NIGHT_SHIFT_TASKS: ${{ inputs.tasks }}
+        run: |
+          cat > /tmp/night-shift-prompt.md << 'PROMPT'
+          You are running Night Shift — automated nightly maintenance — on this
+          repository. The repo is already checked out in the current directory.
+
+          ## Your allowed tasks
+
+          NIGHT_SHIFT_TASKS_PLACEHOLDER
+
+          ## Instructions
+
+          Fetch the Night Shift manifest once:
+          https://raw.githubusercontent.com/perandre/night-shift/main/manifest.yml
+
+          Using the manifest, determine which bundles contain at least one of your
+          allowed tasks. Then run each applicable bundle **in this order**:
+
+          1. **plans** — fetch and execute
+             https://raw.githubusercontent.com/perandre/night-shift/main/bundles/plans.md
+          2. **docs** — fetch and execute
+             https://raw.githubusercontent.com/perandre/night-shift/main/bundles/docs.md
+          3. **code-fixes** — fetch and execute
+             https://raw.githubusercontent.com/perandre/night-shift/main/bundles/code-fixes.md
+          4. **audits** — fetch and execute
+             https://raw.githubusercontent.com/perandre/night-shift/main/bundles/audits.md
+
+          For each bundle:
+          - Intersect the bundle's tasks (from the manifest) with your allowed tasks.
+          - If the intersection is empty, skip the bundle entirely.
+          - Otherwise, pass `allowed_tasks` (the intersection) to the bundle prompt
+            so each task self-filters.
+          - Execute the fetched bundle prompt fully, including commits and PRs.
+
+          Between bundles, return to the default branch with a clean working tree.
+
+          After all bundles complete, append history lines to
+          `docs/NIGHTSHIFT-HISTORY.md` (create the file + directory if needed).
+          Follow the format documented in the multi-runner protocol:
+          https://raw.githubusercontent.com/perandre/night-shift/main/bundles/_multi-runner.md
+
+          Honor `CLAUDE.md`'s `## Night Shift Config` section if present.
+          If absent, use defaults from the multi-runner protocol.
+          PROMPT
+
+          # Inject the actual task list into the prompt
+          sed -i "s/NIGHT_SHIFT_TASKS_PLACEHOLDER/${NIGHT_SHIFT_TASKS}/" /tmp/night-shift-prompt.md
+
+          claude -p "$(cat /tmp/night-shift-prompt.md)" \
+            --model "${{ inputs.model }}" \
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep,WebFetch,WebSearch" \
+            --max-turns "${{ inputs.max-turns }}"

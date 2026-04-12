@@ -1,0 +1,31 @@
+# Night Shift — caller workflow
+#
+# Copy this file to your repo at .github/workflows/night-shift.yml
+# and edit the `tasks` list to match what you selected in the Night Shift picker.
+#
+# Prerequisites:
+#   1. Add ANTHROPIC_API_KEY to your repo (or org) secrets:
+#      Settings → Secrets and variables → Actions → New repository secret
+#   2. That's it. The reusable workflow handles everything else.
+#
+# Manual test: Go to Actions → Night Shift → Run workflow
+#
+# To pause Night Shift: disable this workflow in the Actions tab,
+# or add a .nightshift-skip file to the repo root.
+#
+# Docs: https://github.com/perandre/night-shift
+
+name: Night Shift
+
+on:
+  schedule:
+    - cron: '0 1 * * 1-5'   # Weeknights at 01:00 UTC — adjust to your timezone
+  workflow_dispatch:          # Allows manual triggering from the Actions tab
+
+jobs:
+  night-shift:
+    uses: perandre/night-shift/.github/workflows/night-shift.yml@main
+    with:
+      tasks: 'build-planned-features,update-changelog,update-user-guide,document-decisions,suggest-improvements,add-tests,improve-accessibility,translate-ui,find-security-issues,find-bugs,improve-seo,improve-performance'
+    secrets:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

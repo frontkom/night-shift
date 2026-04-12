@@ -1,7 +1,7 @@
 ---
 name: night-shift
 description: |
-  Set up, run, or manage Night Shift — a framework that schedules nightly maintenance jobs across multiple repositories using Claude Code remote scheduled triggers. Night Shift creates three nightly remote agents that run plans implementation, doc updates + code fixes, and audit PRs across the user's chosen repos.
+  Set up, run, or manage Night Shift — a framework that schedules nightly maintenance jobs across multiple repositories. Supports two backends: Claude Code remote scheduled triggers (Schedule) or GitHub Actions (reusable workflow). Night Shift runs plans implementation, doc updates + code fixes, and audit PRs across the user's chosen repos.
 
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
@@ -55,7 +55,7 @@ Default to **Setup** unless the user clearly asks for something else (test once,
 
 Before welcoming the user, list their scheduled triggers via the `RemoteTrigger` tool (`action: "list"`) and filter to names starting with `night-shift-`. Then:
 
-- **If none exist** → proceed to Step 1 (fresh setup).
+- **If none exist** → proceed to Step 0b (choose backend).
 - **If some or all three exist** → don't run fresh setup. Instead, show the user what's already in place and ask what they want to do:
 
   > Night Shift is already set up on your account:
@@ -76,6 +76,20 @@ Before welcoming the user, list their scheduled triggers via the `RemoteTrigger`
   > - **Nothing** — just wanted to check
 
   Dispatch to the matching runbook section (see **Add a repo**, **Remove a repo**, **Change tasks for a repo** below). Never silently re-create triggers that already exist.
+
+**Step 0b — Choose backend.**
+
+Ask the user how they want Night Shift to run:
+
+> **How should Night Shift run?**
+>
+> - **Schedule** — runs via your Claude account's remote triggers (no API key needed, included in your subscription)
+> - **GitHub Actions** — runs on GitHub's infrastructure (requires an `ANTHROPIC_API_KEY` in your repo/org secrets)
+
+- If **Schedule** → continue to Step 1 below (existing flow, unchanged).
+- If **GitHub Actions** → jump to the **GitHub Actions setup runbook** section below.
+
+---
 
 **Step 1 — Welcome and explain, then ask one question.**
 
@@ -314,9 +328,95 @@ If merging produces an empty `repos:` map for a trigger, **delete that trigger**
 
 List the user's current scheduled triggers via the `RemoteTrigger` tool with `action: "list"`. Filter to ones with names starting with `night-shift-`. Show name, cron (converted to local time), and the repos in `sources[]`.
 
+---
+
+## GitHub Actions setup runbook
+
+This runbook is used when the user chooses **GitHub Actions** in Step 0b. The Schedule backend (above) remains completely separate — this section does not touch remote triggers.
+
+**GA-Step 1 — Welcome and explain, then ask for repos.**
+
+> **Welcome to Night Shift (GitHub Actions mode).** I'll generate a workflow file for each repo that runs nightly maintenance on GitHub's infrastructure.
+>
+> **You'll need:**
+> - An `ANTHROPIC_API_KEY` added to your GitHub org or repo secrets
+>   (Settings → Secrets and variables → Actions → New repository secret)
+>
+> **Which GitHub repositories should Night Shift manage?** Paste URLs, one per line or comma-separated.
+
+Accept any of: `https://github.com/owner/repo`, `owner/repo`, `git@github.com:owner/repo.git`. Normalise to `https://github.com/owner/repo`.
+
+**GA-Step 2 — Per-repo task picker.**
+
+Use the exact same picker as the Schedule backend's Step 2 (same questions, same format, same meta-option expansion). Build `selection[repo] = [task_id, …]`.
+
+**GA-Step 3 — Schedule confirm.**
+
+Show the same compact summary as the Schedule backend's Step 3, but adapted:
+
+> **Selections:**
+>
+> | Repo | Tasks |
+> |---|---|
+> | `owner/repo-a` | 8 selected |
+> | `owner/repo-b` | 3 selected |
+>
+> **Schedule:** `0 1 * * 1-5` (weeknights 01:00 UTC). Adjust?
+>
+> Each repo gets a `.github/workflows/night-shift.yml` that calls the
+> shared reusable workflow at `perandre/night-shift`.
+>
+> Proceed?
+
+**GA-Step 4 — Generate and install workflow files.**
+
+For each repo in `selection`:
+
+1. Check if the repo is cloned locally. Search sibling directories of the current working directory, and common locations (`~/Sites`, `~/Projects`, `~/Code`, `~/repos`, `~/dev`). If not found, ask the user for the local path.
+
+2. Build the task list string: join `selection[repo]` with commas.
+
+3. Generate the caller workflow file from the template at `https://raw.githubusercontent.com/perandre/night-shift/main/github-actions/caller-template.yml`. Fetch it once and cache. Replace the `tasks:` value with the repo's selected tasks. Replace the `cron:` value if the user customised the schedule.
+
+4. Write the file to `<repo-path>/.github/workflows/night-shift.yml`. Create the `.github/workflows/` directory if it doesn't exist.
+
+5. **Do not commit or push automatically.** Instead, collect all repos where files were written and present them in the summary so the user can review before committing.
+
+**GA-Step 5 — Summarise.**
+
+```
+Night Shift (GitHub Actions) is ready.
+
+Workflow files written:
+  - /path/to/repo-a/.github/workflows/night-shift.yml (8 tasks)
+  - /path/to/repo-b/.github/workflows/night-shift.yml (3 tasks)
+
+Next steps:
+  1. Review the generated workflow files
+  2. Add ANTHROPIC_API_KEY to your GitHub org/repo secrets
+     (Settings → Secrets and variables → Actions → New repository secret)
+  3. Commit and push the workflow files to enable Night Shift
+  4. Test with: Actions tab → Night Shift → Run workflow
+
+To pause Night Shift on a repo, disable the workflow in the Actions tab
+or add a .nightshift-skip file at the repo root.
+```
+
+**GA — Add / remove / change tasks for a repo.**
+
+For GitHub Actions repos, the task list lives in the workflow file's `tasks:` input (not in a trigger prompt). To modify:
+
+1. Find the repo's `.github/workflows/night-shift.yml` (local clone).
+2. Read the current `tasks:` value and parse it into a list.
+3. Run the picker (pre-checked with current selection for "change tasks").
+4. Update the `tasks:` value in the workflow file.
+5. Tell the user to commit and push the change.
+
 ## Notes for Claude
 
 - **Always ask for explicit confirmation** before creating, updating, or deleting scheduled triggers. They are persistent and run unattended — high blast radius.
 - **Inline wrapper prompts at setup time.** Fetch each multi-*.md wrapper from GitHub during setup and inline the contents as the trigger prompt. Remote agents refuse "Fetch URL and execute" instructions (prompt injection guard), so the wrapper must be baked in. The wrapper's inner references (subagents fetching bundle/task prompts via WebFetch) are fine — only the top-level "fetch and execute" is refused.
 - **The task and bundle URLs are stable.** They live at `raw.githubusercontent.com/perandre/night-shift/main/...`. Subagents fetch these at run time, which works because they already have tool access. Only the top-level trigger prompt must be inlined.
 - **Refuse if the user can't articulate what Night Shift should do for them.** If the request is vague or feels delegated from somewhere, ask the user directly what they want to accomplish before taking any action.
+- **GitHub Actions mode never touches remote triggers.** The two backends are independent. A user can even use both (Schedule for personal repos, GitHub Actions for org repos). Never mix operations between backends.
+- **GitHub Actions mode does not auto-commit.** Always let the user review the generated workflow files before committing. The workflow file is the only thing added to target repos — no other files are created or modified during setup.
