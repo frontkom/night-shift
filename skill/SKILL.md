@@ -11,7 +11,7 @@ version: 2026-04-13b
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-12h -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-13b -->
 
 ## Version check (run this first, every invocation)
 
