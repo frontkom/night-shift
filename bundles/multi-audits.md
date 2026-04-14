@@ -2,6 +2,9 @@
 
 You are running the Night Shift **Audits** bundle across **all target repositories** cloned into this session.
 
+**Before doing anything else**, print a single status line so the user sees immediate output:
+`Night Shift audits bundle starting (multi-repo)...`
+
 ## Parse the per-repo allowlist first
 
 Before discovering repos, scan **your own invocation prompt** for a `<night-shift-config>…</night-shift-config>` block and parse the `repos:` map out of it. See `bundles/_multi-runner.md` → **Per-repo task allowlist** for the exact contract. If absent or malformed → no allowlist (all tasks allowed), log `allowlist: none (running all tasks)` in the summary.

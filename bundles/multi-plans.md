@@ -2,6 +2,9 @@
 
 You are running the Night Shift **Plans** bundle across **all target repositories** cloned into this session.
 
+**Before doing anything else**, print a single status line so the user sees immediate output:
+`Night Shift plans bundle starting (multi-repo)...`
+
 ## Parse the per-repo allowlist first
 
 Before discovering repos, scan **your own invocation prompt** for a `<night-shift-config>…</night-shift-config>` block and parse the `repos:` map out of it. See `bundles/_multi-runner.md` → **Per-repo task allowlist** for the exact contract, parsing rules, and fallback behavior. Summary:

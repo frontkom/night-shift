@@ -2,6 +2,9 @@
 
 You are running **two** Night Shift bundles in one session: **docs** first, then **code-fixes**, against all target repositories cloned into this session.
 
+**Before doing anything else**, print a single status line so the user sees immediate output:
+`Night Shift docs + code-fixes bundle starting (multi-repo)...`
+
 This is a runtime composition that exists because the trigger plan only allows 3 enabled triggers but Night Shift has 4 logical bundles. The two underlying bundles are unchanged — see `bundles/docs.md` and `bundles/code-fixes.md` for what each does.
 
 ## Why docs runs first

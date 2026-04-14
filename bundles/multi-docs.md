@@ -2,6 +2,9 @@
 
 You are running the Night Shift **Docs** bundle across **all target repositories** cloned into this session.
 
+**Before doing anything else**, print a single status line so the user sees immediate output:
+`Night Shift docs bundle starting (multi-repo)...`
+
 ## Discover repos
 List sibling directories at the top of your working tree. For each candidate, confirm via `git rev-parse --show-toplevel`.
 

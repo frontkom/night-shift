@@ -2,6 +2,9 @@
 
 You are running **all four** Night Shift bundles against this single repository, in order. This is the one-shot "try Night Shift" entry point — no scheduling, no multi-repo, just run everything once against the current repo.
 
+**Before doing anything else**, print a single status line so the user sees immediate output:
+`Night Shift starting all bundles on <repo-name>...`
+
 ## Setup
 Read `CLAUDE.md` for the **Night Shift Config** section if present. If absent, use defaults — see `_multi-runner.md`.
 

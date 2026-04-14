@@ -2,6 +2,9 @@
 
 You are running the Night Shift **Code fixes** bundle on this repository.
 
+**Before doing anything else**, print a single status line so the user sees immediate output:
+`Night Shift code-fixes bundle starting on <repo-name>...`
+
 ## Setup
 Read `CLAUDE.md` for the **Night Shift Config** section if present. If absent, use defaults — see `_multi-runner.md`.
 
