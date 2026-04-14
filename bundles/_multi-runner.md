@@ -84,6 +84,27 @@ For each work-item, in deterministic order (repo directory name, then app path):
 
 If a subagent dispatch itself throws an unrecoverable error, record `failed | dispatch error: <reason>` and continue. Never abort the multi-repo run.
 
+## PR body formatting
+
+**Critical:** When creating PRs with `gh pr create`, always use a HEREDOC for `--body` to preserve real newlines. **Never** pass the body as a single-line string with literal `\n` — GitHub renders those as visible `\n` characters instead of line breaks.
+
+Correct:
+```
+gh pr create --title "..." --body "$(cat <<'EOF'
+## Summary
+- first change
+- second change
+EOF
+)"
+```
+
+Wrong — **do not do this**:
+```
+gh pr create --title "..." --body "Summary\n- first\n- second"
+```
+
+Each task file contains a HEREDOC template for its PR body. Follow the template structure exactly.
+
 ## Discovery — expanding repos to work-items
 
 After cloning a repo and passing the dirty / opt-out checks, build its work-item list:
