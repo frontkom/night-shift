@@ -17,25 +17,39 @@ Read `CLAUDE.md` for the **Night Shift Config** section (test command, build com
 When no `app_path` is provided (single-app repo), the plans directory defaults to `docs/` and branch / PR titles omit the app slug — the pre-monorepo behaviour.
 
 ## Steps
-1. You were given a specific `PLAN_FILE` by the dispatcher. Read **only that file**. Do not list or scan the plans directory. If no `PLAN_FILE` was supplied (single-agent fallback, e.g. running this task directly on one repo), resolve `PLANS_DIR` and pick the first `*-PLAN.md` with a pending phase — but the normal path through the multi-plans wrapper always supplies `PLAN_FILE`.
-2. Identify the phases in `PLAN_FILE`. A phase is "implemented" if its referenced files / migrations / exports already exist with the described shape. Find the first pending phase. If none, exit silently.
+1. You were given a specific `PLAN_FILE` by the dispatcher. Read **only that file**. Do not list or scan the plans directory. If no `PLAN_FILE` was supplied (single-agent fallback, e.g. running this task directly on one repo), find a plan to work on:
+   - Scan **all markdown files** in the plans directory (default `docs/`) and its subdirectories for plan documents (files containing phases, milestones, or implementation steps).
+   - Look for files named `*-PLAN.md`, but also check other `.md` files that may contain implementation plans without following the naming convention.
+   - Pick the first plan with a pending phase.
+
+2. Read the plan file carefully. Identify all phases. A phase is "implemented" if it is explicitly marked as done/completed/implemented in the plan file, **or** if its referenced files / migrations / exports already exist with the described shape. Find the first pending phase.
+   - **Skip plans that are fully implemented.** If every phase is marked as done or implemented, exit silently.
+   - **Skip plans marked as deferred, blocked, or on hold.**
+
 3. Implement exactly that one phase. One phase per plan per run — never advance two phases of the same plan in one run.
-4. Check for an existing open PR for this plan + phase to avoid duplicates:
+
+4. **Update the plan file.** After implementing a phase, mark it as completed in the plan file itself so the same phase is not re-implemented on subsequent runs. Use the plan's existing convention for marking completion (e.g. checkboxes `[x]`, strikethrough, "Status: Done", etc.). If no convention exists, add a line like `**Status: Implemented (YYYY-MM-DD)**` under the phase heading.
+
+5. Check for an existing open PR for this plan + phase to avoid duplicates:
    ```
    gh pr list --search "nightshift/plan in:title" --state open --json title
    ```
    If a PR for the same plan + phase (and app, when scoped) is already open, exit silently.
-5. Create a branch:
+
+6. Create a branch:
    ```
    # scoped:
    git checkout -b nightshift/plan-<app-slug>-<plan-slug>-phase-<N>-YYYY-MM-DD
    # unscoped:
    git checkout -b nightshift/plan-<plan-slug>-phase-<N>-YYYY-MM-DD
    ```
-   `<plan-slug>` is the plan filename without `-PLAN.md`.
-6. Follow the plan's file paths and specs literally. Do not invent scope. When scoped, do not edit files outside `<app_path>`.
-7. Run the **test command** and **build command** from the scoped config (or top-level config when unscoped). Both must pass.
-8. If anything fails, do not commit. Leave a note in the plan file under a `## Night Shift Notes` section describing what blocked you, then commit only that note + push the branch + open the PR with a `[blocked]` prefix in the title so a human can pick it up.
+   `<plan-slug>` is the plan filename without `-PLAN.md` (or without `.md` for non-standard names).
+
+7. Follow the plan's file paths and specs literally. Do not invent scope. When scoped, do not edit files outside `<app_path>`.
+
+8. Run the **test command** and **build command** from the scoped config (or top-level config when unscoped). Both must pass.
+
+9. If anything fails, do not commit. Leave a note in the plan file under a `## Night Shift Notes` section describing what blocked you, then commit only that note + push the branch + open the PR with a `[blocked]` prefix in the title so a human can pick it up.
 
 ## Open the PR
 On success (drop the `<app_path> — ` prefix from commit + PR title when unscoped):
@@ -54,6 +68,9 @@ gh pr create --title "nightshift/plan: <app_path> — <plan-name> phase <N>" \
 ## Changes
 - <bullets per file touched>
 
+## Plan file updated
+- Marked phase <N> as implemented in <plan filename>
+
 ## Verification
 - test command output: pass
 - build command output: pass
@@ -68,3 +85,4 @@ EOF
 - One phase per plan per run. Never advance two phases of the same plan in one run. Different plans run in different subagents and each get their own PR on the same night — that is the intended behaviour.
 - If the supplied `PLAN_FILE` has no pending phases, exit silently.
 - If a PR for the same plan + phase (+ app, when scoped) is already open, exit silently — do not stack.
+- Always update the plan file to mark completed phases — this is what prevents re-running the same work.
