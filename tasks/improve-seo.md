@@ -57,9 +57,12 @@ Only open a PR for clear, real SEO issues on genuinely public pages. Do not add 
    git checkout -b nightshift/seo-YYYY-MM-DD
    ```
 6. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-7. Push and open the PR (prefix title with `<app_path> — ` when scoped):
+7. Push and open the PR (prefix title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
    ```
+   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+   gh label create "nightshift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
    gh pr create --title "nightshift/seo: <app_path> — metadata sweep" \
+     --label nightshift --label "nightshift:audits" \
      --body "$(cat <<'EOF'
    ## Summary
    Reviewed SEO metadata across key pages.
@@ -69,9 +72,14 @@ Only open a PR for clear, real SEO issues on genuinely public pages. Do not add 
 
    ## Verification
    - <how to confirm in the rendered HTML>
+
+   ---
+   _Run by Night Shift • audits/improve-seo_
    EOF
    )"
    ```
+
+   **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - One sweep PR open at a time.

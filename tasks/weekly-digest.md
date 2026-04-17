@@ -57,12 +57,36 @@ _(or "None this week" if no PRs were opened)_
 
 6. Write in the configured **doc language**. Keep takeaways factual and brief.
 
-## Commit
+## Branch, commit, and open the PR
+This task runs in **pull-request mode** (per `manifest.yml`). Create a feature branch, commit your changes there, push, and open a PR with the standardized title format. Ensure labels exist (idempotent), then attach them. End the PR body with the Night Shift footer.
+
 ```
+git checkout -b nightshift/digest-YYYY-MM-DD
+
 git add docs/NIGHTSHIFT-DIGEST.md
 git commit -m "nightshift(digest): weekly metrics digest"
+git push -u origin HEAD
+
+gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+gh label create "nightshift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
+gh pr create --title "nightshift/digest: weekly metrics digest" \
+  --label nightshift --label "nightshift:docs" \
+  --body "$(cat <<'EOF'
+## Summary
+- Week ending <YYYY-MM-DD>
+- <Total runs>: <ok> ok, <silent> silent, <failed> failed
+- <Silent rate>%
+- <PRs referenced count>
+
+See `docs/NIGHTSHIFT-DIGEST.md` for the full digest.
+
+---
+_Run by Night Shift • docs/weekly-digest_
+EOF
+)"
 ```
-Push using the project's push protocol.
+
+**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - This task overwrites the digest file each run — it is safe to re-run.

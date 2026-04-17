@@ -28,8 +28,14 @@ For each discovered target repo, in directory-name order:
    - Run `git status --porcelain` — if dirty, record `dirty-skip` and continue.
    - Check opt-out signals. Record `opted-out` and continue if any of: `.nightshift-skip` exists at the repo root, or `CLAUDE.md` / `AGENTS.md` / `README.md` contains the line `Night Shift: skip`.
    - Parse `## Night Shift Config` in `CLAUDE.md`. If it contains an `apps:` block, build one app-scope per `apps[]` entry (each with its own `app_path` + merged `scoped_config`). Otherwise build a single app-scope with `app_path = —`.
-   - **For each app-scope, list plan files.** Resolve `PLANS_DIR`: `<app_path>/<plans dir>` when scoped, else `<plans dir>` (default `docs`). List `$PLANS_DIR/*-PLAN.md`. Skip plans whose front matter / heading marks them **deferred**, **blocked**, or **on hold**. Each surviving plan file becomes its own work-item `{repo, app_path, scoped_config, plan_file}`.
-   - If an app-scope has zero plan files, emit one work-item with `plan_file = —` so it can report `silent` in the summary.
+   - **For each app-scope, list plan files.** Resolve `PLANS_DIR`: `<app_path>/<plans dir>` when scoped, else `<plans dir>` (default `docs`). List `$PLANS_DIR/*-PLAN.md`.
+   - **Pre-filter plans before dispatching subagents.** For each plan file, do a cheap read at the wrapper level (no subagent yet) and **skip** the plan if any of the following is true:
+     - The plan's title or front matter marks it **Deferred**, **Blocked**, **On hold**, or **Archived**.
+     - **Every** phase / item / step / milestone in the plan is already marked done. Look for any of: `**Status: Implemented`, `**Status: Done`, `[x]`, `~~…~~` strikethrough, `✅`, or a bold `Status:` line whose value is `Implemented`/`Done`/`Complete`. If you cannot find any pending unit, the plan is fully implemented.
+     - The plan file is empty or has no parseable units.
+   - Plans skipped by the pre-filter get **one** wrapper-level row in the summary table (`Status: not-applicable`) and **one** wrapper-level history row on main — they do **not** spin up a subagent. This keeps the silent rate low and avoids spending a subagent budget on plans known to have nothing to do.
+   - Each **surviving** plan file becomes its own work-item `{repo, app_path, scoped_config, plan_file}`.
+   - If an app-scope has zero plan files at all, emit one work-item with `plan_file = —` so it can report `silent` in the summary.
    - Capture the absolute repo path. `cd` back to the parent.
 2. For each work-item from this repo, dispatch a `Task` subagent with this prompt (substitute `{REPO_PATH}`, `{APP_PATH}` — literal `—` when repo-wide, `{SCOPED_CONFIG}` as inline JSON / YAML, `{PLAN_FILE}` — literal `—` when no plans):
 
@@ -59,18 +65,27 @@ For each discovered target repo, in directory-name order:
    the defaults from
    https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
-   At the end of your run, append ONE LINE to docs/NIGHTSHIFT-HISTORY.md (create the
-   file if missing) under the `## Runs` heading at the top of the runs list. Format:
-       - YYYY-MM-DD plans  <app_path or —>  <plan-slug>  <ok|silent|failed>  <terse note, max 80 chars>
-   Then commit + push the history file (alongside other commits or as its own commit).
+   **Do not** modify docs/NIGHTSHIFT-HISTORY.md from any feature branch — the wrapper
+   appends the row on main after you return. See bundles/_multi-runner.md →
+   "NIGHTSHIFT-HISTORY.md is wrapper-only".
 
    Return EXACTLY ONE LINE to me in this format:
        <ok|silent|failed> | PR: <url or —> | <plan-slug> — <terse note, max 60 chars>
    ```
 3. Capture only the one-line result. Do not echo subagent work into your own context.
-4. Move on to the next work-item. **Never stop early** — every plan must get its own dispatch attempt, even if earlier plans failed.
+4. **On `main`** in `{REPO_PATH}`, append one line to `docs/NIGHTSHIFT-HISTORY.md` under the `## Runs` heading at the top of the runs list:
+   ```
+   - YYYY-MM-DD plans  <app_path or —>  <plan-slug>  <ok|silent|failed>  <PR # or —> — <terse note, max 60 chars>
+   ```
+   Commit (`docs: append nightshift history`) and push that single change. Do this for every dispatched subagent — including `silent` and `failed` ones.
+5. Move on to the next work-item. **Never stop early** — every plan must get its own dispatch attempt, even if earlier plans failed.
 
-If a subagent dispatch itself fails, record `failed | PR: — | dispatch error: <reason>`.
+If a subagent dispatch itself fails, record `failed | PR: — | dispatch error: <reason>` and still append a `failed` history row on main.
+
+For each **pre-filtered** plan (skipped before dispatch — fully implemented, deferred, blocked, etc.), append one history row on main without dispatching a subagent:
+```
+- YYYY-MM-DD plans  <app_path or —>  <plan-slug>  not-applicable  — — <pre-filter reason, max 60 chars>
+```
 
 ## work-on-issues dispatch (scope: repo, once per repo)
 
@@ -87,13 +102,17 @@ CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
 the defaults from
 https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
-At the end of your run, append ONE LINE to docs/NIGHTSHIFT-HISTORY.md (create the
-file if missing) under the `## Runs` heading at the top of the runs list. Format:
-    - YYYY-MM-DD plans  —  work-on-issues  <ok|silent|failed>  <terse note, max 80 chars>
-Then commit + push the history file.
+**Do not** modify docs/NIGHTSHIFT-HISTORY.md from any feature branch — the wrapper
+appends the row on main after you return. See bundles/_multi-runner.md →
+"NIGHTSHIFT-HISTORY.md is wrapper-only".
 
 Return EXACTLY ONE LINE to me in this format:
     <ok|silent|failed> | PRs: <comma-separated URLs or —> | <terse note, max 60 chars>
+```
+
+After the work-on-issues subagent returns, **on `main`** in `{REPO_PATH}` append one history row, then commit (`docs: append nightshift history`) and push:
+```
+- YYYY-MM-DD plans  —  work-on-issues  <ok|silent|failed>  <terse note, max 80 chars>
 ```
 
 Record the result as a row with `App = —`, `Plan = work-on-issues`.
@@ -106,7 +125,7 @@ Night Shift plans — multi-repo summary
 
 | Repo | App | Plan | Status | PR | Notes |
 |------|-----|------|--------|----|-------|
-| ...  | <app_path or —> | <plan-slug or —> | ok / silent / not-selected / opted-out / dirty-skip / failed | <url or —> | <terse> |
+| ...  | <app_path or —> | <plan-slug or —> | ok / silent / not-applicable / not-selected / opted-out / dirty-skip / failed | <url or —> | <terse> |
 ```
 
 One row per (repo, app, plan). `App` is `—` for single-app repos. `Plan` is `—` when the app-scope had no plan files (the row will be `silent`). `Plan` is `work-on-issues` for the issues dispatch. A repo excluded from the allowlist produces one row with `App = —`, `Plan = —`, `Status = not-selected`.

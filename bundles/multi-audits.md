@@ -55,18 +55,22 @@ For each discovered target repo, in directory-name order:
    the defaults from
    https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
-   At the end of your run, append ONE LINE to docs/NIGHTSHIFT-HISTORY.md (create the
-   file if missing) under the `## Runs` heading at the top of the runs list. Format:
-       - YYYY-MM-DD audits     <app_path or —>  <ok|silent|failed>  <PR count>; <terse note, max 60 chars>
-   Then commit + push the history file.
+   **Do not** modify docs/NIGHTSHIFT-HISTORY.md from any feature branch — the wrapper
+   appends the row on main after you return. See bundles/_multi-runner.md →
+   "NIGHTSHIFT-HISTORY.md is wrapper-only".
 
    Return EXACTLY ONE LINE to me in this format:
        <ok|silent|failed> | PRs: <comma-separated URLs or —> | <terse note, max 60 chars>
    ```
 3. Capture only the one-line result. Do not echo subagent work into your own context.
-4. Move on to the next work-item.
+4. **On `main`** in `{REPO_PATH}`, append one line to `docs/NIGHTSHIFT-HISTORY.md` under the `## Runs` heading at the top of the runs list:
+   ```
+   - YYYY-MM-DD audits  <app_path or —>  <ok|silent|failed>  <PR count>; <terse note, max 60 chars>
+   ```
+   Commit (`docs: append nightshift history`) and push that single change. Do this for every dispatched subagent — including `silent` and `failed` ones — so every dispatched run leaves a row.
+5. Move on to the next work-item.
 
-If a subagent dispatch itself fails, record `failed | PRs: — | dispatch error: <reason>`.
+If a subagent dispatch itself fails, record `failed | PRs: — | dispatch error: <reason>` and still append a `failed` history row on main.
 
 ## Final report
 Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard. **Do not** write the summary to any external repo; the per-repo `docs/NIGHTSHIFT-HISTORY.md` files in each target repo are the only persisted history.

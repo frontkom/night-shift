@@ -38,9 +38,12 @@ Only open a PR when there are clearly user-visible hardcoded strings that belong
    git checkout -b nightshift/i18n-YYYY-MM-DD
    ```
 6. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-7. Push and open the PR (prefix title with `<app_path> — ` when scoped):
+7. Push and open the PR (prefix title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
    ```
+   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+   gh label create "nightshift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
    gh pr create --title "nightshift/i18n: <app_path> — localize hardcoded strings" \
+     --label nightshift --label "nightshift:code-fixes" \
      --body "$(cat <<'EOF'
    ## Summary
    Found and localized hardcoded UI strings across <N> components.
@@ -53,9 +56,14 @@ Only open a PR when there are clearly user-visible hardcoded strings that belong
 
    ## Verification
    - <how to confirm strings render correctly>
+
+   ---
+   _Run by Night Shift • code-fixes/translate-ui_
    EOF
    )"
    ```
+
+   **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - One sweep PR open at a time.

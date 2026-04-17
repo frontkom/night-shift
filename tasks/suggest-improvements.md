@@ -41,15 +41,55 @@ Pick the mode before writing anything. If you notice work that fits the other mo
    - Do not add, rewrite, or rephrase any suggestion text. Do not add new suggestions in this mode.
    - If no existing suggestion has changed status, exit silently.
 
-## Commit
-```
-# Mode A:
-git commit -m "nightshift(suggestions): add <N> ideas"
+## Branch, commit, and open the PR
+This task runs in **pull-request mode** (per `manifest.yml`). Create a feature branch, commit your changes there, push, and open a PR with the standardized title format. Ensure labels exist (idempotent), then attach them. End the PR body with the Night Shift footer.
 
-# Mode B:
-git commit -m "nightshift(suggestions): mark <N> implemented"
 ```
-Push using the project's push protocol.
+git checkout -b nightshift/suggestions-YYYY-MM-DD
+
+git add docs/SUGGESTIONS.md
+# Mode A commit:
+git commit -m "nightshift(suggestions): add <N> ideas"
+# Mode B commit:
+# git commit -m "nightshift(suggestions): mark <N> implemented"
+
+git push -u origin HEAD
+
+gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+gh label create "nightshift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
+
+# Mode A PR title:
+gh pr create --title "nightshift/suggestions: add <N> ideas" \
+  --label nightshift --label "nightshift:docs" \
+  --body "$(cat <<'EOF'
+## Mode
+A — added <N> new suggestions.
+
+## New ideas
+- <bullet per suggestion title>
+
+---
+_Run by Night Shift • docs/suggest-improvements_
+EOF
+)"
+
+# Mode B PR title:
+# gh pr create --title "nightshift/suggestions: mark <N> implemented" \
+#   --label nightshift --label "nightshift:docs" \
+#   --body "$(cat <<'EOF'
+# ## Mode
+# B — status update only, no new suggestions added.
+#
+# ## Status changes
+# - <bullet per item flipped, with new status>
+#
+# ---
+# _Run by Night Shift • docs/suggest-improvements_
+# EOF
+# )"
+```
+
+**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - Never duplicate an existing suggestion. If a topic is already listed, skip it.

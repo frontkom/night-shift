@@ -45,9 +45,12 @@ Without an `app_path` (single-app repo), behave as before: walk the whole repo, 
    # unscoped:
    git checkout -b nightshift/tests-YYYY-MM-DD
    ```
-8. Push and open the PR (prefix title with `<app_path> — ` when scoped):
+8. Push and open the PR (prefix title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
    ```
+   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+   gh label create "nightshift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
    gh pr create --title "nightshift/tests: <app_path> — add coverage for <N> units" \
+     --label nightshift --label "nightshift:code-fixes" \
      --body "$(cat <<'EOF'
    ## Summary
    Found coverage gaps and added tests for <N> units.
@@ -60,9 +63,14 @@ Without an `app_path` (single-app repo), behave as before: walk the whole repo, 
 
    ## Verification
    - All tests pass locally
+
+   ---
+   _Run by Night Shift • code-fixes/add-tests_
    EOF
    )"
    ```
+
+   **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - One sweep PR open at a time.

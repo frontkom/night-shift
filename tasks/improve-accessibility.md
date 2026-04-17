@@ -75,9 +75,12 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
    git checkout -b nightshift/a11y-YYYY-MM-DD
    ```
 7. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-8. Push and open the PR (prefix title with `<app_path> — ` when scoped):
+8. Push and open the PR (prefix title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
    ```
+   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+   gh label create "nightshift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
    gh pr create --title "nightshift/a11y: <app_path> — WCAG 2.1 AA sweep" \
+     --label nightshift --label "nightshift:code-fixes" \
      --body "$(cat <<'EOF'
    ## Summary
    Audited key pages against WCAG 2.1 AA and fixed all violations found.
@@ -90,9 +93,14 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
 
    ## Verification
    - <how to confirm each fix in the rendered page>
+
+   ---
+   _Run by Night Shift • code-fixes/improve-accessibility_
    EOF
    )"
    ```
+
+   **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - One sweep PR open at a time.

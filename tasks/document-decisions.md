@@ -39,12 +39,35 @@ When in doubt, **skip**. A silent night is the correct outcome on most runs. Ope
 4. Write in the configured **doc language**. Stay neutral — document, don't editorialize.
 5. Cap output at **2 new ADRs per night**. Zero is expected and correct on most nights.
 
-## Commit
+## Branch, commit, and open the PR
+This task runs in **pull-request mode** (per `manifest.yml`). Create a feature branch, commit your changes there, push, and open a PR with the standardized title format. Ensure labels exist (idempotent), then attach them. End the PR body with the Night Shift footer.
+
 ```
+git checkout -b nightshift/adr-YYYY-MM-DD
+
 git add docs/adr/
 git commit -m "nightshift(adr): document <decision-1>, <decision-2>"
+git push -u origin HEAD
+
+gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+gh label create "nightshift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
+gh pr create --title "nightshift/adr: document <decision-1>, <decision-2>" \
+  --label nightshift --label "nightshift:docs" \
+  --body "$(cat <<'EOF'
+## Summary
+- <bullet per ADR added, with one-line rationale>
+
+## ADRs added
+- docs/adr/<NNNN-slug>.md
+- docs/adr/<NNNN-slug>.md (only if a second is genuinely warranted)
+
+---
+_Run by Night Shift • docs/document-decisions_
+EOF
+)"
 ```
-Push using the project's push protocol.
+
+**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - Never overwrite existing ADRs. If a topic is already covered, skip it.

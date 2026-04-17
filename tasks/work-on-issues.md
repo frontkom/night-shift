@@ -57,12 +57,15 @@ If tests or build fail:
 4. Move on to the next issue.
 
 ### Open the PR
-On success:
+On success. Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
 ```
 git add -A
 git commit -m "nightshift(issue): #<number> — <short description>"
 git push -u origin HEAD
+gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+gh label create "nightshift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
 gh pr create --title "nightshift/issue: #<number> — <short description>" \
+  --label nightshift --label "nightshift:plans" \
   --body "$(cat <<'EOF'
 Closes #<number>
 
@@ -75,9 +78,14 @@ Closes #<number>
 ## Verification
 - test command output: pass
 - build command output: pass
+
+---
+_Run by Night Shift • plans/work-on-issues_
 EOF
 )"
 ```
+
+**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ### Comment on the issue
 After opening the PR, link it from the issue:

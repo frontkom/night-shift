@@ -40,9 +40,12 @@ Only open a PR when you can point to a concrete, low-risk win that will clearly 
    ```
    Skip anything that would require a meaningful refactor — leave a note in `docs/SUGGESTIONS.md` (repo-root) instead.
 4. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-5. Push and open the PR (prefix title with `<app_path> — ` when scoped):
+5. Push and open the PR (prefix title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
    ```
+   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+   gh label create "nightshift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
    gh pr create --title "nightshift/perf: <app_path> — performance sweep" \
+     --label nightshift --label "nightshift:audits" \
      --body "$(cat <<'EOF'
    ## Summary
    Performance pass over key pages.
@@ -52,9 +55,14 @@ Only open a PR when you can point to a concrete, low-risk win that will clearly 
 
    ## Expected impact
    - <bundle size delta, render path improvements, etc.>
+
+   ---
+   _Run by Night Shift • audits/improve-performance_
    EOF
    )"
    ```
+
+   **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - One sweep PR open at a time.

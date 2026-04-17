@@ -26,7 +26,15 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
    - **Skip plans that are fully implemented.** If every phase is marked as done or implemented, exit silently.
    - **Skip plans marked as deferred, blocked, or on hold.**
 
-3. Implement exactly that one phase. One phase per plan per run — never advance two phases of the same plan in one run.
+3. Implement exactly that one **unit of work**. One unit per plan per run — never combine multiple units in one PR.
+
+   What counts as "one unit" depends on the plan's structure:
+   - **Numbered phases** (`## Phase 1`, `## Phase 2`, …) → exactly one phase per run.
+   - **Priority/checklist tables** (`| 1 | Item A | … |`, `- [ ] Item B`, etc.) → exactly one item per run.
+   - **Step-by-step lists** (`### Step 1`, `### Step 2`, …) → exactly one step per run.
+   - **Free-form milestones** (`## Milestone: …`) → exactly one milestone per run.
+
+   The branch name and PR title MUST identify that single unit. **Never** title a PR `phase 7+13`, `items 1 and 4`, `steps 2,3,5`, or any combination form. If you find yourself wanting to bundle two units because they're "obviously related," resist — file them as two separate PRs on consecutive nights so a reviewer can accept or reject each independently. The plan agent fans out one subagent per plan, not per unit, so the next unit will be picked up the very next night anyway.
 
 4. **Update the plan file.** After implementing a phase, mark it as completed in the plan file itself so the same phase is not re-implemented on subsequent runs. Use the plan's existing convention for marking completion (e.g. checkboxes `[x]`, strikethrough, "Status: Done", etc.). If no convention exists, add a line like `**Status: Implemented (YYYY-MM-DD)**` under the phase heading.
 
@@ -52,12 +60,15 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
 9. If anything fails, do not commit. Leave a note in the plan file under a `## Night Shift Notes` section describing what blocked you, then commit only that note + push the branch + open the PR with a `[blocked]` prefix in the title so a human can pick it up.
 
 ## Open the PR
-On success (drop the `<app_path> — ` prefix from commit + PR title when unscoped):
+On success (drop the `<app_path> — ` prefix from commit + PR title when unscoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
 ```
 git add -A
 git commit -m "nightshift(plan): <app_path> — <plan-name> phase <N> — <short title>"
 git push -u origin HEAD
+gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+gh label create "nightshift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
 gh pr create --title "nightshift/plan: <app_path> — <plan-name> phase <N>" \
+  --label nightshift --label "nightshift:plans" \
   --body "$(cat <<'EOF'
 ## Plan
 <plan filename and link to docs/<plan>-PLAN.md>
@@ -77,12 +88,17 @@ gh pr create --title "nightshift/plan: <app_path> — <plan-name> phase <N>" \
 
 ## Next phase
 <short note on what would be next so the human reviewer knows the trajectory>
+
+---
+_Run by Night Shift • plans/build-planned-features_
 EOF
 )"
 ```
 
+**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
+
 ## Idempotency
-- One phase per plan per run. Never advance two phases of the same plan in one run. Different plans run in different subagents and each get their own PR on the same night — that is the intended behaviour.
-- If the supplied `PLAN_FILE` has no pending phases, exit silently.
-- If a PR for the same plan + phase (+ app, when scoped) is already open, exit silently — do not stack.
-- Always update the plan file to mark completed phases — this is what prevents re-running the same work.
+- One unit of work per plan per run (one phase, one item, one step, one milestone — see step 3 for the definitions). Never combine units in one PR. Different plans run in different subagents and each get their own PR on the same night — that is the intended behaviour.
+- If the supplied `PLAN_FILE` has no pending units, exit silently.
+- If a PR for the same plan + unit (+ app, when scoped) is already open, exit silently — do not stack.
+- Always update the plan file to mark completed units — this is what prevents re-running the same work.

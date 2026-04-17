@@ -63,14 +63,48 @@ Update **exactly one** doc file per run. Broad multi-file doc sweeps tend to get
 
 If no single doc is clearly stale, exit silently.
 
-## Commit
+## Branch, commit, and open the PR
+This task runs in **pull-request mode** (per `manifest.yml`). Create a feature branch, commit your changes there, push, and open a PR with the standardized title format. Ensure labels exist (idempotent), then attach them. End the PR body with the Night Shift footer.
+
 ```
+# Create the branch (include app slug when scoped):
 # scoped:
-git commit -m "nightshift(docs): <app_path> — refresh <doc-filename>"
+git checkout -b nightshift/docs-<app-slug>-YYYY-MM-DD
 # unscoped:
+git checkout -b nightshift/docs-YYYY-MM-DD
+
+git add -A
+# scoped commit:
+git commit -m "nightshift(docs): <app_path> — refresh <doc-filename>"
+# unscoped commit:
 git commit -m "nightshift(docs): refresh <doc-filename>"
+
+git push -u origin HEAD
+
+gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+gh label create "nightshift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
+
+# scoped PR title:
+gh pr create --title "nightshift/docs: <app_path> — refresh <doc-filename>" \
+  --label nightshift --label "nightshift:docs" \
+  --body "$(cat <<'EOF'
+## Summary
+- Refreshed <doc-filename> against current source code.
+
+## Sections updated
+- <bullet list of sections changed and why>
+
+---
+_Run by Night Shift • docs/update-user-guide_
+EOF
+)"
+# unscoped PR title:
+# gh pr create --title "nightshift/docs: refresh <doc-filename>" \
+#   --label nightshift --label "nightshift:docs" \
+#   --body "..."
 ```
-Push using the project's push protocol.
+
+**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - One doc file per run — even if multiple are stale, pick the stalest and leave the rest.

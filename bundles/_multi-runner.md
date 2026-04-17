@@ -77,10 +77,11 @@ For each work-item, in deterministic order (repo directory name, then app path):
    - Passes the **scoped config** (test command, build command, key pages, plans dir) resolved for this app.
    - Gives it the URL of the inner bundle to fetch and execute.
    - Instructs it to perform all of the inner bundle's work **inside `app_path`** for tasks marked `scope: app` in `manifest.yml`, and **repo-wide** for tasks marked `scope: repo`.
-   - Instructs it to **append one line per (bundle, app) pair to `docs/NIGHTSHIFT-HISTORY.md`** at the end of its run, then commit + push that file alongside its other changes. The line format is documented below.
-   - Asks it to return **one single line** to the wrapper, format: `<status> | <terse note>` where status ∈ {`ok`, `failed`}.
+   - Instructs it to **never modify `docs/NIGHTSHIFT-HISTORY.md`** — the wrapper appends history rows on `main` after the subagent returns. See **NIGHTSHIFT-HISTORY.md is wrapper-only** above.
+   - Asks it to return **one single line** to the wrapper, format: `<status> | PR: <url or —> | <terse note>` where status ∈ {`ok`, `silent`, `failed`}.
 3. Capture only that one-line result. Do **not** read or echo the subagent's intermediate work.
-4. Move on to the next work-item.
+4. **On `main`, in the parent repo directory**, append one history row per (bundle, app) pair to `docs/NIGHTSHIFT-HISTORY.md` (creating the file if missing), then commit + push that single change. The line format is documented below. This append step is the wrapper's responsibility — it must happen after every subagent dispatch, including `silent` and `failed` outcomes.
+5. Move on to the next work-item.
 
 If a subagent dispatch itself throws an unrecoverable error, record `failed | dispatch error: <reason>` and continue. Never abort the multi-repo run.
 
@@ -94,6 +95,9 @@ gh pr create --title "..." --body "$(cat <<'EOF'
 ## Summary
 - first change
 - second change
+
+---
+_Run by Night Shift • <bundle>/<task>_
 EOF
 )"
 ```
@@ -104,6 +108,55 @@ gh pr create --title "..." --body "Summary\n- first\n- second"
 ```
 
 Each task file contains a HEREDOC template for its PR body. Follow the template structure exactly.
+
+## Standardized PR title, labels, and footer (every task)
+
+Every PR opened by Night Shift must follow these conventions so reviewers can filter, attribute, and audit the work consistently across all tasks and bundles.
+
+### PR title format
+Always `nightshift/<area>: <description>`. Slash + colon. The `<area>` is the task's short slug (`bug`, `a11y`, `tests`, `plan`, `docs`, `changelog`, `digest`, `suggestions`, `adr`, `seo`, `perf`, `security`, `i18n`, `issue`). Never use the parens form `nightshift(<area>):` for PR titles — the parens form is reserved for `git commit -m` messages on direct-to-main work, not for PR titles. When the task is scoped to an app, the title includes `<app_path> — ` after the colon.
+
+### Labels (auto-created if missing)
+Every `gh pr create` call must add two labels:
+- `nightshift` — every Night Shift PR.
+- `nightshift:<bundle>` — one of `nightshift:plans`, `nightshift:docs`, `nightshift:code-fixes`, `nightshift:audits`.
+
+Before calling `gh pr create`, ensure both labels exist (idempotent — silent if they already exist):
+```
+gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+gh label create "nightshift:<bundle>" --color "1d76db" --description "Night Shift <bundle> bundle" 2>/dev/null || true
+```
+
+Then pass them to `gh pr create`:
+```
+gh pr create --title "nightshift/<area>: ..." \
+  --label nightshift --label "nightshift:<bundle>" \
+  --body "..."
+```
+
+### Body footer (last lines of every PR body)
+Every PR body must end with this footer block, separated from the body by a horizontal rule:
+
+```
+---
+_Run by Night Shift • <bundle>/<task-id>_
+```
+
+The footer is the only place the bundle + task id appears in the PR — keep it minimal. Tasks that have a Claude Code session URL available (passed by the dispatching wrapper) may add it as a second italic line:
+
+```
+---
+_Run by Night Shift • <bundle>/<task-id>_  
+_[Session log](<session-url>)_
+```
+
+The footer is required; the session line is optional. Together they make every PR self-describing for reviewers and auditable from `gh pr list --label nightshift`.
+
+## NIGHTSHIFT-HISTORY.md is wrapper-only
+
+Tasks **must not** modify `docs/NIGHTSHIFT-HISTORY.md` themselves. The history row is appended by the multi-runner wrapper on `main` (in a separate commit, never on a feature branch) **after** the dispatched subagent returns its one-line result. This keeps feature PRs free of housekeeping diffs and means the row contains the real PR number returned by the subagent.
+
+Subagents return `<status> | PR: <url or —> | <terse note>` and the wrapper translates that into one history line on `main`. Do not append from the task; do not commit history changes on the feature branch.
 
 ## Discovery — expanding repos to work-items
 
@@ -134,7 +187,7 @@ When a repo declares `apps:`, the summary table prints **one row per (repo, app_
 
 ## Per-repo history file: `docs/NIGHTSHIFT-HISTORY.md`
 
-Each subagent appends one line per bundle run to `docs/NIGHTSHIFT-HISTORY.md` in the target repo (creating the file if it doesn't exist). This file lives in the target repo itself — anyone with access to that repo can see what Night Shift has been doing. Access control follows the repo's own permissions.
+After each subagent returns, the **wrapper** appends one line per bundle run to `docs/NIGHTSHIFT-HISTORY.md` in the target repo, on `main`, as a separate commit (creating the file if it doesn't exist). Subagents never touch this file — see **NIGHTSHIFT-HISTORY.md is wrapper-only** above for the rationale. This file lives in the target repo itself — anyone with access to that repo can see what Night Shift has been doing. Access control follows the repo's own permissions.
 
 **Do not** write Night Shift logs to any other repo. In particular, do **not** write to the public `frontkom/night-shift` repo — doing so would leak private project information (names, activity, commit counts) to a public location. Each target project is the authoritative log for its own Night Shift activity.
 

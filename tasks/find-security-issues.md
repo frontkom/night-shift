@@ -42,9 +42,12 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
    ```
 5. Fix the issue at the smallest reasonable scope. Add a regression test.
 6. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-7. Push and open a PR (prefix the title with `<app_path> — ` when scoped):
+7. Push and open a PR (prefix the title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
    ```
+   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+   gh label create "nightshift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
    gh pr create --title "nightshift/security: <app_path> — <short description>" \
+     --label nightshift --label "nightshift:audits" \
      --body "$(cat <<'EOF'
    ## Summary
    <what was vulnerable, in 1-2 sentences>
@@ -57,9 +60,14 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
 
    ## Verification
    <how the new test demonstrates the fix>
+
+   ---
+   _Run by Night Shift • audits/find-security-issues_
    EOF
    )"
    ```
+
+   **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
 ## Idempotency
 - One issue per night, one PR per issue.
