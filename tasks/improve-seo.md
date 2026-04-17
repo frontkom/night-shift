@@ -65,7 +65,7 @@ Only open a PR for clear, real SEO issues on genuinely public pages. Do not add 
      --label nightshift --label "nightshift:audits" \
      --body "$(cat <<'EOF'
    ## Plain summary
-   <1-2 sentences in the project's user language. Which public pages now show better titles / link previews / search snippets, and what visitors / search engines see differently. No og:* / JSON-LD jargon here. See bundles/_multi-runner.md → "Body header — Plain summary".>
+   <1-2 sentences in English (PR review is always in English, regardless of the product's user language). Which public pages now show better titles / link previews / search snippets, and what visitors / search engines see differently. No og:* / JSON-LD jargon here. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
    ## Summary
    Reviewed SEO metadata across key pages.

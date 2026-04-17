@@ -83,7 +83,7 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
      --label nightshift --label "nightshift:code-fixes" \
      --body "$(cat <<'EOF'
    ## Plain summary
-   <1-2 sentences in the project's user language. Who benefits in concrete terms (e.g. "screen-reader users on the login page now hear validation errors immediately instead of being stuck") and which pages improved. Skip ARIA/role/WCAG codes here — they belong in the criteria section below. See bundles/_multi-runner.md → "Body header — Plain summary".>
+   <1-2 sentences in English (PR review is always in English, regardless of the product's user language). Who benefits in concrete terms (e.g. "screen-reader users on the login page now hear validation errors immediately instead of being stuck") and which pages improved. Skip ARIA/role/WCAG codes here — they belong in the criteria section below. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
    ## Summary
    Audited key pages against WCAG 2.1 AA and fixed all violations found.

@@ -70,7 +70,7 @@ gh pr create --title "nightshift/issue: #<number> — <short description>" \
 Closes #<number>
 
 ## Plain summary
-<1-2 sentences in the project's user language. What the user gets after this change merges — same level of clarity as the issue's own description. No file paths or symbol names. See bundles/_multi-runner.md → "Body header — Plain summary".>
+<1-2 sentences in English (PR review is always in English, regardless of the product's user language). What the user gets after this change merges — same level of clarity as the issue's own description. No file paths or symbol names. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
 ## Issue
 <issue title and link>

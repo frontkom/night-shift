@@ -50,7 +50,7 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
      --label nightshift --label "nightshift:audits" \
      --body "$(cat <<'EOF'
    ## Plain summary
-   <1-2 sentences in the project's user language. What kind of attack was possible, what data or accounts were at risk, what changes now. No symbol names, no file paths, no CVE IDs in this section. See bundles/_multi-runner.md → "Body header — Plain summary".>
+   <1-2 sentences in English (PR review is always in English, regardless of the product's user language). What kind of attack was possible, what data or accounts were at risk, what changes now. No symbol names, no file paths, no CVE IDs in this section. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
    ## Summary
    <what was vulnerable, in 1-2 sentences>

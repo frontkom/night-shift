@@ -71,7 +71,7 @@ gh pr create --title "nightshift/plan: <app_path> — <plan-name> phase <N>" \
   --label nightshift --label "nightshift:plans" \
   --body "$(cat <<'EOF'
 ## Plain summary
-<1-2 sentences in the project's user language. What capability is now available to which users — the feature in their words, not the implementation. Skip plan-doc references and file paths here. See bundles/_multi-runner.md → "Body header — Plain summary".>
+<1-2 sentences in English (PR review is always in English, regardless of the product's user language). What capability is now available to which users — the feature in their words, not the implementation. Skip plan-doc references and file paths here. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
 ## Plan
 <plan filename and link to docs/<plan>-PLAN.md>

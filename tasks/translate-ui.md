@@ -46,7 +46,7 @@ Only open a PR when there are clearly user-visible hardcoded strings that belong
      --label nightshift --label "nightshift:code-fixes" \
      --body "$(cat <<'EOF'
    ## Plain summary
-   <1-2 sentences in the project's user language. Which screens / labels / messages now appear in the user's language instead of English (or whichever fallback they currently leak), and which user group benefits most. Skip framework / key-naming jargon. See bundles/_multi-runner.md → "Body header — Plain summary".>
+   <1-2 sentences in English (PR review is always in English, regardless of the product's user language). Which screens / labels / messages now appear in the user's language instead of English (or whichever fallback was leaking through), and which user group benefits most. Skip framework / key-naming jargon. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
    ## Summary
    Found and localized hardcoded UI strings across <N> components.
