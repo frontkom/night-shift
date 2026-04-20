@@ -57,10 +57,8 @@ git push -u origin HEAD
 
 # Wrapper has already created the standard labels for this repo — just attach them.
 
-# Mode A PR title:
-gh pr create --title "nightshift/suggestions: add <N> ideas" \
-  --label nightshift --label "nightshift:docs" \
-  --body "$(cat <<'EOF'
+# Mode A body + PR:
+cat > /tmp/nightshift-pr-body.md <<'EOF'
 ## Mode
 A — added <N> new suggestions.
 
@@ -70,12 +68,13 @@ A — added <N> new suggestions.
 ---
 _Run by Night Shift • docs/suggest-improvements_
 EOF
-)"
 
-# Mode B PR title:
-# gh pr create --title "nightshift/suggestions: mark <N> implemented" \
-#   --label nightshift --label "nightshift:docs" \
-#   --body "$(cat <<'EOF'
+gh pr create --title "nightshift/suggestions: add <N> ideas" \
+  --label nightshift --label "nightshift:docs" \
+  --body-file /tmp/nightshift-pr-body.md
+
+# Mode B body + PR:
+# cat > /tmp/nightshift-pr-body.md <<'EOF'
 # ## Mode
 # B — status update only, no new suggestions added.
 #
@@ -85,8 +84,13 @@ EOF
 # ---
 # _Run by Night Shift • docs/suggest-improvements_
 # EOF
-# )"
+#
+# gh pr create --title "nightshift/suggestions: mark <N> implemented" \
+#   --label nightshift --label "nightshift:docs" \
+#   --body-file /tmp/nightshift-pr-body.md
 ```
+
+**Always use `--body-file`, never inline `--body`.** See `bundles/_multi-runner.md` → "PR body formatting".
 
 **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 

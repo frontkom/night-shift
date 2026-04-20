@@ -40,11 +40,9 @@ Only open a PR when you can point to a concrete, low-risk win that will clearly 
    ```
    Skip anything that would require a meaningful refactor — leave a note in `docs/SUGGESTIONS.md` (repo-root) instead.
 4. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-5. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
+5. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
    ```
-   gh pr create --title "nightshift/perf: <app_path> — performance sweep" \
-     --label nightshift --label "nightshift:audits" \
-     --body "$(cat <<'EOF'
+   cat > /tmp/nightshift-pr-body.md <<'EOF'
    ## Plain summary
    <1-2 sentences in English (PR review is always in English, regardless of the product's user language). Which pages feel faster now, by roughly how much (e.g. "~30% faster initial paint on the dashboard"), and who notices (anyone visiting that page on slow connections). No bundle-name jargon. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
@@ -60,7 +58,10 @@ Only open a PR when you can point to a concrete, low-risk win that will clearly 
    ---
    _Run by Night Shift • audits/improve-performance_
    EOF
-   )"
+
+   gh pr create --title "nightshift/perf: <app_path> — performance sweep" \
+     --label nightshift --label "nightshift:audits" \
+     --body-file /tmp/nightshift-pr-body.md
    ```
 
    **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.

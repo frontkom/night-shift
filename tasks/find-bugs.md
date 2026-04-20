@@ -40,11 +40,9 @@ Only open a PR for a bug that is clearly real, clearly the codebase's fault (not
    ```
 5. Add a failing test that demonstrates the bug. Then fix the bug. Test must now pass.
 6. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-7. Push and open a PR (prefix the title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
+7. Push and open a PR (prefix the title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
    ```
-   gh pr create --title "nightshift/bug: <app_path> — <short description>" \
-     --label nightshift --label "nightshift:audits" \
-     --body "$(cat <<'EOF'
+   cat > /tmp/nightshift-pr-body.md <<'EOF'
    ## Plain summary
    <1-2 sentences in English (PR review is always in English, regardless of the product's user language). Who was affected, what did they experience, what changes now. No symbol names, no file paths, no error classes. See bundles/_multi-runner.md → "Body header — Plain summary" for the full convention.>
 
@@ -60,7 +58,10 @@ Only open a PR for a bug that is clearly real, clearly the codebase's fault (not
    ---
    _Run by Night Shift • audits/find-bugs_
    EOF
-   )"
+
+   gh pr create --title "nightshift/bug: <app_path> — <short description>" \
+     --label nightshift --label "nightshift:audits" \
+     --body-file /tmp/nightshift-pr-body.md
    ```
 
    **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.

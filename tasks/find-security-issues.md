@@ -42,11 +42,9 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
    ```
 5. Fix the issue at the smallest reasonable scope. Add a regression test.
 6. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-7. Push and open a PR (prefix the title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
+7. Push and open a PR (prefix the title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
    ```
-   gh pr create --title "nightshift/security: <app_path> — <short description>" \
-     --label nightshift --label "nightshift:audits" \
-     --body "$(cat <<'EOF'
+   cat > /tmp/nightshift-pr-body.md <<'EOF'
    ## Plain summary
    <1-2 sentences in English (PR review is always in English, regardless of the product's user language). What kind of attack was possible, what data or accounts were at risk, what changes now. No symbol names, no file paths, no CVE IDs in this section. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
@@ -65,7 +63,10 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
    ---
    _Run by Night Shift • audits/find-security-issues_
    EOF
-   )"
+
+   gh pr create --title "nightshift/security: <app_path> — <short description>" \
+     --label nightshift --label "nightshift:audits" \
+     --body-file /tmp/nightshift-pr-body.md
    ```
 
    **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.

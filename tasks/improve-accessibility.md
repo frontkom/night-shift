@@ -75,11 +75,9 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
    git checkout -b nightshift/a11y-YYYY-MM-DD
    ```
 7. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-8. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
+8. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
    ```
-   gh pr create --title "nightshift/a11y: <app_path> — WCAG 2.1 AA sweep" \
-     --label nightshift --label "nightshift:code-fixes" \
-     --body "$(cat <<'EOF'
+   cat > /tmp/nightshift-pr-body.md <<'EOF'
    ## Plain summary
    <1-2 sentences in English (PR review is always in English, regardless of the product's user language). Who benefits in concrete terms (e.g. "screen-reader users on the login page now hear validation errors immediately instead of being stuck") and which pages improved. Skip ARIA/role/WCAG codes here — they belong in the criteria section below. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
@@ -98,7 +96,10 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
    ---
    _Run by Night Shift • code-fixes/improve-accessibility_
    EOF
-   )"
+
+   gh pr create --title "nightshift/a11y: <app_path> — WCAG 2.1 AA sweep" \
+     --label nightshift --label "nightshift:code-fixes" \
+     --body-file /tmp/nightshift-pr-body.md
    ```
 
    **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.

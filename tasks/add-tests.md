@@ -45,11 +45,9 @@ Without an `app_path` (single-app repo), behave as before: walk the whole repo, 
    # unscoped:
    git checkout -b nightshift/tests-YYYY-MM-DD
    ```
-8. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
+8. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
    ```
-   gh pr create --title "nightshift/tests: <app_path> — add coverage for <N> units" \
-     --label nightshift --label "nightshift:code-fixes" \
-     --body "$(cat <<'EOF'
+   cat > /tmp/nightshift-pr-body.md <<'EOF'
    ## Summary
    Found coverage gaps and added tests for <N> units.
 
@@ -65,7 +63,10 @@ Without an `app_path` (single-app repo), behave as before: walk the whole repo, 
    ---
    _Run by Night Shift • code-fixes/add-tests_
    EOF
-   )"
+
+   gh pr create --title "nightshift/tests: <app_path> — add coverage for <N> units" \
+     --label nightshift --label "nightshift:code-fixes" \
+     --body-file /tmp/nightshift-pr-body.md
    ```
 
    **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.

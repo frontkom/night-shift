@@ -62,9 +62,8 @@ On success. The wrapper has already created the standard labels for this repo �
 git add -A
 git commit -m "nightshift(issue): #<number> — <short description>"
 git push -u origin HEAD
-gh pr create --title "nightshift/issue: #<number> — <short description>" \
-  --label nightshift --label "nightshift:plans" \
-  --body "$(cat <<'EOF'
+
+cat > /tmp/nightshift-pr-body.md <<'EOF'
 Closes #<number>
 
 ## Plain summary
@@ -83,8 +82,13 @@ Closes #<number>
 ---
 _Run by Night Shift • plans/work-on-issues_
 EOF
-)"
+
+gh pr create --title "nightshift/issue: #<number> — <short description>" \
+  --label nightshift --label "nightshift:plans" \
+  --body-file /tmp/nightshift-pr-body.md
 ```
+
+**Always use `--body-file`, never inline `--body`.** Inline body strings get silently flattened to one-liners with literal `\n` — the entire PR body then renders as one unbroken paragraph on GitHub. See `bundles/_multi-runner.md` → "PR body formatting".
 
 **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 

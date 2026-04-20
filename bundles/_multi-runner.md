@@ -87,11 +87,12 @@ If a subagent dispatch itself throws an unrecoverable error, record `failed | di
 
 ## PR body formatting
 
-**Critical:** When creating PRs with `gh pr create`, always use a HEREDOC for `--body` to preserve real newlines. **Never** pass the body as a single-line string with literal `\n` — GitHub renders those as visible `\n` characters instead of line breaks.
+**Critical:** Always pass PR bodies via `--body-file`, never `--body "..."`. Inline `--body` strings are repeatedly serialized as one-liners with literal `\n` instead of newlines (observed in practice — even when the task template uses a quoted HEREDOC, the agent sometimes flattens the body to a single-line string). GitHub then renders the `\n` as visible text and the entire PR shows as one unbroken paragraph.
 
-Correct:
+The required pattern is **always**:
+
 ```
-gh pr create --title "..." --body "$(cat <<'EOF'
+cat > /tmp/nightshift-pr-body.md <<'EOF'
 ## Summary
 - first change
 - second change
@@ -99,15 +100,23 @@ gh pr create --title "..." --body "$(cat <<'EOF'
 ---
 _Run by Night Shift • <bundle>/<task>_
 EOF
-)"
+
+gh pr create --title "..." \
+  --label nightshift --label "nightshift:<bundle>" \
+  --body-file /tmp/nightshift-pr-body.md
 ```
 
-Wrong — **do not do this**:
-```
-gh pr create --title "..." --body "Summary\n- first\n- second"
-```
+The HEREDOC writes to a file; `--body-file` reads the file. There is no shell-string flattening step in between, so newlines survive. The single quotes around `'EOF'` also prevent shell variable expansion / backslash interpretation inside the body — what you write is exactly what lands in the PR.
 
-Each task file contains a HEREDOC template for its PR body. Follow the template structure exactly.
+**Forbidden patterns** (any of these will silently produce a `\n`-broken PR body):
+- `--body "..."` — even with `$(cat <<EOF...)`. Don't do this.
+- `--body "Summary\n- first\n- second"` — literal `\n` characters.
+- `--body "$(printf ...)"` — printf interprets escapes inconsistently.
+- Any body construction that goes through a shell variable with embedded newlines.
+
+Use `/tmp/nightshift-pr-body.md` as the conventional filename — short, predictable, easy to inspect post-mortem if a PR body looks wrong. The file can be overwritten on each PR creation; cleanup is not required.
+
+Each task file contains the body template inside the HEREDOC block. Follow the template structure exactly.
 
 ## Standardized PR title, labels, and footer (every task)
 

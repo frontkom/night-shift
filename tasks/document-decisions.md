@@ -50,9 +50,8 @@ git commit -m "nightshift(adr): document <decision-1>, <decision-2>"
 git push -u origin HEAD
 
 # Wrapper has already created the standard labels for this repo — just attach them.
-gh pr create --title "nightshift/adr: document <decision-1>, <decision-2>" \
-  --label nightshift --label "nightshift:docs" \
-  --body "$(cat <<'EOF'
+
+cat > /tmp/nightshift-pr-body.md <<'EOF'
 ## Summary
 - <bullet per ADR added, with one-line rationale>
 
@@ -63,8 +62,13 @@ gh pr create --title "nightshift/adr: document <decision-1>, <decision-2>" \
 ---
 _Run by Night Shift • docs/document-decisions_
 EOF
-)"
+
+gh pr create --title "nightshift/adr: document <decision-1>, <decision-2>" \
+  --label nightshift --label "nightshift:docs" \
+  --body-file /tmp/nightshift-pr-body.md
 ```
+
+**Always use `--body-file`, never inline `--body`.** See `bundles/_multi-runner.md` → "PR body formatting".
 
 **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 

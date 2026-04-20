@@ -65,9 +65,8 @@ On success (drop the `<app_path> — ` prefix from commit + PR title when unscop
 git add -A
 git commit -m "nightshift(plan): <app_path> — <plan-name> phase <N> — <short title>"
 git push -u origin HEAD
-gh pr create --title "nightshift/plan: <app_path> — <plan-name> phase <N>" \
-  --label nightshift --label "nightshift:plans" \
-  --body "$(cat <<'EOF'
+
+cat > /tmp/nightshift-pr-body.md <<'EOF'
 ## Plain summary
 <1-2 sentences in English (PR review is always in English, regardless of the product's user language). What capability is now available to which users — the feature in their words, not the implementation. Skip plan-doc references and file paths here. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
@@ -93,8 +92,13 @@ gh pr create --title "nightshift/plan: <app_path> — <plan-name> phase <N>" \
 ---
 _Run by Night Shift • plans/build-planned-features_
 EOF
-)"
+
+gh pr create --title "nightshift/plan: <app_path> — <plan-name> phase <N>" \
+  --label nightshift --label "nightshift:plans" \
+  --body-file /tmp/nightshift-pr-body.md
 ```
+
+**Always use `--body-file`, never inline `--body`.** Inline body strings get silently flattened to one-liners with literal `\n` — the entire PR body then renders as one unbroken paragraph on GitHub. See `bundles/_multi-runner.md` → "PR body formatting".
 
 **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 

@@ -68,9 +68,8 @@ git commit -m "nightshift(digest): weekly metrics digest"
 git push -u origin HEAD
 
 # Wrapper has already created the standard labels for this repo — just attach them.
-gh pr create --title "nightshift/digest: weekly metrics digest" \
-  --label nightshift --label "nightshift:docs" \
-  --body "$(cat <<'EOF'
+
+cat > /tmp/nightshift-pr-body.md <<'EOF'
 ## Summary
 - Week ending <YYYY-MM-DD>
 - <Total runs>: <ok> ok, <silent> silent, <failed> failed
@@ -82,8 +81,13 @@ See `docs/NIGHTSHIFT-DIGEST.md` for the full digest.
 ---
 _Run by Night Shift • docs/weekly-digest_
 EOF
-)"
+
+gh pr create --title "nightshift/digest: weekly metrics digest" \
+  --label nightshift --label "nightshift:docs" \
+  --body-file /tmp/nightshift-pr-body.md
 ```
+
+**Always use `--body-file`, never inline `--body`.** See `bundles/_multi-runner.md` → "PR body formatting".
 
 **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 

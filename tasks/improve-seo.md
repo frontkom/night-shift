@@ -57,11 +57,9 @@ Only open a PR for clear, real SEO issues on genuinely public pages. Do not add 
    git checkout -b nightshift/seo-YYYY-MM-DD
    ```
 6. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-7. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
+7. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
    ```
-   gh pr create --title "nightshift/seo: <app_path> — metadata sweep" \
-     --label nightshift --label "nightshift:audits" \
-     --body "$(cat <<'EOF'
+   cat > /tmp/nightshift-pr-body.md <<'EOF'
    ## Plain summary
    <1-2 sentences in English (PR review is always in English, regardless of the product's user language). Which public pages now show better titles / link previews / search snippets, and what visitors / search engines see differently. No og:* / JSON-LD jargon here. See bundles/_multi-runner.md → "Body header — Plain summary".>
 
@@ -77,7 +75,10 @@ Only open a PR for clear, real SEO issues on genuinely public pages. Do not add 
    ---
    _Run by Night Shift • audits/improve-seo_
    EOF
-   )"
+
+   gh pr create --title "nightshift/seo: <app_path> — metadata sweep" \
+     --label nightshift --label "nightshift:audits" \
+     --body-file /tmp/nightshift-pr-body.md
    ```
 
    **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.

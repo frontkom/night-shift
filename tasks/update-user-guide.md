@@ -83,10 +83,7 @@ git push -u origin HEAD
 
 # Wrapper has already created the standard labels for this repo — just attach them.
 
-# scoped PR title:
-gh pr create --title "nightshift/docs: <app_path> — refresh <doc-filename>" \
-  --label nightshift --label "nightshift:docs" \
-  --body "$(cat <<'EOF'
+cat > /tmp/nightshift-pr-body.md <<'EOF'
 ## Summary
 - Refreshed <doc-filename> against current source code.
 
@@ -96,12 +93,18 @@ gh pr create --title "nightshift/docs: <app_path> — refresh <doc-filename>" \
 ---
 _Run by Night Shift • docs/update-user-guide_
 EOF
-)"
+
+# scoped PR title:
+gh pr create --title "nightshift/docs: <app_path> — refresh <doc-filename>" \
+  --label nightshift --label "nightshift:docs" \
+  --body-file /tmp/nightshift-pr-body.md
 # unscoped PR title:
 # gh pr create --title "nightshift/docs: refresh <doc-filename>" \
 #   --label nightshift --label "nightshift:docs" \
-#   --body "..."
+#   --body-file /tmp/nightshift-pr-body.md
 ```
+
+**Always use `--body-file`, never inline `--body`.** See `bundles/_multi-runner.md` → "PR body formatting".
 
 **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
 
