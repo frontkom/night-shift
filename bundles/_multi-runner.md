@@ -116,18 +116,24 @@ Every PR opened by Night Shift must follow these conventions so reviewers can fi
 ### PR title format
 Always `nightshift/<area>: <description>`. Slash + colon. The `<area>` is the task's short slug (`bug`, `a11y`, `tests`, `plan`, `docs`, `changelog`, `digest`, `suggestions`, `adr`, `seo`, `perf`, `security`, `i18n`, `issue`). Never use the parens form `nightshift(<area>):` for PR titles — the parens form is reserved for `git commit -m` messages on direct-to-main work, not for PR titles. When the task is scoped to an app, the title includes `<app_path> — ` after the colon.
 
-### Labels (auto-created if missing)
+### Labels (created at wrapper level, applied at task level)
 Every `gh pr create` call must add two labels:
 - `nightshift` — every Night Shift PR.
 - `nightshift:<bundle>` — one of `nightshift:plans`, `nightshift:docs`, `nightshift:code-fixes`, `nightshift:audits`.
 
-Before calling `gh pr create`, ensure both labels exist (idempotent — silent if they already exist):
+**Label creation is a wrapper precondition, not a per-task step.** Each multi-runner wrapper, before dispatching any subagents for a given repo, runs the following block once per repo (after `cd`-ing in for the dirty / opt-out checks):
+
 ```
 gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-gh label create "nightshift:<bundle>" --color "1d76db" --description "Night Shift <bundle> bundle" 2>/dev/null || true
+gh label create "nightshift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
+gh label create "nightshift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
+gh label create "nightshift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
+gh label create "nightshift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
 ```
 
-Then pass them to `gh pr create`:
+All five are created together (cheap, idempotent) so a single bundle run never leaves a sibling bundle's label missing — a subtle bug that caused `gh pr create --label nightshift:audits` to fail silently and PRs to land label-less when the audits label hadn't been created yet by an earlier bundle. **Do this once per repo per wrapper run.** Subagents inherit the labels and only need to apply them.
+
+Tasks **only** pass the flags, never call `gh label create` themselves:
 ```
 gh pr create --title "nightshift/<area>: ..." \
   --label nightshift --label "nightshift:<bundle>" \

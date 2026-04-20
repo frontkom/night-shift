@@ -40,10 +40,8 @@ Only open a PR for a bug that is clearly real, clearly the codebase's fault (not
    ```
 5. Add a failing test that demonstrates the bug. Then fix the bug. Test must now pass.
 6. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-7. Push and open a PR (prefix the title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them to the PR. End the body with the Night Shift footer:
+7. Push and open a PR (prefix the title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
    ```
-   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-   gh label create "nightshift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
    gh pr create --title "nightshift/bug: <app_path> — <short description>" \
      --label nightshift --label "nightshift:audits" \
      --body "$(cat <<'EOF'

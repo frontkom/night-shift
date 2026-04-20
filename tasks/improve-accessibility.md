@@ -75,10 +75,8 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
    git checkout -b nightshift/a11y-YYYY-MM-DD
    ```
 7. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-8. Push and open the PR (prefix title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
+8. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
    ```
-   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-   gh label create "nightshift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
    gh pr create --title "nightshift/a11y: <app_path> — WCAG 2.1 AA sweep" \
      --label nightshift --label "nightshift:code-fixes" \
      --body "$(cat <<'EOF'

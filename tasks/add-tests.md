@@ -45,10 +45,8 @@ Without an `app_path` (single-app repo), behave as before: walk the whole repo, 
    # unscoped:
    git checkout -b nightshift/tests-YYYY-MM-DD
    ```
-8. Push and open the PR (prefix title with `<app_path> — ` when scoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
+8. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
    ```
-   gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-   gh label create "nightshift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
    gh pr create --title "nightshift/tests: <app_path> — add coverage for <N> units" \
      --label nightshift --label "nightshift:code-fixes" \
      --body "$(cat <<'EOF'

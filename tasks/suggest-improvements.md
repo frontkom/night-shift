@@ -55,8 +55,7 @@ git commit -m "nightshift(suggestions): add <N> ideas"
 
 git push -u origin HEAD
 
-gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-gh label create "nightshift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
+# Wrapper has already created the standard labels for this repo — just attach them.
 
 # Mode A PR title:
 gh pr create --title "nightshift/suggestions: add <N> ideas" \

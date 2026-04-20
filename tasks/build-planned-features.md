@@ -60,13 +60,11 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
 9. If anything fails, do not commit. Leave a note in the plan file under a `## Night Shift Notes` section describing what blocked you, then commit only that note + push the branch + open the PR with a `[blocked]` prefix in the title so a human can pick it up.
 
 ## Open the PR
-On success (drop the `<app_path> — ` prefix from commit + PR title when unscoped). Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
+On success (drop the `<app_path> — ` prefix from commit + PR title when unscoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
 ```
 git add -A
 git commit -m "nightshift(plan): <app_path> — <plan-name> phase <N> — <short title>"
 git push -u origin HEAD
-gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-gh label create "nightshift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
 gh pr create --title "nightshift/plan: <app_path> — <plan-name> phase <N>" \
   --label nightshift --label "nightshift:plans" \
   --body "$(cat <<'EOF'

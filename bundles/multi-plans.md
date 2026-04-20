@@ -27,6 +27,15 @@ For each discovered target repo, in directory-name order:
    - Look up the repo in the parsed allowlist. If `build-planned-features` is **not** in the repo's allowed list, record `not-selected` and continue (no dispatch for this repo).
    - Run `git status --porcelain` — if dirty, record `dirty-skip` and continue.
    - Check opt-out signals. Record `opted-out` and continue if any of: `.nightshift-skip` exists at the repo root, or `CLAUDE.md` / `AGENTS.md` / `README.md` contains the line `Night Shift: skip`.
+   - **Ensure all five Night Shift labels exist on the repo** (idempotent — silent if they already exist). Run this once per repo before dispatching subagents:
+     ```
+     gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
+     gh label create "nightshift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
+     gh label create "nightshift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
+     gh label create "nightshift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
+     gh label create "nightshift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
+     ```
+     All five are created together so subagents in any future bundle can rely on them. See `bundles/_multi-runner.md` → "Labels (created at wrapper level, applied at task level)".
    - Parse `## Night Shift Config` in `CLAUDE.md`. If it contains an `apps:` block, build one app-scope per `apps[]` entry (each with its own `app_path` + merged `scoped_config`). Otherwise build a single app-scope with `app_path = —`.
    - **For each app-scope, list plan files.** Resolve `PLANS_DIR`: `<app_path>/<plans dir>` when scoped, else `<plans dir>` (default `docs`). List `$PLANS_DIR/*-PLAN.md`.
    - **Pre-filter plans before dispatching subagents.** For each plan file, do a cheap read at the wrapper level (no subagent yet) and **skip** the plan if any of the following is true:

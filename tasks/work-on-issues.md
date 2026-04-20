@@ -57,13 +57,11 @@ If tests or build fail:
 4. Move on to the next issue.
 
 ### Open the PR
-On success. Ensure the standard labels exist first (idempotent), then attach them. End the body with the Night Shift footer:
+On success. The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
 ```
 git add -A
 git commit -m "nightshift(issue): #<number> — <short description>"
 git push -u origin HEAD
-gh label create nightshift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-gh label create "nightshift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
 gh pr create --title "nightshift/issue: #<number> — <short description>" \
   --label nightshift --label "nightshift:plans" \
   --body "$(cat <<'EOF'
