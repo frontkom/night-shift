@@ -72,15 +72,19 @@ For each discovered target repo, in directory-name order:
    Otherwise, fetch
    https://raw.githubusercontent.com/frontkom/night-shift/main/tasks/build-planned-features.md
    and execute it against THIS ONE PLAN FILE ONLY. Do not scan for other plans; the
-   dispatcher has already fanned out one subagent per plan. Implement the next
-   pending phase of PLAN_FILE and open one PR for it.
+   dispatcher has already fanned out one subagent per plan. Implement as many
+   pending phases of PLAN_FILE as reasonably fit in one PR and open one PR for
+   the bundled result. See the task file's "How far to go in one run" heading
+   for stop conditions.
 
    When APP_PATH is not "—":
    - Branch name must include the app slug:
-         nightshift/plan-<app-slug>-<plan-slug>-phase-<N>-YYYY-MM-DD
+         nightshift/plan-<app-slug>-<plan-slug>-YYYY-MM-DD
      where <app-slug> is the last segment of APP_PATH (e.g. "web" for "apps/web").
-   - PR title must name the app:
-         nightshift/plan: <app_path> — <plan-name> phase <N>
+   - PR title must name the app and the phase range:
+         nightshift/plan: <app_path> — <plan-name> <phase-range>
+     where <phase-range> is e.g. "phase 2", "phases 2–4", or suffix
+     "(completes plan)" when this PR lands the last pending phase.
 
    CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
    the defaults from
