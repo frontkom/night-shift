@@ -165,10 +165,10 @@ gh pr create --title "night-shift/<area>: ..." \
 Every `gh pr create` call must be followed by:
 
 ```
-gh pr merge --auto --squash
+gh pr merge --auto --squash 2>/dev/null || gh pr merge --auto
 ```
 
-on the same branch. `--auto` arms auto-merge but does **not** bypass human review or required checks — the PR enters the merge queue only once you approve it in the morning and every required check is green. The queue then rebases the PR onto fresh `main`, re-runs required checks on the rebased commit, and lands it.
+on the same branch. The fallback matters: when the target repo has a **merge queue** configured, GitHub sets the merge method itself and rejects the explicit `--squash`. The second form armours against that. `--auto` arms auto-merge but does **not** bypass human review or required checks — the PR enters the merge queue only once you approve it in the morning and every required check is green. The queue then rebases the PR onto fresh `main`, re-runs required checks on the rebased commit, and lands it.
 
 Why this matters: without auto-merge armed, Night Shift PRs sit on their original tree all day. When sibling PRs merge first, each remaining PR goes stale against `main` (missing modules added by siblings, stale CI aggregators, merge conflicts with fresh code). Arming auto-merge lets the queue handle freshness automatically the moment you approve.
 
