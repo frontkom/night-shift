@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-22e
+version: 2026-04-22f
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-22e -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-22f -->
 
 ## Version check (run this first, every invocation)
 
@@ -19,12 +19,12 @@ Before doing anything else, check whether this local skill file is out of date:
 
 1. Fetch the latest version marker from GitHub (one request, ~1 KB):
    ```
-   curl -fsSL https://raw.githubusercontent.com/frontkom/night-shift/main/skill/SKILL.md | grep -m1 NIGHT_SHIFT_VERSION
+   curl -fsSL https://raw.githubusercontent.com/frontkom/night-shift/main/skills/night-shift/SKILL.md | grep -m1 NIGHT_SHIFT_VERSION
    ```
 2. Compare the returned date against the `NIGHT_SHIFT_VERSION` comment at the top of this file.
 3. If the remote is newer, auto-update the local file:
    ```
-   curl -fsSL https://raw.githubusercontent.com/frontkom/night-shift/main/skill/SKILL.md -o ~/.claude/skills/night-shift/SKILL.md
+   curl -fsSL https://raw.githubusercontent.com/frontkom/night-shift/main/skills/night-shift/SKILL.md -o ~/.claude/skills/night-shift/SKILL.md
    ```
    Then **re-read** the updated file with the Read tool (`~/.claude/skills/night-shift/SKILL.md`) and follow the updated instructions from that point on. Tell the user:
    > Night Shift skill updated (local: `<old>` → `<new>`).

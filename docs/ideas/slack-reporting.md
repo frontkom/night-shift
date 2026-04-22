@@ -82,5 +82,5 @@ Two viable paths:
 - `bundles/_multi-runner.md` (or similar) — helper block for the Block Kit
   payload, so all three wrappers could post individually later if we change
   our mind.
-- `skill/SKILL.md` — untouched.
+- `skills/night-shift/SKILL.md` — untouched.
 - Per sets `NIGHTSHIFT_SLACK_WEBHOOK` on his three triggers manually once.

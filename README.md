@@ -11,12 +11,20 @@ Night Shift installs as a Claude Code skill — a local file in `~/.claude/skill
 **Install (run in your shell, not in Claude):**
 
 ```bash
+npx skills add frontkom/night-shift
+```
+
+Works for Claude Code, Cursor, Codex, Windsurf. The CLI prompts whether to install globally (`~/.claude/skills/`) or into the current project (`.claude/skills/`).
+
+Or fetch the single file directly — no CLI required:
+
+```bash
 mkdir -p ~/.claude/skills/night-shift && \
-  curl -fsSL https://raw.githubusercontent.com/frontkom/night-shift/main/skill/SKILL.md \
+  curl -fsSL https://raw.githubusercontent.com/frontkom/night-shift/main/skills/night-shift/SKILL.md \
   -o ~/.claude/skills/night-shift/SKILL.md
 ```
 
-That fetches one file into your local skills directory. No code execution, no Claude trust required — you can read the file before or after with `cat ~/.claude/skills/night-shift/SKILL.md`.
+No code execution, no Claude trust required — you can read the file before or after with `cat ~/.claude/skills/night-shift/SKILL.md`.
 
 **Use:**
 
