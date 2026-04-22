@@ -37,14 +37,26 @@ For each discovered target repo, in directory-name order:
      ```
      All five are created together so subagents in any future bundle can rely on them. See `bundles/_multi-runner.md` → "Labels (created at wrapper level, applied at task level)".
    - Parse `## Night Shift Config` in `CLAUDE.md`. If it contains an `apps:` block, build one app-scope per `apps[]` entry (each with its own `app_path` + merged `scoped_config`). Otherwise build a single app-scope with `app_path = —`.
-   - **For each app-scope, list plan files.** Resolve `PLANS_DIR`: `<app_path>/<plans dir>` when scoped, else `<plans dir>` (default `docs`). List `$PLANS_DIR/*-PLAN.md`.
-   - **Pre-filter plans before dispatching subagents.** For each plan file, do a cheap read at the wrapper level (no subagent yet) and **skip** the plan if any of the following is true:
+   - **For each app-scope, list plan files.** Resolve `PLANS_DIR`: `<app_path>/<plans dir>` when scoped, else `<plans dir>` (default `docs`). Plans can use any of these naming conventions — discover **all** of them in a single pass:
+     - `*-PLAN.md` (suffix style, e.g. `MONOREPO-TEST-PLAN.md`)
+     - `PLAN-*.md` (prefix style, e.g. `PLAN-JOURNAL.md`, `PLAN-BATCH-TRANSACTIONS.md`)
+     - `*.plan.md` (dotted style, e.g. `migration.plan.md`)
+     - Any markdown file inside a `plans/` subdirectory of `PLANS_DIR` (e.g. `docs/plans/foo.md`)
+
+     Concretely:
+     ```
+     find "$PLANS_DIR" -maxdepth 1 -type f \( -name '*-PLAN.md' -o -name 'PLAN-*.md' -o -name '*.plan.md' \)
+     find "$PLANS_DIR/plans" -maxdepth 2 -type f -name '*.md' 2>/dev/null
+     ```
+     De-duplicate the union. **A new plan file appearing in the repo must show up as a discovered plan on the very next run** — no manual registration step. If a plan with one of these names is silently ignored, that is a discovery bug, not a "the plan was deferred" outcome.
+   - **Print the discovered plan list at the start of the run** (before dispatching any subagents) so the human can see what the wrapper found vs. what they expected. Format: one line listing every discovered plan name, comma-separated. Example: `Discovered plans: MONOREPO-TEST-PLAN, PLAN-JOURNAL, PLAN-BATCH-TRANSACTIONS, ... (13 total)`. This is the single best signal that discovery is working.
+   - **Pre-filter plans before dispatching subagents.** For each discovered plan file, do a cheap read at the wrapper level (no subagent yet) and **skip** the plan if any of the following is true:
      - The plan's title or front matter marks it **Deferred**, **Blocked**, **On hold**, or **Archived**.
      - **Every** phase / item / step / milestone in the plan is already marked done. Look for any of: `**Status: Implemented`, `**Status: Done`, `[x]`, `~~…~~` strikethrough, `✅`, or a bold `Status:` line whose value is `Implemented`/`Done`/`Complete`. If you cannot find any pending unit, the plan is fully implemented.
      - The plan file is empty or has no parseable units.
    - Plans skipped by the pre-filter get **one** wrapper-level row in the summary table (`Status: not-applicable`) and **one** wrapper-level history row on main — they do **not** spin up a subagent. This keeps the silent rate low and avoids spending a subagent budget on plans known to have nothing to do.
-   - Each **surviving** plan file becomes its own work-item `{repo, app_path, scoped_config, plan_file}`.
-   - If an app-scope has zero plan files at all, emit one work-item with `plan_file = —` so it can report `silent` in the summary.
+   - Each **surviving** plan file becomes its own work-item `{repo, app_path, scoped_config, plan_file}`. **Every** surviving plan must be dispatched — no plan-count cap. If a repo has 20 pending plans, the wrapper dispatches 20 subagents (each in its own context window, so the cost scales linearly without contention).
+   - If an app-scope has zero plan files at all (after discovery), emit one work-item with `plan_file = —` so it can report `silent` in the summary. If there were plan files but the pre-filter rejected all of them, do **not** emit an empty work-item — the per-plan `not-applicable` rows already cover that case.
    - Capture the absolute repo path. `cd` back to the parent.
 2. For each work-item from this repo, dispatch a `Task` subagent with this prompt (substitute `{REPO_PATH}`, `{APP_PATH}` — literal `—` when repo-wide, `{SCOPED_CONFIG}` as inline JSON / YAML, `{PLAN_FILE}` — literal `—` when no plans):
 

@@ -18,9 +18,9 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
 
 ## Steps
 1. You were given a specific `PLAN_FILE` by the dispatcher. Read **only that file**. Do not list or scan the plans directory. If no `PLAN_FILE` was supplied (single-agent fallback, e.g. running this task directly on one repo), find a plan to work on:
-   - Scan **all markdown files** in the plans directory (default `docs/`) and its subdirectories for plan documents (files containing phases, milestones, or implementation steps).
-   - Look for files named `*-PLAN.md`, but also check other `.md` files that may contain implementation plans without following the naming convention.
-   - Pick the first plan with a pending phase.
+   - Discover plan files using the same conventions the wrapper uses — see `bundles/multi-plans.md` → "list plan files":
+     - `*-PLAN.md` (suffix), `PLAN-*.md` (prefix), `*.plan.md` (dotted), and any `.md` file inside a `plans/` subdirectory.
+   - Pick the first plan with a pending unit (phase / item / step / milestone). See step 3 for what counts as a unit.
 
 2. Read the plan file carefully. Identify all phases. A phase is "implemented" if it is explicitly marked as done/completed/implemented in the plan file, **or** if its referenced files / migrations / exports already exist with the described shape. Find the first pending phase.
    - **Skip plans that are fully implemented.** If every phase is marked as done or implemented, exit silently.
