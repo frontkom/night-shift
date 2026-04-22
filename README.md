@@ -96,6 +96,67 @@ Add a `## Night Shift Config` section to the project's `CLAUDE.md`. All fields a
 
 **Task selection is not in this file.** Which tasks run on which repo is decided at setup time via the picker in `/night-shift`, and stored in the routine prompts themselves. To change a repo's task selection, re-run `/night-shift` and pick **Change tasks for a repo**.
 
+## Recommended target-repo setup (optional)
+
+These are hints, not requirements — your org may already have its own standards. They come from running Night Shift against a real monorepo and hitting the same merge-time issues more than once. Adopt whatever fits.
+
+**Enable a merge queue on `main`.** Night Shift opens several PRs in parallel at night. Without a queue, every PR sits on its original tree all day. As siblings land, each remaining PR goes stale — missing modules, merge conflicts, stale CI aggregators — and you spend your morning rebasing instead of reviewing. A merge queue rebases each PR onto fresh `main` and re-runs required checks at merge time, so freshness is guaranteed.
+
+Suggested settings (GitHub → Settings → Rules → ruleset for `main`):
+- Add a `merge_queue` rule: method `SQUASH`, grouping `ALLGREEN`.
+- Keep required status checks; the queue re-runs them on the rebased commit.
+- Allow merge method: squash only (keeps history linear).
+
+**Arm auto-merge on every Night Shift PR.** Night Shift already does this: every `gh pr create` is followed by `gh pr merge --auto --squash`. The PR waits for required checks and review, then enters the queue the moment you approve in the morning. Nothing to configure per-repo — it's built into the PR creation pattern.
+
+**Selective human review for Night Shift PRs only.** If you don't want blanket "require 1 approval" on every human PR, but *do* want human approval before Night Shift PRs land, add a small workflow that gates on the `night-shift` label:
+
+```yaml
+# .github/workflows/nightshift-review-gate.yml
+name: Night Shift review gate
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled, unlabeled]
+  pull_request_review:
+    types: [submitted, dismissed]
+jobs:
+  nightshift-review-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = (pr.labels || []).map(l => l.name);
+            if (!labels.includes('night-shift')) return;
+            const reviews = await github.paginate(github.rest.pulls.listReviews, {
+              owner: context.repo.owner, repo: context.repo.repo,
+              pull_number: pr.number, per_page: 100,
+            });
+            const latest = new Map();
+            for (const r of reviews) {
+              if (r.state === 'COMMENTED') continue;
+              latest.set(r.user.login, r.state);
+            }
+            const approvals = [...latest.values()].filter(s => s === 'APPROVED').length;
+            if (approvals < 1) core.setFailed(`Night Shift PR requires 1 approval (has ${approvals}).`);
+```
+
+Then mark `nightshift-review-gate` as a required status check. Human PRs skip it automatically; Night Shift PRs block on it until approved.
+
+**Aggregator checks should treat `cancelled` as neutral, not failure.** If you use an aggregator job (one that waits on `needs:` and succeeds only if children pass — common for multi-app monorepos), make sure it only fails on `failure`:
+
+```yaml
+- run: |
+    # Only 'failure' fails the aggregator. 'cancelled' means superseded,
+    # 'skipped' means not applicable — both should pass.
+    if [ "${{ needs.some-job.result }}" = "failure" ]; then exit 1; fi
+```
+
+Otherwise, when concurrency cancels an older run (a common, desirable thing), the aggregator latches to red and the PR stays `BLOCKED` even though every real test passed. We got bitten by this three times in one night before fixing it.
+
+**That's the whole recipe.** With those four pieces in place — merge queue, auto-merge armed by Night Shift, a selective review gate, and a `cancelled`-neutral aggregator — the nightly run lands cleanly the morning after, with no branch babysitting.
+
 ## Testing
 
 To test tasks against a sandbox repo before running them on real projects, install the separate [Night Shift Test](https://github.com/perandre/night-shift-test) skill.
