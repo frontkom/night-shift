@@ -183,7 +183,14 @@ if ! echo "$TITLE" | grep -qE '^night-shift/[a-z]+(:| —)'; then
   echo "Rename the PR via 'gh pr edit \"$PR_URL\" --title ...' before continuing." >&2
 fi
 
-# (3) Arm auto-merge. The fallback handles repos with a merge queue, where
+# (3) PR body sanity-fix. Even with `--body-file`, subagents sometimes pass a
+# body string that contained literal `\n` sequences (backslash + n) instead of
+# real newlines — rendering the whole PR as one unbroken paragraph on GitHub.
+# Detect that case and rewrite the body with real newlines.
+BODY=$(gh pr view "$PR_URL" --json body -q .body)
+case "$BODY" in *'\n'*) printf '%s' "$BODY" | python3 -c "import sys;sys.stdout.write(sys.stdin.read().replace(chr(92)+chr(110),chr(10)))" > /tmp/night-shift-body-fix.md && gh pr edit "$PR_URL" --body-file /tmp/night-shift-body-fix.md ;; esac
+
+# (4) Arm auto-merge. The fallback handles repos with a merge queue, where
 # GitHub sets the merge method itself and rejects the explicit --squash.
 gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --auto || true
 ```
@@ -192,6 +199,7 @@ Why each step matters:
 
 - **Label re-assertion** fixed the recurring "PR landed with no night-shift label" class of failures. When a target repo's `night-shift:<bundle>` label doesn't exist yet, `gh pr create --label` silently drops the flag. The review-gate workflow then auto-passes the PR because the label-match fails — meaning it can merge with zero human approval. Re-asserting via `gh pr edit` is idempotent and produces a visible error if the label truly can't be applied.
 - **Title check** catches subagents that improvise (`nightshift(docs):`, `nightshift/plan:`, etc.) and warn-logs them without failing the task — a reviewer can fix the title manually before merging.
+- **PR body sanity-fix** defends against the `\n`-flattening failure mode. Wrapper-level checks exist too (see step 4 of the work-item loop above), but running the fix at task level — right after `gh pr create` — catches it before auto-merge ever sees the body and before the PR is visible for more than a few seconds. Keeps both layers; each catches what the other misses.
 - **Arm auto-merge** without this, Night Shift PRs sit on their original tree all day. When sibling PRs merge first, each remaining PR goes stale against `main` (missing modules added by siblings, stale CI aggregators, merge conflicts with fresh code). `--auto` does **not** bypass human review or required checks — the PR enters the merge queue only once a reviewer approves in the morning and every required check is green.
 
 If any step fails, log the error but do not fail the task — the PR is already created and a human can remediate. Never abort after a successful `gh pr create`.

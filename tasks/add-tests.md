@@ -69,6 +69,8 @@ Without an `app_path` (single-app repo), behave as before: walk the whole repo, 
      --body-file /tmp/night-shift-pr-body.md)
    # Post-create ritual (spec: bundles/_multi-runner.md)
    gh pr edit "$PR_URL" --add-label night-shift --add-label "night-shift:code-fixes"
+   BODY=$(gh pr view "$PR_URL" --json body -q .body)
+   case "$BODY" in *'\n'*) printf '%s' "$BODY" | python3 -c "import sys;sys.stdout.write(sys.stdin.read().replace(chr(92)+chr(110),chr(10)))" > /tmp/night-shift-body-fix.md && gh pr edit "$PR_URL" --body-file /tmp/night-shift-body-fix.md ;; esac
    gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --auto || true
    ```
 
