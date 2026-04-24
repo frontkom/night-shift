@@ -96,6 +96,24 @@ For each work-item, in deterministic order (repo directory name, then app path):
 
 If a subagent dispatch itself throws an unrecoverable error, record `failed | dispatch error: <reason>` and continue. Never abort the multi-repo run.
 
+## Scout open sibling PRs before editing
+
+Before a task makes its first edit, run this once to see what sibling Night Shift PRs are already open:
+
+```
+gh pr list --state open --label night-shift \
+  --json number,title,files \
+  --jq '[.[] | {n:.number, t:.title, f:[.files[].path]}]'
+```
+
+Treat the result as advisory, not a gate:
+
+- If the list is empty or the command errors, proceed as normal.
+- If any returned PR's `f` (files) overlaps with files this task will edit, read that PR's diff with `gh pr diff <n>` and write your changes so they remain compatible with the pending PR. Do not wait for the sibling PR to merge — `--auto` will handle ordering later.
+- If there is no overlap, proceed as normal.
+
+This is a hint, not a gate. Never abort a task because scouting failed or produced unexpected output. The merge queue / `--auto` still serves as the backstop for conflicts that slip through.
+
 ## PR body formatting
 
 **Critical:** Always pass PR bodies via `--body-file`, never `--body "..."`. Inline `--body` strings are repeatedly serialized as one-liners with literal `\n` instead of newlines (observed in practice — even when the task template uses a quoted HEREDOC, the agent sometimes flattens the body to a single-line string). GitHub then renders the `\n` as visible text and the entire PR shows as one unbroken paragraph.
