@@ -115,8 +115,6 @@ gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --aut
 
 **Always use `--body-file`, never inline `--body`.** See `bundles/_multi-runner.md` → "PR body formatting".
 
-**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
-
 ## Idempotency
 - One doc file per run — even if multiple are stale, pick the stalest and leave the rest.
 - Skip docs whose source code has not changed since the doc's last update.

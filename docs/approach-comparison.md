@@ -16,7 +16,7 @@ Claude Code's scheduled remote triggers fire nightly, each running a multi-repo 
 - Runs when laptop is off (API-based)
 
 **Cons:**
-- Audit trail is file-based (`NIGHTSHIFT-HISTORY.md`), not a native CI/CD UI
+- Audit trail is the labelled PR list (`gh pr list --label night-shift`) plus the routines dashboard, not a native CI/CD UI
 - Less visibility for team collaboration
 
 ### 2. GitHub Actions with claude-code-action
@@ -69,7 +69,7 @@ Leave an interactive Claude Code session running in a detached terminal.
 | Setup effort per repo | Select tasks in picker | Workflow file + secrets | Script entry | Manual |
 | Central config | Single manifest | Scattered across repos | Single script | None |
 | Cost | API credits only | API credits + CI minutes | API credits | API credits |
-| Audit trail | NIGHTSHIFT-HISTORY.md | GitHub Actions logs + PRs | Log files | None |
+| Audit trail | Labelled PRs + routines dashboard | GitHub Actions logs + PRs | Log files | None |
 | Non-GitHub repos | Yes | No | Yes | Yes |
 | Team visibility | Low | High | Low | Low |
 | Parallel execution | Yes (subagents) | Yes (matrix/parallel jobs) | Manual | No |

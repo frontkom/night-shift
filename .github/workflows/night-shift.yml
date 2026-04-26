@@ -101,10 +101,10 @@ jobs:
 
           Between bundles, return to the default branch with a clean working tree.
 
-          After all bundles complete, append history lines to
-          docs/NIGHTSHIFT-HISTORY.md (create the file + directory if needed).
-          Follow the format documented in the multi-runner protocol:
-          https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md
+          The audit trail is the PR list itself (`gh pr list --label night-shift`).
+          Do not write any history file — every task already opens a labelled PR.
+          See https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md
+          for the run-history convention.
 
           Honor CLAUDE.md's Night Shift Config section if present.
           If absent, use defaults from the multi-runner protocol.

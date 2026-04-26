@@ -31,32 +31,23 @@ For each discovered target repo, in directory-name order:
    Your working directory is {REPO_PATH}. cd into it now.
 
    Fetch https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/docs.md
-   and execute it against this repository. The bundle runs the five doc tasks
-   (update-changelog, update-user-guide, document-decisions, suggest-improvements, weekly-digest).
+   and execute it against this repository. The bundle runs the four doc tasks
+   (update-changelog, update-user-guide, document-decisions, suggest-improvements).
 
    CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
    the defaults from
    https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
-   **Do not** modify docs/NIGHTSHIFT-HISTORY.md from any feature branch — the wrapper
-   appends the row on main after you return. See bundles/_multi-runner.md →
-   "NIGHTSHIFT-HISTORY.md is wrapper-only".
-
    Return EXACTLY ONE LINE to me in this format:
        <ok|silent|failed> | PRs: <comma-separated urls or —> | <terse note, max 80 chars>
    ```
 3. Capture only the one-line result. Do not echo subagent work into your own context.
-4. **On `main`** in `{REPO_PATH}`, append one line to `docs/NIGHTSHIFT-HISTORY.md` under the `## Runs` heading at the top of the runs list:
-   ```
-   - YYYY-MM-DD docs  —  <ok|silent|failed>  <terse note, max 80 chars>
-   ```
-   Commit (`docs: append night-shift history`) and push that single change. Do this for every dispatched subagent — including `silent` and `failed` ones.
-5. Move on to the next repo.
+4. Move on to the next repo.
 
-If a subagent dispatch itself fails, record `failed | dispatch error: <reason>` and still append a `failed` history row on main.
+If a subagent dispatch itself fails, record `failed | dispatch error: <reason>` in the summary.
 
 ## Final report
-Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard. **Do not** write the summary to any external repo; the per-repo `docs/NIGHTSHIFT-HISTORY.md` files in each target repo are the only persisted history.
+Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard. The per-repo PR list (`gh pr list --label night-shift:docs`) is the persisted audit trail.
 
 ```
 Night Shift docs — multi-repo summary

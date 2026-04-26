@@ -77,7 +77,6 @@ For each work-item, in deterministic order (repo directory name, then app path):
    - Passes the **scoped config** (test command, build command, key pages, plans dir) resolved for this app.
    - Gives it the URL of the inner bundle to fetch and execute.
    - Instructs it to perform all of the inner bundle's work **inside `app_path`** for tasks marked `scope: app` in `manifest.yml`, and **repo-wide** for tasks marked `scope: repo`.
-   - Instructs it to **never modify `docs/NIGHTSHIFT-HISTORY.md`** — the wrapper appends history rows on `main` after the subagent returns. See **NIGHTSHIFT-HISTORY.md is wrapper-only** above.
    - Asks it to return **one single line** to the wrapper, format: `<status> | PR: <url or —> | <terse note>` where status ∈ {`ok`, `silent`, `failed`}.
 3. Capture only that one-line result. Do **not** read or echo the subagent's intermediate work.
 4. **PR body sanity-fix.** If the one-line result contains `PR: https://...`, extract the URL and run:
@@ -91,8 +90,7 @@ For each work-item, in deterministic order (repo directory name, then app path):
    esac
    ```
    This catches the case where a subagent ignored the `--body-file` rule and flattened the body to a single line with literal `\n`. The fix is idempotent (re-running on an already-clean body is a no-op) and cheap. See **PR body formatting** below for why this defense exists.
-5. **On `main`, in the parent repo directory**, append one history row per (bundle, app) pair to `docs/NIGHTSHIFT-HISTORY.md` (creating the file if missing), then commit + push that single change. The line format is documented below. This append step is the wrapper's responsibility — it must happen after every subagent dispatch, including `silent` and `failed` outcomes.
-6. Move on to the next work-item.
+5. Move on to the next work-item.
 
 If a subagent dispatch itself throws an unrecoverable error, record `failed | dispatch error: <reason>` and continue. Never abort the multi-repo run.
 
@@ -152,7 +150,7 @@ Each task file contains the body template inside the HEREDOC block. Follow the t
 Every PR opened by Night Shift must follow these conventions so reviewers can filter, attribute, and audit the work consistently across all tasks and bundles.
 
 ### PR title format
-Always `night-shift/<area>: <description>`. Slash + colon. The `<area>` is the task's short slug (`bug`, `a11y`, `tests`, `plan`, `docs`, `changelog`, `digest`, `suggestions`, `adr`, `seo`, `perf`, `security`, `i18n`, `issue`). Never use the parens form `night-shift(<area>):` for PR titles — the parens form is reserved for `git commit -m` messages on direct-to-main work, not for PR titles. When the task is scoped to an app, the title includes `<app_path> — ` after the colon.
+Always `night-shift/<area>: <description>`. Slash + colon. The `<area>` is the task's short slug (`bug`, `a11y`, `tests`, `plan`, `docs`, `changelog`, `suggestions`, `adr`, `seo`, `perf`, `security`, `i18n`, `issue`). Never use the parens form `night-shift(<area>):` for PR titles — the parens form is reserved for `git commit -m` messages on direct-to-main work, not for PR titles. When the task is scoped to an app, the title includes `<app_path> — ` after the colon.
 
 ### Labels (created at wrapper level, applied at task level)
 Every `gh pr create` call must add two labels:
@@ -310,7 +308,6 @@ Keep the note to one short paragraph. The human reviewer reads the diff itself f
 
 - **Never loop.** One review, at most one revision. No re-reviewing the revision.
 - **Never create a second PR or branch.** The revision amends the same branch; the same PR is the only PR.
-- **Never modify `docs/NIGHTSHIFT-HISTORY.md`.** The wrapper-only rule applies to self-review too.
 - **Never fail the task because self-review flagged issues.** The original PR is already created and armed; self-review can only improve it or leave it untouched.
 - **Never use plain `git push --force`.** The revert path uses `--force-with-lease` exclusively.
 - **Never run self-review in the `docs` bundle.** Prose churn is not the goal.
@@ -350,13 +347,11 @@ Example for a bug PR like #125:
 Staff who created an individual follow-up survey could occasionally hit a generic error with no explanation. They now see a clear error message and can safely retry.
 ```
 
-Doc-only tasks (changelog, ADR, digest, suggestions, user-guide) skip this section — their entire body is already user-readable. Test-only PRs (`add-tests`) also skip — they have no user impact to describe.
+Doc-only tasks (changelog, ADR, suggestions, user-guide) skip this section — their entire body is already user-readable. Test-only PRs (`add-tests`) also skip — they have no user impact to describe.
 
-## NIGHTSHIFT-HISTORY.md is wrapper-only
+## Run history is the PR list
 
-Tasks **must not** modify `docs/NIGHTSHIFT-HISTORY.md` themselves. The history row is appended by the multi-runner wrapper on `main` (in a separate commit, never on a feature branch) **after** the dispatched subagent returns its one-line result. This keeps feature PRs free of housekeeping diffs and means the row contains the real PR number returned by the subagent.
-
-Subagents return `<status> | PR: <url or —> | <terse note>` and the wrapper translates that into one history line on `main`. Do not append from the task; do not commit history changes on the feature branch.
+Night Shift used to write a per-repo `docs/NIGHTSHIFT-HISTORY.md` log file. That file has been removed: every task now opens a PR with the `night-shift` and `night-shift:<bundle>` labels, and `gh pr list --label night-shift --state all` reproduces the same audit trail without committing housekeeping rows. Subagents return `<status> | PR: <url or —> | <terse note>`; the wrapper uses that only to build the in-memory summary table, not to append to any file.
 
 ## Discovery — expanding repos to work-items
 
@@ -385,39 +380,6 @@ For `scope: repo` tasks, always use the top-level config (never an `apps[i]` blo
 
 When a repo declares `apps:`, the summary table prints **one row per (repo, app_path) work-item** for `scope: app` tasks, plus one row per repo for `scope: repo` tasks. Single-app repos (no `apps:` block) print exactly one row per repo, same as before.
 
-## Per-repo history file: `docs/NIGHTSHIFT-HISTORY.md`
-
-After each subagent returns, the **wrapper** appends one line per bundle run to `docs/NIGHTSHIFT-HISTORY.md` in the target repo, on `main`, as a separate commit (creating the file if it doesn't exist). Subagents never touch this file — see **NIGHTSHIFT-HISTORY.md is wrapper-only** above for the rationale. This file lives in the target repo itself — anyone with access to that repo can see what Night Shift has been doing. Access control follows the repo's own permissions.
-
-**Do not** write Night Shift logs to any other repo. In particular, do **not** write to the public `frontkom/night-shift` repo — doing so would leak private project information (names, activity, commit counts) to a public location. Each target project is the authoritative log for its own Night Shift activity.
-
-Format (newest at the top, under the `## Runs` heading):
-
-```markdown
-# Night Shift history
-
-This file is maintained automatically by Night Shift. Each line records one
-bundle run. See https://github.com/frontkom/night-shift for what each bundle does.
-
-## Runs
-
-- 2026-04-08 plans      ok      PR #142 — build-planned-features phase 2
-- 2026-04-07 docs       ok      changelog updated; 2 ADRs added
-- 2026-04-07 code-fixes silent  no coverage gaps found
-```
-
-Columns: `<YYYY-MM-DD> <bundle id> <status> <terse note>`. Status values: `ok`, `silent` (everything self-skipped), `failed`.
-
-**Monorepo variant.** When a repo declares `apps:`, `scope: app` task outcomes get an app column so it's obvious which team owns each row:
-
-```markdown
-- 2026-04-08 audits    apps/web    ok      PR #210 — perf sweep
-- 2026-04-08 audits    apps/admin  silent  no low-risk perf wins
-- 2026-04-08 docs      —           ok      1 ADR added (repo-wide)
-```
-
-Columns for monorepo rows: `<YYYY-MM-DD> <bundle id> <app_path or —> <status> <terse note>`. The `—` marker indicates a `scope: repo` task that ran once for the whole repo.
-
 ## Defaults when no config exists
 
 If a target repo has no `CLAUDE.md` (or one without a `## Night Shift Config` section), fall back to:
@@ -436,7 +398,7 @@ A project with explicit Night Shift Config in `CLAUDE.md` always overrides these
 
 ## Final report
 
-After all repos are processed, print one table and stop. The summary table is the primary run artifact — it appears in the routines dashboard output and is how the user reviews the run the next morning.
+After all repos are processed, print one table and stop. The summary table is the primary run artifact — it appears in the routines dashboard output and is how the user reviews the run the next morning, alongside the PRs themselves (`gh pr list --label night-shift`).
 
 ```
 Night Shift <bundle-name> — multi-repo summary

@@ -56,7 +56,7 @@ For each discovered target repo, in directory-name order:
    Scoped config: {SCOPED_CONFIG}
    Docs allowed tasks: {DOCS_ALLOWED}     # YAML list; may be empty
    Code-fixes allowed tasks: {FIXES_ALLOWED}  # YAML list; may be empty
-   Run scope:repo tasks: {RUN_REPO_SCOPED_TASKS}  # when false, skip document-decisions, suggest-improvements, weekly-digest
+   Run scope:repo tasks: {RUN_REPO_SCOPED_TASKS}  # when false, skip document-decisions, suggest-improvements
 
    You are running TWO night-shift bundles in sequence: docs, then code-fixes.
 
@@ -65,9 +65,9 @@ For each discovered target repo, in directory-name order:
    Otherwise, fetch https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/docs.md
    and execute it against this repository, scoped to {APP_PATH} when it is not "—".
    Pass `allowed_tasks: DOCS_ALLOWED` to the inner bundle so each task self-filters.
-   When RUN_REPO_SCOPED_TASKS is false, also skip the `document-decisions`,
-   `suggest-improvements`, and `weekly-digest` tasks — they already ran in another
-   app's subagent for this repo. Capture the outcome (ok / silent / failed) as the docs result.
+   When RUN_REPO_SCOPED_TASKS is false, also skip the `document-decisions` and
+   `suggest-improvements` tasks — they already ran in another app's subagent for
+   this repo. Capture the outcome (ok / silent / failed) as the docs result.
 
    Step 2 — CODE FIXES (always run, regardless of docs outcome):
    If FIXES_ALLOWED is empty, skip this step with outcome `silent` (note: not-selected).
@@ -80,10 +80,6 @@ For each discovered target repo, in directory-name order:
    the defaults from
    https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
-   **Do not** modify docs/NIGHTSHIFT-HISTORY.md from any feature branch — the wrapper
-   appends rows on main after you return. See bundles/_multi-runner.md →
-   "NIGHTSHIFT-HISTORY.md is wrapper-only".
-
    Return EXACTLY ONE LINE to me in this format (combined status):
        <status> | docs: <ok|silent|failed> | code-fixes: <ok|silent|failed> | <terse note>
 
@@ -93,18 +89,12 @@ For each discovered target repo, in directory-name order:
    - `failed` — at least one returned failed (the other may still have run successfully)
    ```
 3. Capture only the one-line result. Do not echo subagent work into your own context.
-4. **On `main`** in `{REPO_PATH}`, append TWO history rows under the `## Runs` heading at the top of the runs list (one per inner bundle):
-   ```
-   - YYYY-MM-DD docs       <app_path or —>  <ok|silent|failed>  <terse note>
-   - YYYY-MM-DD code-fixes <app_path or —>  <ok|silent|failed>  <terse note>
-   ```
-   Commit (`docs: append night-shift history`) and push.
-5. Move on to the next work-item.
+4. Move on to the next work-item.
 
-If a subagent dispatch itself fails, record `failed | docs: — | code-fixes: — | dispatch error: <reason>` and still append `failed` history rows on main.
+If a subagent dispatch itself fails, record `failed | docs: — | code-fixes: — | dispatch error: <reason>` in the summary.
 
 ## Final report
-Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard. **Do not** write the summary to any external repo; the per-repo `docs/NIGHTSHIFT-HISTORY.md` files in each target repo are the only persisted history.
+Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard. The per-repo PR list (`gh pr list --label night-shift`) is the persisted audit trail.
 
 ```
 Night Shift docs+code-fixes — multi-repo summary

@@ -71,8 +71,6 @@ Only open a PR when you can point to a concrete, low-risk win that will clearly 
 
    **Self-review.** After the post-create ritual above, run the **Self-review + one revision** step from `_multi-runner.md` before returning your one-line result. One review, at most one revision commit, same branch; if the revision breaks tests, revert with `git push --force-with-lease` and keep the original PR.
 
-   **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
-
 ## Idempotency
 - One sweep PR open at a time.
 - If nothing low-risk is left to fix, exit silently. Do not force-fit changes.

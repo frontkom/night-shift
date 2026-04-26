@@ -103,14 +103,6 @@ tasks:
     order: 4
     scope: repo
 
-  - id: weekly-digest
-    title: Weekly metrics digest
-    description: Summarizes the past week's Night Shift activity into a digest with key metrics.
-    bundle: docs
-    mode: pull-request
-    order: 5
-    scope: repo
-
   - id: add-tests
     title: Add tests
     description: Finds coverage gaps and adds up to 10 new tests in one PR, following project conventions.

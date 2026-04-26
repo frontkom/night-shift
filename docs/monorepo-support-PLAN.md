@@ -153,9 +153,6 @@ victory.
 
 **Files to touch**
 
-- `docs/NIGHTSHIFT-HISTORY.md` (in the test repo, not this one) — should
-  show one row per (repo, app) for app-scoped tasks and one row per repo
-  for `scope: repo` tasks.
 - `docs/ideas/slack-reporting.md` — update the example digest layout to
   show app-scoped lines, since this affects how the future Slack report
   should group findings.
@@ -165,7 +162,7 @@ victory.
 - A test run against a Turborepo with two Next.js apps produces:
   - Two PRs from `improve-performance` (one per app).
   - One PR from `document-decisions` (repo-wide).
-  - History rows that match the per-app/per-repo split.
+  - PR titles that name the app for `scope: app` tasks and omit it for `scope: repo` tasks.
 - A test run against a single-app repo produces output identical to
   pre-change behaviour (no spurious second subagent, no app names in PR
   titles).

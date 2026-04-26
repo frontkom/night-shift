@@ -24,5 +24,5 @@ This means each repo gets a fresh context window for its work, and the main wrap
 - **Pro:** Linear scaling — adding more repos to a trigger doesn't degrade quality of later repos.
 - **Pro:** Failure of one repo's subagent does not affect the others.
 - **Pro:** The remote environment supports parallel async dispatch, so the wrapper actually finishes faster than serial would.
-- **Con:** The main wrapper has less visibility into per-repo details. Mitigated by the per-repo `docs/NIGHTSHIFT-HISTORY.md` file each subagent writes before returning.
+- **Con:** The main wrapper has less visibility into per-repo details. Mitigated by the labelled PR each task opens (`gh pr list --label night-shift`) plus the one-line subagent result the wrapper aggregates into its summary table.
 - **Con:** Requires the `Task` tool to be in `allowed_tools` for the trigger. If unavailable, the wrapper falls back to inline execution and loses context isolation.

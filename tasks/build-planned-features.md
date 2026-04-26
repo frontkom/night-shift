@@ -138,8 +138,6 @@ gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --aut
 
 **Self-review.** After the post-create ritual above, run the **Self-review + one revision** step from `_multi-runner.md` before returning your one-line result. One review, at most one revision commit, same branch; if the revision breaks tests, revert with `git push --force-with-lease` and keep the original PR.
 
-**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
-
 ## Idempotency
 - One PR per plan per run. Implement as many pending phases as reasonably fit (see "How far to go in one run" at the top). Different plans run in different subagents and each get their own PR on the same night — that is the intended behaviour.
 - If the supplied `PLAN_FILE` has no pending units, exit silently.

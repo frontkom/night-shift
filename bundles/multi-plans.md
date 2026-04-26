@@ -54,7 +54,7 @@ For each discovered target repo, in directory-name order:
      - The plan's title or front matter marks it **Deferred**, **Blocked**, **On hold**, or **Archived**.
      - **Every** phase / item / step / milestone in the plan is already marked done. Look for any of: `**Status: Implemented`, `**Status: Done`, `[x]`, `~~…~~` strikethrough, `✅`, or a bold `Status:` line whose value is `Implemented`/`Done`/`Complete`. If you cannot find any pending unit, the plan is fully implemented.
      - The plan file is empty or has no parseable units.
-   - Plans skipped by the pre-filter get **one** wrapper-level row in the summary table (`Status: not-applicable`) and **one** wrapper-level history row on main — they do **not** spin up a subagent. This keeps the silent rate low and avoids spending a subagent budget on plans known to have nothing to do.
+   - Plans skipped by the pre-filter get **one** wrapper-level row in the summary table (`Status: not-applicable`) — they do **not** spin up a subagent. This keeps the silent rate low and avoids spending a subagent budget on plans known to have nothing to do.
    - Each **surviving** plan file becomes its own work-item `{repo, app_path, scoped_config, plan_file}`. **Every** surviving plan must be dispatched — no plan-count cap. If a repo has 20 pending plans, the wrapper dispatches 20 subagents (each in its own context window, so the cost scales linearly without contention).
    - If an app-scope has zero plan files at all (after discovery), emit one work-item with `plan_file = —` so it can report `silent` in the summary. If there were plan files but the pre-filter rejected all of them, do **not** emit an empty work-item — the per-plan `not-applicable` rows already cover that case.
    - Capture the absolute repo path. `cd` back to the parent.
@@ -90,27 +90,15 @@ For each discovered target repo, in directory-name order:
    the defaults from
    https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
-   **Do not** modify docs/NIGHTSHIFT-HISTORY.md from any feature branch — the wrapper
-   appends the row on main after you return. See bundles/_multi-runner.md →
-   "NIGHTSHIFT-HISTORY.md is wrapper-only".
-
    Return EXACTLY ONE LINE to me in this format:
        <ok|silent|failed> | PR: <url or —> | <plan-slug> — <terse note, max 60 chars>
    ```
 3. Capture only the one-line result. Do not echo subagent work into your own context.
-4. **On `main`** in `{REPO_PATH}`, append one line to `docs/NIGHTSHIFT-HISTORY.md` under the `## Runs` heading at the top of the runs list:
-   ```
-   - YYYY-MM-DD plans  <app_path or —>  <plan-slug>  <ok|silent|failed>  <PR # or —> — <terse note, max 60 chars>
-   ```
-   Commit (`docs: append night-shift history`) and push that single change. Do this for every dispatched subagent — including `silent` and `failed` ones.
-5. Move on to the next work-item. **Never stop early** — every plan must get its own dispatch attempt, even if earlier plans failed.
+4. Move on to the next work-item. **Never stop early** — every plan must get its own dispatch attempt, even if earlier plans failed.
 
-If a subagent dispatch itself fails, record `failed | PR: — | dispatch error: <reason>` and still append a `failed` history row on main.
+If a subagent dispatch itself fails, record `failed | PR: — | dispatch error: <reason>` in the summary.
 
-For each **pre-filtered** plan (skipped before dispatch — fully implemented, deferred, blocked, etc.), append one history row on main without dispatching a subagent:
-```
-- YYYY-MM-DD plans  <app_path or —>  <plan-slug>  not-applicable  — — <pre-filter reason, max 60 chars>
-```
+Pre-filtered plans (skipped before dispatch — fully implemented, deferred, blocked, etc.) appear in the summary table as `Status: not-applicable` rows; no subagent is dispatched.
 
 ## work-on-issues dispatch (scope: repo, once per repo)
 
@@ -127,23 +115,14 @@ CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
 the defaults from
 https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
-**Do not** modify docs/NIGHTSHIFT-HISTORY.md from any feature branch — the wrapper
-appends the row on main after you return. See bundles/_multi-runner.md →
-"NIGHTSHIFT-HISTORY.md is wrapper-only".
-
 Return EXACTLY ONE LINE to me in this format:
     <ok|silent|failed> | PRs: <comma-separated URLs or —> | <terse note, max 60 chars>
 ```
 
-After the work-on-issues subagent returns, **on `main`** in `{REPO_PATH}` append one history row, then commit (`docs: append night-shift history`) and push:
-```
-- YYYY-MM-DD plans  —  work-on-issues  <ok|silent|failed>  <terse note, max 80 chars>
-```
-
-Record the result as a row with `App = —`, `Plan = work-on-issues`.
+Record the result in the summary as a row with `App = —`, `Plan = work-on-issues`.
 
 ## Final report
-Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard and is how the user reviews the run. **Do not** write the summary to any external repo or location; the per-repo `docs/NIGHTSHIFT-HISTORY.md` files in each target repo are the only persisted history.
+Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard and is how the user reviews the run, alongside the PR list (`gh pr list --label night-shift:plans`).
 
 ```
 Night Shift plans — multi-repo summary

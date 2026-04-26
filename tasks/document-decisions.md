@@ -75,8 +75,6 @@ gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --aut
 
 **Always use `--body-file`, never inline `--body`.** See `bundles/_multi-runner.md` → "PR body formatting".
 
-**Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
-
 ## Idempotency
 - Never overwrite existing ADRs. If a topic is already covered, skip it.
 - If no decision clearly passes the high bar, exit silently. Do not pad, do not settle.

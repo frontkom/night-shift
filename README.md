@@ -50,15 +50,15 @@ During setup, `/night-shift` runs a **per-repo task picker** — for each repo y
 - **Translated UI strings** — moves hardcoded text into your i18n system
 - **Audit PRs** — security, bug, SEO, and performance issues
 
-Each affected repo gets a one-line entry in `docs/NIGHTSHIFT-HISTORY.md`.
+Every Night Shift run leaves a labelled PR per task (`night-shift` + `night-shift:<bundle>`), so `gh pr list --label night-shift` is the audit trail — no per-repo log file is written.
 
 ## The bundles
 
 | Bundle | What it does | Mode |
 |---|---|---|
 | **plans** | Implements the next phase of a planning document | One PR per plan |
-| **docs** | Updates changelog, user guide, decision records, suggestions | Direct to main |
-| **code-fixes** | Adds tests, fixes accessibility, completes translations | Direct to main |
+| **docs** | Updates changelog, user guide, decision records, suggestions | One PR per task |
+| **code-fixes** | Adds tests, fixes accessibility, completes translations | One PR per task |
 | **audits** | Finds security / bug / SEO / performance issues | One PR per area |
 
 `manifest.yml` is the single source of truth for what tasks exist, what they do, what bundle they belong to, and what order they run in. Edit one file to add, rename, reorder, or move tasks.

@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-24d
+version: 2026-04-26a
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-24d -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-26a -->
 
 ## Version check (run this first, every invocation)
 
@@ -148,7 +148,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    - `find-security-issues` — Find security issues
    - `find-bugs` — Find bugs
 
-   **Meta-option expansion.** `update-docs` is a picker shorthand, not a real task id. When building `selection[repo]`, expand it to the five individual doc task ids: `update-changelog`, `update-user-guide`, `document-decisions`, `suggest-improvements`, `weekly-digest`. The allowlist and routine config always use real task ids from `manifest.yml` — never the meta-option name.
+   **Meta-option expansion.** `update-docs` is a picker shorthand, not a real task id. When building `selection[repo]`, expand it to the four individual doc task ids: `update-changelog`, `update-user-guide`, `document-decisions`, `suggest-improvements`. The allowlist and routine config always use real task ids from `manifest.yml` — never the meta-option name.
 
 3. Merge selected ids from all 3 questions into `selection[repo]` and move to the next repo. If the user selected nothing across all questions, record the empty set — the create step will skip the repo.
 
@@ -175,7 +175,7 @@ Default schedule → UTC cron, weeknights only: build `0 23 * * 0-4` (Sun-Thu UT
 
 Two reasons for this ordering:
 
-1. **Docs runs LAST so it can summarize what the night actually did.** `weekly-digest` counts the runs and PRs from the night's history rows; `update-changelog` scans `git log` for user-facing commits; `suggest-improvements` (Mode B) checks if existing suggestions are now implemented. All three give stale answers if they fire before code-fixes and audits. With docs at 03:00 UTC, it sees the history rows the build / code-fixes / audits wrappers appended over the previous five hours.
+1. **Docs runs LAST so it can summarize what the night actually did.** `update-changelog` scans `git log` for user-facing commits and `suggest-improvements` (Mode B) checks if existing suggestions are now implemented. Both give stale answers if they fire before code-fixes and audits. With docs at 03:00 UTC, it sees the commits and PRs the build / code-fixes / audits wrappers landed over the previous five hours.
 2. **The build routine fires before midnight UTC** so it uses days 0-4 (Sun-Thu) to produce Mon-Fri morning PRs; the others fire after midnight so they use 1-5 (Mon-Fri). All four schedules deliberately skip producing PRs visible Saturday or Sunday morning.
 
 If the user wants to tweak schedule, timezone, or include weekends, do it now, then proceed on explicit confirmation. If they decline, stop.
@@ -307,12 +307,14 @@ Once all routines that should exist have been created, print:
 (Skipped: <any routines not created because no repo selected any of their
 tasks — list them here, or "none" if all four were created.)
 
-Tomorrow morning, check docs/NIGHTSHIFT-HISTORY.md in each repo for what
-happened. The full summary table for each run is also in the routines
-dashboard at https://claude.ai/code/routines. To pause Night Shift on
-any project, drop a .nightshift-skip file at its root. To change which
-tasks run on a repo, re-run /night-shift and pick "Change tasks for a
-repo". See https://github.com/frontkom/night-shift for the full reference.
+Tomorrow morning, review the night's PRs in each repo with
+`gh pr list --label night-shift` (or filter by bundle, e.g.
+`--label night-shift:audits`). The full summary table for each run is
+also in the routines dashboard at https://claude.ai/code/routines. To
+pause Night Shift on any project, drop a .nightshift-skip file at its
+root. To change which tasks run on a repo, re-run /night-shift and pick
+"Change tasks for a repo". See https://github.com/frontkom/night-shift
+for the full reference.
 ```
 
 ## Test-once runbook (no scheduling)
@@ -322,8 +324,7 @@ When the user wants to try Night Shift on the current repo without scheduling an
 1. Ask which repo they want to test (default: the current working directory).
 2. Confirm: "I'm about to run all four bundles against this repo. Plans → docs → code-fixes → audits. Each bundle commits its own changes. Test on a branch first if you want to inspect before keeping. Confirm?"
 3. On confirm: walk through the four bundles in order, applying their rules. Most tasks self-skip if not applicable (no plans → silent, no UI → a11y silent, etc.).
-4. Append a row per bundle to `docs/NIGHTSHIFT-HISTORY.md` and commit.
-5. Print the same summary table format as the multi-* wrappers.
+4. Print the same summary table format as the multi-* wrappers.
 
 ## Parse-merge-rewrite contract
 

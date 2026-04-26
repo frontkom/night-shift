@@ -109,8 +109,6 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
 
    **Self-review.** After the post-create ritual above, run the **Self-review + one revision** step from `_multi-runner.md` before returning your one-line result. One review, at most one revision commit, same branch; if the revision breaks tests, revert with `git push --force-with-lease` and keep the original PR.
 
-   **Do not** modify `docs/NIGHTSHIFT-HISTORY.md` from this branch — the multi-runner wrapper appends the history row on `main` after you return your one-line result.
-
 ## Idempotency
 - One sweep PR open at a time.
 - If no clear violations remain on the configured key pages, exit silently.

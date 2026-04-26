@@ -29,12 +29,4 @@ If the caller passes `allowed_tasks` (a list of task ids), propagate it to each 
 - Audits goes last because each task creates its own PR independent of the others.
 - If any single bundle exits silently (nothing to do), continue with the next.
 - If code-fixes hits a verification failure mid-bundle, stop code-fixes but still run audits.
-- Append one line per bundle to `docs/NIGHTSHIFT-HISTORY.md` at the end (create the file if missing) under a `## Runs` heading at the top of the runs list. Format:
-  ```
-  - YYYY-MM-DD plans      <ok|silent|failed>  <terse note>
-  - YYYY-MM-DD docs       <ok|silent|failed>  <terse note>
-  - YYYY-MM-DD code-fixes <ok|silent|failed>  <terse note>
-  - YYYY-MM-DD audits     <ok|silent|failed>  <terse note>
-  ```
-- Commit and push the history file.
-- Print a final summary table showing bundle / status / notes.
+- Print a final summary table showing bundle / status / notes. The PR list (`gh pr list --label night-shift`) is the persisted audit trail — no separate log file is written.

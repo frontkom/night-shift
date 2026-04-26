@@ -13,9 +13,9 @@ workspace.
 ## Shape
 
 - **One digest per night**, posted at the end of the audits run (05:00 local).
-- The audits wrapper reads each repo's `docs/NIGHTSHIFT-HISTORY.md` for the
-  night's rows from all three bundles, composes a Block Kit message, and
-  `curl`s it to a Slack incoming webhook.
+- The audits wrapper queries each repo's labelled PRs from the night
+  (`gh pr list --label night-shift --search "created:>=<run-start>"`),
+  composes a Block Kit message, and `curl`s it to a Slack incoming webhook.
 - Message layout: one section per repo with inline PR links. For monorepos
   with `apps:` configured, `scope: app` rows are grouped under the app so
   reviewers can see at a glance which team owns each finding. `scope: repo`
