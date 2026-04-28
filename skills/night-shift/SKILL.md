@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-28b
+version: 2026-04-28c
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-28b -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-28c -->
 
 ## Version check (run this first, every invocation)
 
@@ -134,7 +134,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    **Question 1 — "Plans + Docs"** (header: `Plans+Docs`):
    - `build-planned-features` — Build planned features
    - `work-on-issues` — Work on tagged GitHub issues
-   - `work-on-jira-issues` — Work on tagged Jira issues (requires per-repo Jira project key + JIRA_* env vars; see "Jira credentials" below)
+   - `work-on-jira-issues` — Work on tagged Jira issues (requires per-repo Jira project key + the Atlassian Rovo MCP connector attached to the build routine; see "Atlassian Rovo (Jira)" below)
    - `update-docs` — Update all documentation (changelog, user guide, ADRs, suggestions)
 
    **Question 2 — "Improve code quality"** (header: `Improve`):
@@ -168,7 +168,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    > - Jira label: <LABEL>   # optional, omit to default to night-shift
    > ```
    >
-   > And make sure `JIRA_BASE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN` are set on your routine environment — see "Jira credentials" further below. The task self-skips silently until both the CLAUDE.md key and the env vars are in place.
+   > Also make sure the **Atlassian Rovo** MCP connector is connected on your account *and* attached to the build routine — see "Atlassian Rovo (Jira)" further below. The task self-skips silently until both the CLAUDE.md key and the connector are in place.
 
 5. There is no `back` step. If the user wants to change a previous repo's picks, they can use "Change tasks for a repo" after setup completes.
 
@@ -335,25 +335,23 @@ root. To change which tasks run on a repo, re-run /night-shift and pick
 for the full reference.
 ```
 
-## Jira credentials (optional, only if any repo selected `work-on-jira-issues`)
+## Atlassian Rovo (Jira) — connector setup
 
-The `work-on-jira-issues` task talks to Jira Cloud over its REST API. Three environment variables are required:
+`work-on-jira-issues` does **not** use API tokens. It talks to Jira through the **Atlassian Rovo** MCP connector, which Claude manages via OAuth — no long-lived secrets to store.
 
-- `JIRA_BASE_URL` — e.g. `https://frontkom.atlassian.net` (no trailing slash)
-- `JIRA_EMAIL` — the Atlassian account email tied to the API token
-- `JIRA_API_TOKEN` — generated at https://id.atlassian.com → Security → API tokens
+There are two connection points to wire up. Both are one-time clicks in the UI:
 
-The task self-skips silently if any of the three is unset, so it is safe to ship the routine before secrets are in place.
+**1) Connect Rovo on the account.** Open https://claude.ai/customize/connectors, find **Atlassian Rovo** in the directory, click **Connect**, and complete the Atlassian OAuth prompt. After this, `claude mcp list` shows `claude.ai Atlassian Rovo: ✓ Connected`.
 
-**Where to set the secrets** depends on the backend:
+**2) Attach Rovo to the build routine.** Account-level connectors do **not** auto-propagate into existing routines (every routine in `RemoteTrigger list` shows `mcp_connections: []` until explicitly populated). Open https://claude.ai/code/routines, find the build routine (the one running the plans wrapper — name typically `night-shift-build`), edit it, and toggle **Atlassian Rovo** on in the connectors panel. Save.
 
-- **Schedule backend (Claude Code routines).** The skill cannot read or write secrets on the user's behalf. After Step 5, tell the user:
-  > To turn on `work-on-jira-issues`, set the three Jira env vars on your routine environment (the one identified by `environment_id` in your routines). Open https://claude.ai/code/routines, edit any routine, find the environment section, and add `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`. Until those are set, the task exits silently and no PRs are opened.
+   Repeat for any other routines that should have Jira access. For Night Shift's current bundle layout, only the build routine needs it (work-on-jira-issues lives in the plans bundle).
 
-- **GitHub Actions backend.** Add as **organization secrets** (same dashboard as `ANTHROPIC_API_KEY`):
-  > Go to your org's **Settings → Secrets and variables → Actions** and add three new secrets: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`. Repository access: select the repos that opted in to `work-on-jira-issues`. The reusable workflow already passes them through as env vars to the runner.
+**Permissions.** The connector splits its 31 tools across three approval groups: Interactive (5), Read-only (11), Write/delete (3). For autonomous nightly runs, set all groups to **Always allow** in the connector's permissions UI (the default is "Needs approval", which would block the routine waiting for a human). The five tools the task actually calls — `Search with JQL`, `Get issue`, `Get transitions`, `Transition issue`, plus a comment-adding tool — straddle Interactive and Read-only, so flipping at least those two groups is mandatory.
 
-**Per-repo project key.** Each repo that opted in needs `Jira project key:` (and optionally `Jira label:`) in its `CLAUDE.md` `## Night Shift Config`. The picker's Jira follow-up step printed the snippet — the user pastes it into the repo themselves.
+**Per-repo project key.** Each repo that opted in still needs `Jira project key:` (and optionally `Jira label:`) in its `CLAUDE.md` `## Night Shift Config`. The picker's Jira follow-up step printed the snippet — the user pastes it into the repo themselves.
+
+**Note for skill maintainers.** The exact JSON shape of `mcp_connections` on a routine isn't currently documented (verified 2026-04-28). When automating "attach Rovo on routine creation" via `RemoteTrigger create`, inspect a routine that's had Rovo attached via the UI (`RemoteTrigger get <trigger_id>`) to see the populated structure, then mirror it. Until that's verified, the skill instructs the user to attach manually in the UI.
 
 ## Test-once runbook (no scheduling)
 

@@ -148,9 +148,10 @@ and execute it against this repository. Process up to 3 open Jira issues
 labelled "night-shift" from the project key configured in CLAUDE.md, opening
 one GitHub PR per issue.
 
-The task self-skips silently if any of the following is true:
+The task uses the Atlassian Rovo MCP connector — no API tokens or env vars
+involved. It self-skips silently if any of the following is true:
 - CLAUDE.md does not contain `Jira project key:` in `## Night Shift Config`.
-- Any of JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN environment variables is unset.
+- The Atlassian Rovo MCP connector is not attached to this routine.
 - The JQL search returns zero issues.
 
 CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
