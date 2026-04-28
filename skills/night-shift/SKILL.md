@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-28f
+version: 2026-04-28g
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-28f -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-28g -->
 
 ## Version check (run this first, every invocation)
 
@@ -168,7 +168,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    > - Jira label: <LABEL>   # optional, omit to default to night-shift
    > ```
    >
-   > Also make sure the **Atlassian Rovo** MCP connector is connected on your account *and* attached to the build routine — see "Atlassian Rovo (Jira)" further below. The task self-skips silently until both the CLAUDE.md key and the connector are in place.
+   > I'll walk you through the Atlassian Rovo connector setup before I create the routines (it's a one-time per-account flow — connect Rovo, flip tool permissions to "Always allow", and a possible one-click bootstrap if no routine has Rovo attached yet). Until that's all in place the task self-skips silently — no failure noise.
 
 5. There is no `back` step. If the user wants to change a previous repo's picks, they can use "Change tasks for a repo" after setup completes.
 
@@ -275,16 +275,41 @@ This only happens once — the `environment_id` is stable per account. Cache it 
 
 Generate a fresh UUID for each routine's `events[0].data.uuid` using `python3 -c "import uuid; print(uuid.uuid4())"`.
 
-**Populating `mcp_connections` for the build routine.** When **any** repo's selection includes `work-on-jira-issues`, the build routine must have Atlassian Rovo attached. Skill logic:
+**Jira preflight — runs once when any repo's selection includes `work-on-jira-issues`.** Walk the user through this preflight before creating any routines. It has four checks; each gates on the previous one. Stop and instruct the user the moment any check fails — never proceed with a half-configured routine.
 
-1. Run `RemoteTrigger list`. For every returned routine, scan `mcp_connections[]` for an entry where `name` (case-insensitive) matches `atlassian-rovo` or `atlassian rovo`. Cache the first hit's `connector_uuid`, `name`, and `url`.
-2. If found, set the build routine's `mcp_connections` to:
-   ```json
-   [{"connector_uuid": "<cached uuid>", "name": "<cached name>", "url": "<cached url>", "permitted_tools": []}]
-   ```
-3. If not found (no existing routine has Rovo attached), tell the user:
-   > Atlassian Rovo is connected on your account, but no routine has it attached yet — I can't read its account-scoped UUID via the API. Open https://claude.ai/code/routines, edit the `night-shift-build` routine, and toggle **Atlassian Rovo** on in the connectors panel. Save. Then re-run `/night-shift` and pick "Change tasks for a repo" so I can finish wiring it up.
-4. After (2) succeeds, the routine is ready to run. The connector's per-tool "Needs approval" UI setting does **not** block autonomous runs (verified 2026-04-28 — see "Permissions" section below). No additional user action needed.
+**Check 1: Is Rovo connected at the account level?** Run:
+
+```bash
+claude mcp list 2>&1 | grep -i "atlassian rovo"
+```
+
+Expected: a line containing `claude.ai Atlassian Rovo: ✓ Connected`. If you see `! Needs authentication` or no line at all, tell the user:
+
+> The Atlassian Rovo connector isn't connected on your Claude account yet. Open https://claude.ai/customize/connectors, find **Atlassian Rovo** in the directory, click **Connect**, complete the Atlassian OAuth prompt. Then come back and re-run `/night-shift`.
+
+Stop. Don't create routines until Rovo is connected.
+
+**Check 2: Are tool permissions set to "Always allow"?** This **cannot be detected via API** — per-tool permission state isn't exposed in `RemoteTrigger get` and isn't readable from the local config. Always remind the user, every time:
+
+> One thing I can't check from here: tool permissions. Routines run autonomously at 3 AM with no human to approve "Needs approval" tool calls — those calls would just hang the routine forever. Open https://claude.ai/customize/connectors → **Atlassian Rovo** → set **Interactive**, **Read-only**, **and Write/delete** all to **Always allow** (the ✓ icon). All three groups, simplest "set it and forget it". Confirm here when done.
+>
+> *(`AskUserQuestion`: "Have you flipped all three groups to Always allow?" — Yes / Not yet → if not yet, stop and wait.)*
+
+**Check 3: Can the skill discover the connector UUID via the API?** Run `RemoteTrigger list`. For every returned routine, scan `mcp_connections[]` for an entry where `name` (case-insensitive) matches `atlassian-rovo` or `atlassian rovo`. Cache the first hit's `connector_uuid`, `name`, and `url`.
+
+If found, the skill is fully automated from here — proceed to Check 4.
+
+If **not** found (no existing routine has Rovo attached — the bootstrap caveat), tell the user:
+
+> Rovo is connected on your account but I can't read its account-scoped UUID via the API yet — the API only exposes the UUID once at least one routine has Rovo attached. One-time bootstrap step: open https://claude.ai/code/routines → edit any routine (the build routine works; doesn't have to stay there) → toggle **Atlassian Rovo** on in the connectors panel → save. Then come back and re-run `/night-shift`. The skill will pick up the UUID and propagate it. This step only happens once per Claude account.
+
+Stop. Don't create the build routine without the UUID.
+
+**Check 4: Set `mcp_connections` on the build routine.** Using the cached UUID:
+
+```json
+[{"connector_uuid": "<cached uuid>", "name": "<cached name>", "url": "<cached url>", "permitted_tools": []}]
+```
 
 For routines other than the build routine, set `mcp_connections: []` — none of the other bundles use Jira tooling.
 
@@ -383,15 +408,13 @@ If no existing routine has Rovo attached (first-time setup), the skill instructs
 
 This is a one-time bootstrap; once any routine has Rovo, the skill can read the UUID from there forever.
 
-### Permissions
+### Permissions: required step
 
-The connector splits its 31 tools across three approval groups in the claude.ai UI: Interactive (5), Read-only (11), Write/delete (3). The UI default for each group is **Needs approval**.
+The connector splits its 31 tools across three approval groups in the claude.ai UI: **Interactive** (5), **Read-only** (11), **Write/delete** (3). Each group defaults to **Needs approval**. For autonomous routines this is fatal — no human is awake at 3 AM to click "approve", so the routine hangs at the first Rovo tool call.
 
-**Empirical finding (verified 2026-04-28).** A routine run with `mcp_connections[].permitted_tools: []` and the connector's UI permissions left at the default "Needs approval" successfully called `Search with JQL`, `Get issue`, `Get transitions`, `Transition issue`, and the comment-adding tool — without any approval gate firing. Routines appear to auto-allow MCP tool calls because there's no human to gate them. The "Needs approval" UI setting seems to apply only to interactive claude.ai chat sessions, not to autonomous routine sessions.
+**The user must flip all three groups to "Always allow"** at https://claude.ai/customize/connectors → Atlassian Rovo. The skill cannot flip these via API — per-tool permission state isn't exposed in `RemoteTrigger get`'s output (`permitted_tools: []` reflects only the routine-level override, not the connector-wide setting).
 
-This is convenient: the skill does **not** need to walk users through flipping permissions. But the behavior is undocumented, so don't rely on it forever — if a future Anthropic change starts gating routine tool calls, look here first. Documenting this so the next maintainer doesn't waste time chasing the same dead-end.
-
-If a future user reports their work-on-jira-issues routine hangs at the first Rovo tool call, the workaround is: tell them to flip Interactive + Read-only to "Always allow" at https://claude.ai/customize/connectors → Atlassian Rovo. The skill can't flip these via API — per-tool permission state isn't exposed in `RemoteTrigger get`'s output (`permitted_tools: []` reflects only the routine-level override, not the connector-wide setting).
+The five tools the task uses — `Search with JQL`, `Get issue`, `Get transitions`, `Transition issue`, plus a comment-adding tool — straddle Interactive and Read-only (and possibly Write/delete for commenting). Flipping all three groups is the simplest "set it and forget it" choice. The skill always reminds the user; do not skip this reminder.
 
 ### Per-repo project key
 
