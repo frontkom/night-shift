@@ -76,6 +76,32 @@ This is a one-time setup. Once the secret exists, any repo member can run `/nigh
 
 You also need the [GitHub CLI](https://cli.github.com) (`gh`) installed and authenticated on your machine for the setup process.
 
+## Jira integration (optional)
+
+Night Shift can also pick up **Jira issues** labelled `night-shift` and turn them into PRs — same shape as the GitHub Issues path, just sourced from a Jira Cloud project. To turn it on:
+
+1. **Generate an API token** at https://id.atlassian.com → Security → API tokens. The token is tied to a single Atlassian account; permissions follow that account's project access.
+
+2. **Set three env vars** on the routine environment (Schedule backend) or as organization secrets (GitHub Actions backend):
+
+   | Variable | Example | Purpose |
+   |---|---|---|
+   | `JIRA_BASE_URL` | `https://frontkom.atlassian.net` | No trailing slash. |
+   | `JIRA_EMAIL` | `you@example.com` | The Atlassian account email. |
+   | `JIRA_API_TOKEN` | `ATATT3xFfGF…` | The token from step 1. |
+
+3. **Per-repo opt-in.** In each repo's `CLAUDE.md` under `## Night Shift Config`, add the Jira project key. Optionally override the label (defaults to `night-shift`):
+
+   ```
+   ## Night Shift Config
+   - Jira project key: FGPW
+   - Jira label: night-shift
+   ```
+
+4. **Label issues** with `night-shift` in Jira. The next plans run will pick up the three oldest open issues, open one GitHub PR per issue, comment back on the Jira issue with the PR link, and (best-effort) transition each issue to **In Progress**.
+
+The task self-skips silently when the project key is missing from `CLAUDE.md` or when any of the env vars is unset, so partial setup is safe — you can land the project key first and add the secrets later without seeing failure noise.
+
 ## Stopping Night Shift on a project
 
 Add **either**:

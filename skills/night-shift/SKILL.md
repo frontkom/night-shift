@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-28a
+version: 2026-04-28b
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-28a -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-28b -->
 
 ## Version check (run this first, every invocation)
 
@@ -134,6 +134,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    **Question 1 — "Plans + Docs"** (header: `Plans+Docs`):
    - `build-planned-features` — Build planned features
    - `work-on-issues` — Work on tagged GitHub issues
+   - `work-on-jira-issues` — Work on tagged Jira issues (requires per-repo Jira project key + JIRA_* env vars; see "Jira credentials" below)
    - `update-docs` — Update all documentation (changelog, user guide, ADRs, suggestions)
 
    **Question 2 — "Improve code quality"** (header: `Improve`):
@@ -152,7 +153,24 @@ For each repo in the list, in the order the user gave them, run the picker loop 
 
 3. Merge selected ids from all 3 questions into `selection[repo]` and move to the next repo. If the user selected nothing across all questions, record the empty set — the create step will skip the repo.
 
-4. There is no `back` step. If the user wants to change a previous repo's picks, they can use "Change tasks for a repo" after setup completes.
+4. **Jira follow-up (only if `work-on-jira-issues` was selected for this repo).** Ask one extra `AskUserQuestion` with two free-text fields:
+   - `jira_project_key` — required, e.g. `FGPW`. The Jira project whose tagged issues should become PRs in this repo.
+   - `jira_label` — optional, default `night-shift`. The label to filter on.
+
+   Store these on `selection[repo].jira = { project: <KEY>, label: <LABEL> }` for use in Step 5's summary.
+
+   Then tell the user (do **not** push to their repo for them — they paste it into their CLAUDE.md):
+
+   > Add the following to **`<repo>/CLAUDE.md`** under `## Night Shift Config` before the next routine run:
+   >
+   > ```
+   > - Jira project key: <KEY>
+   > - Jira label: <LABEL>   # optional, omit to default to night-shift
+   > ```
+   >
+   > And make sure `JIRA_BASE_URL`, `JIRA_EMAIL`, and `JIRA_API_TOKEN` are set on your routine environment — see "Jira credentials" further below. The task self-skips silently until both the CLAUDE.md key and the env vars are in place.
+
+5. There is no `back` step. If the user wants to change a previous repo's picks, they can use "Change tasks for a repo" after setup completes.
 
 **Step 3 — Schedule confirm.**
 
@@ -316,6 +334,26 @@ root. To change which tasks run on a repo, re-run /night-shift and pick
 "Change tasks for a repo". See https://github.com/frontkom/night-shift
 for the full reference.
 ```
+
+## Jira credentials (optional, only if any repo selected `work-on-jira-issues`)
+
+The `work-on-jira-issues` task talks to Jira Cloud over its REST API. Three environment variables are required:
+
+- `JIRA_BASE_URL` — e.g. `https://frontkom.atlassian.net` (no trailing slash)
+- `JIRA_EMAIL` — the Atlassian account email tied to the API token
+- `JIRA_API_TOKEN` — generated at https://id.atlassian.com → Security → API tokens
+
+The task self-skips silently if any of the three is unset, so it is safe to ship the routine before secrets are in place.
+
+**Where to set the secrets** depends on the backend:
+
+- **Schedule backend (Claude Code routines).** The skill cannot read or write secrets on the user's behalf. After Step 5, tell the user:
+  > To turn on `work-on-jira-issues`, set the three Jira env vars on your routine environment (the one identified by `environment_id` in your routines). Open https://claude.ai/code/routines, edit any routine, find the environment section, and add `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`. Until those are set, the task exits silently and no PRs are opened.
+
+- **GitHub Actions backend.** Add as **organization secrets** (same dashboard as `ANTHROPIC_API_KEY`):
+  > Go to your org's **Settings → Secrets and variables → Actions** and add three new secrets: `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`. Repository access: select the repos that opted in to `work-on-jira-issues`. The reusable workflow already passes them through as env vars to the runner.
+
+**Per-repo project key.** Each repo that opted in needs `Jira project key:` (and optionally `Jira label:`) in its `CLAUDE.md` `## Night Shift Config`. The picker's Jira follow-up step printed the snippet — the user pastes it into the repo themselves.
 
 ## Test-once runbook (no scheduling)
 

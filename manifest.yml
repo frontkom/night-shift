@@ -71,6 +71,15 @@ tasks:
     scope: repo
     needs: [test, build]
 
+  - id: work-on-jira-issues
+    title: Work on tagged Jira issues
+    description: Picks up Jira issues labelled "night-shift" in the repo's configured Jira project and implements them as GitHub PRs.
+    bundle: plans
+    mode: pull-request
+    order: 3
+    scope: repo
+    needs: [test, build]
+
   - id: update-changelog
     title: Update changelog
     description: Adds entries for any user-facing changes since the last release.

@@ -136,6 +136,33 @@ Return EXACTLY ONE LINE to me in this format:
 
 Record the result in the summary as a row with `App = —`, `Plan = work-on-issues`.
 
+## work-on-jira-issues dispatch (scope: repo, once per repo)
+
+After the `work-on-issues` dispatch (or skipping it when not allowlisted), check if `work-on-jira-issues` is in the repo's allowlist. If so, dispatch **one additional `Task` subagent per repo**:
+
+```
+Your working directory is {REPO_PATH}. cd into it now.
+
+Fetch https://raw.githubusercontent.com/frontkom/night-shift/main/tasks/work-on-jira-issues.md
+and execute it against this repository. Process up to 3 open Jira issues
+labelled "night-shift" from the project key configured in CLAUDE.md, opening
+one GitHub PR per issue.
+
+The task self-skips silently if any of the following is true:
+- CLAUDE.md does not contain `Jira project key:` in `## Night Shift Config`.
+- Any of JIRA_BASE_URL, JIRA_EMAIL, JIRA_API_TOKEN environment variables is unset.
+- The JQL search returns zero issues.
+
+CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
+the defaults from
+https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
+
+Return EXACTLY ONE LINE to me in this format:
+    <ok|silent|failed> | PRs: <comma-separated URLs or —> | <terse note, max 60 chars>
+```
+
+Record the result in the summary as a row with `App = —`, `Plan = work-on-jira-issues`. The wrapper-level PR body sweep already covers any PR opened by this dispatch (label-based, runs once per repo after all subagents finish), so no extra cleanup is needed here.
+
 ## Final report
 Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard and is how the user reviews the run, alongside the PR list (`gh pr list --label night-shift:plans`).
 
