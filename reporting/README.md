@@ -22,7 +22,7 @@ A minimal example:
     "audits":     { "status": "failed",  "prs": [], "commits": 0 }
   },
   "duration_seconds": 340,
-  "model": "claude-opus-4-6"
+  "model": "claude-opus-4-7"
 }
 ```
 

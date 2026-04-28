@@ -20,7 +20,7 @@ on:
       model:
         description: 'Claude model to use'
         type: string
-        default: 'claude-opus-4-6'
+        default: 'claude-opus-4-7'
       max-turns:
         description: 'Maximum conversation turns per run'
         type: number

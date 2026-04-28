@@ -44,7 +44,7 @@ Each Night Shift run posts a structured JSON event to a central location. A simp
     "audits": { "status": "ok", "prs": ["https://..."] }
   },
   "duration_seconds": 340,
-  "model": "claude-opus-4-6",
+  "model": "claude-opus-4-7",
   "backend": "github-actions"
 }
 ```

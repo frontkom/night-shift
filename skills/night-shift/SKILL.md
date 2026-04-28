@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-28e
+version: 2026-04-28f
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-28e -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-28f -->
 
 ## Version check (run this first, every invocation)
 
@@ -247,7 +247,7 @@ This only happens once — the `environment_id` is stable per account. Cache it 
     "ccr": {
       "environment_id": "<real environment_id — see fetching instructions above; NEVER use 'default'>",
       "session_context": {
-        "model": "claude-opus-4-6[1m]",
+        "model": "claude-opus-4-7[1m]",
         "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"],
         "sources": [
           { "git_repository": { "url": "https://github.com/owner/repo" } }
