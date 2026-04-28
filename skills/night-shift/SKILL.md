@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-28c
+version: 2026-04-28d
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-28c -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-28d -->
 
 ## Version check (run this first, every invocation)
 
@@ -236,7 +236,7 @@ Use the `RemoteTrigger` tool with `action: "create"`. **Do not** include `https:
 
 This only happens once — the `environment_id` is stable per account. Cache it for all routines in this session.
 
-**Exact API body structure.** The RemoteTrigger API nests settings inside `job_config.ccr`. Here is a complete example for one routine — follow this structure exactly:
+**Exact API body structure.** The RemoteTrigger API nests settings inside `job_config.ccr`. `mcp_connections` is a sibling of `job_config` (top-level), not nested. Here is a complete example for one routine — follow this structure exactly:
 
 ```json
 {
@@ -268,11 +268,25 @@ This only happens once — the `environment_id` is stable per account. Cache it 
         }
       ]
     }
-  }
+  },
+  "mcp_connections": []
 }
 ```
 
 Generate a fresh UUID for each routine's `events[0].data.uuid` using `python3 -c "import uuid; print(uuid.uuid4())"`.
+
+**Populating `mcp_connections` for the build routine.** When **any** repo's selection includes `work-on-jira-issues`, the build routine must have Atlassian Rovo attached. Skill logic:
+
+1. Run `RemoteTrigger list`. For every returned routine, scan `mcp_connections[]` for an entry where `name` (case-insensitive) matches `atlassian-rovo` or `atlassian rovo`. Cache the first hit's `connector_uuid`, `name`, and `url`.
+2. If found, set the build routine's `mcp_connections` to:
+   ```json
+   [{"connector_uuid": "<cached uuid>", "name": "<cached name>", "url": "<cached url>", "permitted_tools": []}]
+   ```
+3. If not found (no existing routine has Rovo attached), tell the user:
+   > Atlassian Rovo is connected on your account, but no routine has it attached yet — I can't read its account-scoped UUID via the API. Open https://claude.ai/code/routines, edit the `night-shift-build` routine, and toggle **Atlassian Rovo** on in the connectors panel. Save. Then re-run `/night-shift` and pick "Change tasks for a repo" so I can finish wiring it up.
+4. After (2) succeeds, also remind the user: open the Atlassian Rovo connector permissions page (claude.ai/customize/connectors → Atlassian Rovo) and set **Interactive** + **Read-only** groups to **Always allow**. The routine runs at 3 AM with no human to approve "Needs approval" tool calls.
+
+For routines other than the build routine, set `mcp_connections: []` — none of the other bundles use Jira tooling.
 
 ### Routine 1 — Build
 
@@ -339,19 +353,45 @@ for the full reference.
 
 `work-on-jira-issues` does **not** use API tokens. It talks to Jira through the **Atlassian Rovo** MCP connector, which Claude manages via OAuth — no long-lived secrets to store.
 
-There are two connection points to wire up. Both are one-time clicks in the UI:
+### One-time account setup
 
-**1) Connect Rovo on the account.** Open https://claude.ai/customize/connectors, find **Atlassian Rovo** in the directory, click **Connect**, and complete the Atlassian OAuth prompt. After this, `claude mcp list` shows `claude.ai Atlassian Rovo: ✓ Connected`.
+Open https://claude.ai/customize/connectors, find **Atlassian Rovo** in the directory, click **Connect**, and complete the Atlassian OAuth prompt. After this, `claude mcp list` shows `claude.ai Atlassian Rovo: ✓ Connected`.
 
-**2) Attach Rovo to the build routine.** Account-level connectors do **not** auto-propagate into existing routines (every routine in `RemoteTrigger list` shows `mcp_connections: []` until explicitly populated). Open https://claude.ai/code/routines, find the build routine (the one running the plans wrapper — name typically `night-shift-build`), edit it, and toggle **Atlassian Rovo** on in the connectors panel. Save.
+### Attaching Rovo to the build routine (the skill does this automatically)
 
-   Repeat for any other routines that should have Jira access. For Night Shift's current bundle layout, only the build routine needs it (work-on-jira-issues lives in the plans bundle).
+Account-level connectors do **not** auto-propagate into routines — every routine in `RemoteTrigger list` shows `mcp_connections: []` until explicitly populated. The `mcp_connections` field on a routine takes this shape (verified 2026-04-28 by inspection; not officially documented):
 
-**Permissions.** The connector splits its 31 tools across three approval groups: Interactive (5), Read-only (11), Write/delete (3). For autonomous nightly runs, set all groups to **Always allow** in the connector's permissions UI (the default is "Needs approval", which would block the routine waiting for a human). The five tools the task actually calls — `Search with JQL`, `Get issue`, `Get transitions`, `Transition issue`, plus a comment-adding tool — straddle Interactive and Read-only, so flipping at least those two groups is mandatory.
+```yaml
+mcp_connections:
+  - connector_uuid: <uuid>           # account-specific; same for all routines on this account
+    name: Atlassian-Rovo
+    url: https://mcp.atlassian.com/v1/mcp
+    permitted_tools: []              # empty = use the connector's default per-tool permissions
+```
 
-**Per-repo project key.** Each repo that opted in still needs `Jira project key:` (and optionally `Jira label:`) in its `CLAUDE.md` `## Night Shift Config`. The picker's Jira follow-up step printed the snippet — the user pastes it into the repo themselves.
+When **any** repo's selection includes `work-on-jira-issues`, the skill must attach Rovo to the build routine.
 
-**Note for skill maintainers.** The exact JSON shape of `mcp_connections` on a routine isn't currently documented (verified 2026-04-28). When automating "attach Rovo on routine creation" via `RemoteTrigger create`, inspect a routine that's had Rovo attached via the UI (`RemoteTrigger get <trigger_id>`) to see the populated structure, then mirror it. Until that's verified, the skill instructs the user to attach manually in the UI.
+**Discovering the connector UUID.** The UUID is account-scoped. The skill discovers it by:
+
+1. Calling `RemoteTrigger list` to inspect existing routines.
+2. Searching across all routines for the first `mcp_connections[]` entry whose `name` matches `Atlassian-Rovo` (case-insensitive — observed values: `Atlassian-Rovo`, possibly `Atlassian Rovo` or `atlassian-rovo` on different accounts).
+3. Reusing its `connector_uuid` for the build routine being created/updated.
+
+If no existing routine has Rovo attached (first-time setup), the skill instructs the user:
+
+> Atlassian Rovo is connected on your account, but no routine has it attached yet, so I can't read its account-scoped UUID via the API. Please open https://claude.ai/code/routines, edit any routine, and toggle **Atlassian Rovo** on in the connectors panel. Save. Then re-run this step — I'll discover the UUID and propagate it.
+
+This is a one-time bootstrap; once any routine has Rovo, the skill can read the UUID from there forever.
+
+### Permissions: flip to "Always allow"
+
+The connector splits its 31 tools across three approval groups: Interactive (5), Read-only (11), Write/delete (3). For autonomous nightly runs, the user sets at minimum **Interactive** and **Read-only** to **Always allow** in the connector's permissions UI (the default is "Needs approval", which would block the routine waiting for a human). The task uses `Search with JQL`, `Get issue`, `Get transitions`, `Transition issue`, plus a comment-adding tool — those straddle Interactive and Read-only.
+
+The skill cannot flip these via API (per-tool permission state doesn't appear in `RemoteTrigger get`'s output — `permitted_tools: []` reflects the routine-level override, not the connector-wide setting). Always remind the user.
+
+### Per-repo project key
+
+Each repo that opted in still needs `Jira project key:` (and optionally `Jira label:`) in its `CLAUDE.md` `## Night Shift Config`. The picker's Jira follow-up step printed the snippet — the user pastes it into the repo themselves.
 
 ## Test-once runbook (no scheduling)
 
