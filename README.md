@@ -50,7 +50,7 @@ During setup, `/night-shift` runs a **per-repo task picker** — for each repo y
 - **Translated UI strings** — moves hardcoded text into your i18n system
 - **Audit PRs** — security, bug, SEO, and performance issues
 
-Every Night Shift run leaves a labelled PR per task (`night-shift` + `night-shift:<bundle>`), so `gh pr list --label night-shift` is the audit trail — no per-repo log file is written.
+Every Night Shift run leaves a labelled PR per task (`night-shift`), so `gh pr list --label night-shift` is the audit trail — no per-repo log file is written. The bundle is recoverable from the PR title prefix (`night-shift/plan:`, `night-shift/bug:`, `night-shift/a11y:`, etc.).
 
 ## The bundles
 

@@ -76,18 +76,18 @@ EOF
 
 # scoped PR title:
 PR_URL=$(gh pr create --title "night-shift/changelog: <app_path> — update for recent user-facing changes" \
-  --label night-shift --label "night-shift:docs" \
+  --label night-shift \
   --body-file /tmp/night-shift-pr-body.md)
 # Post-create ritual — REQUIRED after every gh pr create. Do NOT return to the wrapper without running every line below. Skipping leaves PR bodies flattened (literal \n on GitHub) or auto-merge unarmed. Spec: bundles/_multi-runner.md.
-gh pr edit "$PR_URL" --add-label night-shift --add-label "night-shift:docs"
+gh pr edit "$PR_URL" --add-label night-shift
 BODY=$(gh pr view "$PR_URL" --json body -q .body)
 case "$BODY" in *'\n'*) printf '%s' "$BODY" | python3 -c "import sys;sys.stdout.write(sys.stdin.read().replace(chr(92)+chr(110),chr(10)))" > /tmp/night-shift-body-fix.md && gh pr edit "$PR_URL" --body-file /tmp/night-shift-body-fix.md ;; esac
 gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --auto || true
 # unscoped PR title:
 # PR_URL=$(gh pr create --title "night-shift/changelog: update for recent user-facing changes" \
-#   --label night-shift --label "night-shift:docs" \
+#   --label night-shift \
 #   --body-file /tmp/night-shift-pr-body.md)
-# gh pr edit "$PR_URL" --add-label night-shift --add-label "night-shift:docs"
+# gh pr edit "$PR_URL" --add-label night-shift
 # BODY=$(gh pr view "$PR_URL" --json body -q .body)
 # case "$BODY" in *'\n'*) printf '%s' "$BODY" | python3 -c "import sys;sys.stdout.write(sys.stdin.read().replace(chr(92)+chr(110),chr(10)))" > /tmp/night-shift-body-fix.md && gh pr edit "$PR_URL" --body-file /tmp/night-shift-body-fix.md ;; esac
 # gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --auto || true

@@ -27,15 +27,11 @@ For each discovered target repo, in directory-name order:
    - Look up the repo in the parsed allowlist. If `build-planned-features` is **not** in the repo's allowed list, record `not-selected` and continue (no dispatch for this repo).
    - Run `git status --porcelain` — if dirty, record `dirty-skip` and continue.
    - Check opt-out signals. Record `opted-out` and continue if any of: `.nightshift-skip` exists at the repo root, or `CLAUDE.md` / `AGENTS.md` / `README.md` contains the line `Night Shift: skip`.
-   - **Ensure all five Night Shift labels exist on the repo** (idempotent — silent if they already exist). Run this once per repo before dispatching subagents:
+   - **Ensure the `night-shift` label exists on the repo** (idempotent — silent if it already exists). Run this once per repo before dispatching subagents:
      ```
      gh label create night-shift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-     gh label create "night-shift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
-     gh label create "night-shift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
-     gh label create "night-shift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
-     gh label create "night-shift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
      ```
-     All five are created together so subagents in any future bundle can rely on them. See `bundles/_multi-runner.md` → "Labels (created at wrapper level, applied at task level)".
+     See `bundles/_multi-runner.md` → "Labels (created at wrapper level, applied at task level)".
    - Parse `## Night Shift Config` in `CLAUDE.md`. If it contains an `apps:` block, build one app-scope per `apps[]` entry (each with its own `app_path` + merged `scoped_config`). Otherwise build a single app-scope with `app_path = —`.
    - **For each app-scope, list plan files.** Resolve `PLANS_DIR`: `<app_path>/<plans dir>` when scoped, else `<plans dir>` (default `docs`). Plans can use any of these naming conventions — discover **all** of them in a single pass:
      - `*-PLAN.md` (suffix style, e.g. `MONOREPO-TEST-PLAN.md`)
@@ -165,7 +161,7 @@ Return EXACTLY ONE LINE to me in this format:
 Record the result in the summary as a row with `App = —`, `Plan = work-on-jira-issues`. The wrapper-level PR body sweep already covers any PR opened by this dispatch (label-based, runs once per repo after all subagents finish), so no extra cleanup is needed here.
 
 ## Final report
-Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard and is how the user reviews the run, alongside the PR list (`gh pr list --label night-shift:plans`).
+Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard and is how the user reviews the run, alongside the PR list (`gh pr list --label night-shift`); filter by title prefix (`night-shift/plan:`, `night-shift/issue:`) to narrow to this bundle.
 
 ```
 Night Shift plans — multi-repo summary

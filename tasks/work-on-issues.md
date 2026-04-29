@@ -84,10 +84,10 @@ _Run by Night Shift • plans/work-on-issues_
 EOF
 
 PR_URL=$(gh pr create --title "night-shift/issue: #<number> — <short description>" \
-  --label night-shift --label "night-shift:plans" \
+  --label night-shift \
   --body-file /tmp/night-shift-pr-body.md)
 # Post-create ritual — REQUIRED after every gh pr create. Do NOT return to the wrapper without running every line below. Skipping leaves PR bodies flattened (literal \n on GitHub) or auto-merge unarmed. Spec: bundles/_multi-runner.md.
-gh pr edit "$PR_URL" --add-label night-shift --add-label "night-shift:plans"
+gh pr edit "$PR_URL" --add-label night-shift
 BODY=$(gh pr view "$PR_URL" --json body -q .body)
 case "$BODY" in *'\n'*) printf '%s' "$BODY" | python3 -c "import sys;sys.stdout.write(sys.stdin.read().replace(chr(92)+chr(110),chr(10)))" > /tmp/night-shift-body-fix.md && gh pr edit "$PR_URL" --body-file /tmp/night-shift-body-fix.md ;; esac
 gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --auto || true

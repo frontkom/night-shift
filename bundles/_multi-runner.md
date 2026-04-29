@@ -143,7 +143,7 @@ _Run by Night Shift • <bundle>/<task>_
 EOF
 
 gh pr create --title "..." \
-  --label night-shift --label "night-shift:<bundle>" \
+  --label night-shift \
   --body-file /tmp/night-shift-pr-body.md
 ```
 
@@ -167,26 +167,20 @@ Every PR opened by Night Shift must follow these conventions so reviewers can fi
 Always `night-shift/<area>: <description>`. Slash + colon. The `<area>` is the task's short slug (`bug`, `a11y`, `tests`, `plan`, `docs`, `changelog`, `suggestions`, `adr`, `seo`, `perf`, `security`, `i18n`, `issue`). Never use the parens form `night-shift(<area>):` for PR titles — the parens form is reserved for `git commit -m` messages on direct-to-main work, not for PR titles. When the task is scoped to an app, the title includes `<app_path> — ` after the colon.
 
 ### Labels (created at wrapper level, applied at task level)
-Every `gh pr create` call must add two labels:
-- `night-shift` — every Night Shift PR.
-- `night-shift:<bundle>` — one of `night-shift:plans`, `night-shift:docs`, `night-shift:code-fixes`, `night-shift:audits`.
+Every `gh pr create` call must add the single `night-shift` label. The bundle is already obvious from the PR title (`night-shift/plan:`, `night-shift/bug:`, etc.), so per-bundle sub-labels (`night-shift:plans` etc.) are intentionally **not** used — one label is enough to filter every Night Shift PR.
 
 **Label creation is a wrapper precondition, not a per-task step.** Each multi-runner wrapper, before dispatching any subagents for a given repo, runs the following block once per repo (after `cd`-ing in for the dirty / opt-out checks):
 
 ```
 gh label create night-shift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-gh label create "night-shift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
-gh label create "night-shift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
-gh label create "night-shift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
-gh label create "night-shift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
 ```
 
-All five are created together (cheap, idempotent) so a single bundle run never leaves a sibling bundle's label missing — a subtle bug that caused `gh pr create --label night-shift:audits` to fail silently and PRs to land label-less when the audits label hadn't been created yet by an earlier bundle. **Do this once per repo per wrapper run.** Subagents inherit the labels and only need to apply them.
+The create is cheap and idempotent. **Do this once per repo per wrapper run.** Subagents inherit the label and only need to apply it.
 
-Tasks **only** pass the flags, never call `gh label create` themselves:
+Tasks **only** pass the flag, never call `gh label create` themselves:
 ```
 gh pr create --title "night-shift/<area>: ..." \
-  --label night-shift --label "night-shift:<bundle>" \
+  --label night-shift \
   --body "..."
 ```
 
@@ -196,13 +190,13 @@ Every `gh pr create` call must capture the URL and immediately run this block:
 
 ```
 PR_URL=$(gh pr create --title "night-shift/<area>: ..." \
-  --label night-shift --label "night-shift:<bundle>" \
+  --label night-shift \
   --body-file /tmp/night-shift-pr-body.md)
 
-# (1) Re-assert labels idempotently. `gh pr create --label X` silently drops X
+# (1) Re-assert the label idempotently. `gh pr create --label X` silently drops X
 # if the label does not exist on the target repo, which is how PRs historically
 # landed label-less. `gh pr edit --add-label` is idempotent and surfaces errors.
-gh pr edit "$PR_URL" --add-label night-shift --add-label "night-shift:<bundle>"
+gh pr edit "$PR_URL" --add-label night-shift
 
 # (2) Verify title format. The PR title MUST match 'night-shift/<area>: '. The
 # parens form `nightshift(<area>):` is reserved for direct-to-main commit
@@ -227,7 +221,7 @@ gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --aut
 
 Why each step matters:
 
-- **Label re-assertion** fixed the recurring "PR landed with no night-shift label" class of failures. When a target repo's `night-shift:<bundle>` label doesn't exist yet, `gh pr create --label` silently drops the flag. The review-gate workflow then auto-passes the PR because the label-match fails — meaning it can merge with zero human approval. Re-asserting via `gh pr edit` is idempotent and produces a visible error if the label truly can't be applied.
+- **Label re-assertion** fixed the recurring "PR landed with no night-shift label" class of failures. When the `night-shift` label doesn't exist yet on the target repo, `gh pr create --label` silently drops the flag — and the review-gate workflow then auto-passes the PR because the label-match fails, meaning it can merge with zero human approval. Re-asserting via `gh pr edit` is idempotent and produces a visible error if the label truly can't be applied.
 - **Title check** catches subagents that improvise (`nightshift(docs):`, `nightshift/plan:`, etc.) and warn-logs them without failing the task — a reviewer can fix the title manually before merging.
 - **PR body sanity-fix** defends against the `\n`-flattening failure mode. Wrapper-level checks exist too (see step 4 of the work-item loop above), but running the fix at task level — right after `gh pr create` — catches it before auto-merge ever sees the body and before the PR is visible for more than a few seconds. Keeps both layers; each catches what the other misses.
 - **Arm auto-merge** without this, Night Shift PRs sit on their original tree all day. When sibling PRs merge first, each remaining PR goes stale against `main` (missing modules added by siblings, stale CI aggregators, merge conflicts with fresh code). `--auto` does **not** bypass human review or required checks — the PR enters the merge queue only once a reviewer approves in the morning and every required check is green.
@@ -365,7 +359,7 @@ Doc-only tasks (changelog, ADR, suggestions, user-guide) skip this section — t
 
 ## Run history is the PR list
 
-Night Shift used to write a per-repo `docs/NIGHTSHIFT-HISTORY.md` log file. That file has been removed: every task now opens a PR with the `night-shift` and `night-shift:<bundle>` labels, and `gh pr list --label night-shift --state all` reproduces the same audit trail without committing housekeeping rows. Subagents return `<status> | PR: <url or —> | <terse note>`; the wrapper uses that only to build the in-memory summary table, not to append to any file.
+Night Shift used to write a per-repo `docs/NIGHTSHIFT-HISTORY.md` log file. That file has been removed: every task now opens a PR with the `night-shift` label, and `gh pr list --label night-shift --state all` reproduces the same audit trail without committing housekeeping rows. The bundle is recoverable from the PR title (`night-shift/<area>:`). Subagents return `<status> | PR: <url or —> | <terse note>`; the wrapper uses that only to build the in-memory summary table, not to append to any file.
 
 ## Discovery — expanding repos to work-items
 

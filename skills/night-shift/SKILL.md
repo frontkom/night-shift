@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-28g
+version: 2026-04-29a
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-28g -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-29a -->
 
 ## Version check (run this first, every invocation)
 
@@ -365,8 +365,9 @@ Once all routines that should exist have been created, print:
 tasks — list them here, or "none" if all four were created.)
 
 Tomorrow morning, review the night's PRs in each repo with
-`gh pr list --label night-shift` (or filter by bundle, e.g.
-`--label night-shift:audits`). The full summary table for each run is
+`gh pr list --label night-shift` (filter by title prefix —
+`night-shift/bug:`, `night-shift/a11y:`, etc. — to narrow to a
+specific bundle). The full summary table for each run is
 also in the routines dashboard at https://claude.ai/code/routines. To
 pause Night Shift on any project, drop a .nightshift-skip file at its
 root. To change which tasks run on a repo, re-run /night-shift and pick

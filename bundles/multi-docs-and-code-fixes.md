@@ -37,15 +37,11 @@ For each discovered target repo, in directory-name order:
    - Look up the repo in the parsed allowlist. If `docs_allowed` AND `fixes_allowed` are both empty, record `not-selected` and continue (no dispatch for this repo).
    - `git status --porcelain` — if dirty, record `dirty-skip` and continue.
    - Check opt-out signals (`.nightshift-skip`, or `Night Shift: skip` in `CLAUDE.md` / `AGENTS.md` / `README.md`). Record `opted-out` and continue if any are present.
-   - **Ensure all five Night Shift labels exist on the repo** (idempotent — silent if they already exist). Run this once per repo before dispatching subagents:
+   - **Ensure the `night-shift` label exists on the repo** (idempotent — silent if it already exists). Run this once per repo before dispatching subagents:
      ```
      gh label create night-shift --color "0e8a16" --description "Automated by Night Shift" 2>/dev/null || true
-     gh label create "night-shift:plans" --color "1d76db" --description "Night Shift plans bundle" 2>/dev/null || true
-     gh label create "night-shift:docs" --color "1d76db" --description "Night Shift docs bundle" 2>/dev/null || true
-     gh label create "night-shift:code-fixes" --color "1d76db" --description "Night Shift code-fixes bundle" 2>/dev/null || true
-     gh label create "night-shift:audits" --color "1d76db" --description "Night Shift audits bundle" 2>/dev/null || true
      ```
-     All five are created together so subagents in any future bundle can rely on them. See `bundles/_multi-runner.md` → "Labels (created at wrapper level, applied at task level)".
+     See `bundles/_multi-runner.md` → "Labels (created at wrapper level, applied at task level)".
    - Parse `## Night Shift Config` in `CLAUDE.md`. If it contains an `apps:` block, build one work-item per `apps[]` entry (with merged `scoped_config`). Otherwise build a single work-item with `app_path = —`.
    - Capture the absolute repo path. `cd` back to the parent.
 2. For each work-item, in `app_path` order (lexicographic), dispatch a `Task` subagent with this prompt (substitute `{REPO_PATH}`, `{APP_PATH}`, `{RUN_REPO_SCOPED_TASKS}` — `true` only for the first work-item of this repo, `false` otherwise; always `true` when `app_path = —`):
