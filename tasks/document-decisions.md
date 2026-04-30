@@ -63,9 +63,16 @@ cat > /tmp/night-shift-pr-body.md <<'EOF'
 _Run by Night Shift • docs/document-decisions_
 EOF
 
+# Stagger PR creation. Spec: bundles/_multi-runner.md → "PR creation throttle".
+LAST=/tmp/night-shift-pr-last-created
+if [ -f "$LAST" ]; then
+  ELAPSED=$(( $(date +%s) - $(cat "$LAST") ))
+  [ "$ELAPSED" -lt 90 ] && sleep "$((90 - ELAPSED))"
+fi
 PR_URL=$(gh pr create --title "night-shift/adr: document <decision-1>, <decision-2>" \
   --label night-shift \
   --body-file /tmp/night-shift-pr-body.md)
+date +%s > /tmp/night-shift-pr-last-created
 # Post-create ritual — REQUIRED after every gh pr create. Do NOT return to the wrapper without running every line below. Skipping leaves PR bodies flattened (literal \n on GitHub) or auto-merge unarmed. Spec: bundles/_multi-runner.md.
 gh pr edit "$PR_URL" --add-label night-shift
 BODY=$(gh pr view "$PR_URL" --json body -q .body)

@@ -59,9 +59,16 @@ Only open a PR for a bug that is clearly real, clearly the codebase's fault (not
    _Run by Night Shift • audits/find-bugs_
    EOF
 
+   # Stagger PR creation. Spec: bundles/_multi-runner.md → "PR creation throttle".
+   LAST=/tmp/night-shift-pr-last-created
+   if [ -f "$LAST" ]; then
+     ELAPSED=$(( $(date +%s) - $(cat "$LAST") ))
+     [ "$ELAPSED" -lt 90 ] && sleep "$((90 - ELAPSED))"
+   fi
    PR_URL=$(gh pr create --title "night-shift/bug: <app_path> — <short description>" \
      --label night-shift \
      --body-file /tmp/night-shift-pr-body.md)
+   date +%s > /tmp/night-shift-pr-last-created
    # Post-create ritual — REQUIRED after every gh pr create. Do NOT return to the wrapper without running every line below. Skipping leaves PR bodies flattened (literal \n on GitHub) or auto-merge unarmed. Spec: bundles/_multi-runner.md.
    gh pr edit "$PR_URL" --add-label night-shift
    BODY=$(gh pr view "$PR_URL" --json body -q .body)

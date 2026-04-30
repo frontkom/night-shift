@@ -201,14 +201,45 @@ gh pr create --title "night-shift/<area>: ..." \
   --body "..."
 ```
 
+### PR creation throttle (every task, no exceptions)
+
+Every `gh pr create` call must be **preceded** by a gap check and **followed** by a timestamp write. This staggers PRs across all Night Shift subagents in the same routine run so downstream CI concurrency groups don't prune queued runs faster than they can dispatch.
+
+Why this exists: target repos with `concurrency: { cancel-in-progress: false }` on a shared group (one per repo, not per PR) prune older queued runs whenever a third PR queues against the group. Night Shift fan-out used to open 6–10 PRs in ~10 minutes (work-on-issues × 3, work-on-jira × 3, plus plan subagents finishing back-to-back), and most of the queued workflow runs got pruned before they could start. A 90-second floor between PR creations gives GitHub time to dispatch the previous workflow out of the queue before the next PR arrives.
+
+Why the lock is `/tmp/night-shift-pr-last-created`: every Task subagent in a routine shares the same filesystem, so the timestamp coordinates across both within-subagent loops (work-on-issues opening 3 PRs in series) and across-subagent fan-out (multi-plans dispatching 10+ subagents whose final action is `gh pr create`). One throttle, both layers.
+
+The block is small enough to inline. Tasks paste it verbatim around their existing `gh pr create`:
+
+```
+# Stagger PR creation. Spec: bundles/_multi-runner.md → "PR creation throttle".
+LAST=/tmp/night-shift-pr-last-created
+if [ -f "$LAST" ]; then
+  ELAPSED=$(( $(date +%s) - $(cat "$LAST") ))
+  [ "$ELAPSED" -lt 90 ] && sleep "$((90 - ELAPSED))"
+fi
+# … gh pr create … (existing block)
+date +%s > /tmp/night-shift-pr-last-created
+```
+
+This is **not** a substitute for fixing pathological CI configs (e.g. a shared concurrency group that takes 10+ minutes to drain). It is polite pacing — it eliminates the "burst of 7 PRs in 10 minutes" failure mode and reduces cancellations to whatever the steady-state queue depth allows. Repos whose CI suites still cancel under 90s pacing need their workflow concurrency redesigned (per-PR groups, or `cancel-in-progress: true`); Night Shift can't fix that from the outside.
+
 ### Post-create ritual (every task, no exceptions)
 
 Every `gh pr create` call must capture the URL and immediately run this block:
 
 ```
+# Stagger PR creation. Spec: bundles/_multi-runner.md → "PR creation throttle".
+LAST=/tmp/night-shift-pr-last-created
+if [ -f "$LAST" ]; then
+  ELAPSED=$(( $(date +%s) - $(cat "$LAST") ))
+  [ "$ELAPSED" -lt 90 ] && sleep "$((90 - ELAPSED))"
+fi
+
 PR_URL=$(gh pr create --title "night-shift/<area>: ..." \
   --label night-shift \
   --body-file /tmp/night-shift-pr-body.md)
+date +%s > /tmp/night-shift-pr-last-created
 
 # (1) Re-assert the label idempotently. `gh pr create --label X` silently drops X
 # if the label does not exist on the target repo, which is how PRs historically
