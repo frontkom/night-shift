@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-30c
+version: 2026-04-30d
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-30c -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-30d -->
 
 ## Version check (run this first, every invocation)
 
@@ -183,13 +183,13 @@ Show a compact summary of the picker output and the default schedule, ask for co
 > | `owner/repo-a` | 8 selected (plans, docs, code-fixes) |
 > | `owner/repo-b` | 3 selected (find-bugs, improve-seo, improve-performance) |
 >
-> **Schedule** (Europe/Oslo, weeknights only): build 01:00, maintain-code 03:00, audit 04:00, maintain-docs 05:00, triage-ci 05:30.
+> **Schedule** (Europe/Oslo, weeknights only): build 01:00, maintain-code 03:00, audit 04:00, maintain-docs 05:00, triage-ci 06:30.
 >
 > Skips Friday and Saturday nights — people rarely review PRs on Saturday or Sunday.
 >
 > Proceed?
 
-Default schedule → UTC cron, weeknights only: build `0 23 * * 0-4` (Sun-Thu UTC night → Mon-Fri morning), maintain-code `0 1 * * 1-5`, audit `0 2 * * 1-5`, maintain-docs `0 3 * * 1-5`, triage-ci `30 3 * * 1-5` (Mon-Fri UTC; fires last so it can triage every PR the other routines opened during the night).
+Default schedule → UTC cron, weeknights only: build `0 23 * * 0-4` (Sun-Thu UTC night → Mon-Fri morning), maintain-code `0 1 * * 1-5`, audit `0 2 * * 1-5`, maintain-docs `0 3 * * 1-5`, triage-ci `30 4 * * 1-5` (Mon-Fri UTC; fires last with a 90-minute margin after maintain-docs starts so it can triage every PR the other routines opened during the night).
 
 Two reasons for this ordering:
 
@@ -345,7 +345,7 @@ For routines other than the build routine, set `mcp_connections: []` — none of
 ### Routine 5 — Triage CI failures
 
 - **name**: `night-shift-triage`
-- **cron_expression**: `30 3 * * 1-5` (Mon-Fri UTC; **runs last** so it triages every PR the other routines opened that night; skips Sat+Sun mornings)
+- **cron_expression**: `30 4 * * 1-5` (Mon-Fri UTC; **runs last** with a 90-minute margin after maintain-docs starts, so it triages every PR the other routines opened that night; skips Sat+Sun mornings)
 - **wrapper URL**: `https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/multi-triage-ci.md`
 - **prompt**: Fetch the wrapper URL with WebFetch, then use its full contents as the prompt. This bundle does **not** take a `<night-shift-config>` block — it always processes every open Night Shift PR in every source repo, no per-repo allowlist.
 - **`mcp_connections`**: `[]`. The triage task only uses `gh` and does not need Rovo.
