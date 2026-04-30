@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-04-30b
+version: 2026-04-30c
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-04-30b -->
+<!-- NIGHT_SHIFT_VERSION: 2026-04-30c -->
 
 ## Version check (run this first, every invocation)
 
@@ -183,13 +183,13 @@ Show a compact summary of the picker output and the default schedule, ask for co
 > | `owner/repo-a` | 8 selected (plans, docs, code-fixes) |
 > | `owner/repo-b` | 3 selected (find-bugs, improve-seo, improve-performance) |
 >
-> **Schedule** (Europe/Oslo, weeknights only): build 01:00, maintain-code 03:00, audit 04:00, maintain-docs 05:00.
+> **Schedule** (Europe/Oslo, weeknights only): build 01:00, maintain-code 03:00, audit 04:00, maintain-docs 05:00, triage-ci 05:30.
 >
 > Skips Friday and Saturday nights — people rarely review PRs on Saturday or Sunday.
 >
 > Proceed?
 
-Default schedule → UTC cron, weeknights only: build `0 23 * * 0-4` (Sun-Thu UTC night → Mon-Fri morning), maintain-code `0 1 * * 1-5`, audit `0 2 * * 1-5`, maintain-docs `0 3 * * 1-5` (Mon-Fri UTC).
+Default schedule → UTC cron, weeknights only: build `0 23 * * 0-4` (Sun-Thu UTC night → Mon-Fri morning), maintain-code `0 1 * * 1-5`, audit `0 2 * * 1-5`, maintain-docs `0 3 * * 1-5`, triage-ci `30 3 * * 1-5` (Mon-Fri UTC; fires last so it can triage every PR the other routines opened during the night).
 
 Two reasons for this ordering:
 
@@ -206,6 +206,7 @@ If the user wants to tweak schedule, timezone, or include weekends, do it now, t
 - **maintain-docs routine** — tasks where `bundle: docs`.
 - **maintain-code routine** — tasks where `bundle: code-fixes`.
 - **audit routine** — tasks where `bundle: audits`.
+- **triage-ci routine** — tasks where `bundle: triage-ci`. Runs **last** every morning to comment on every failed/cancelled check on Night Shift PRs and re-run the cancellations + clearly-unrelated flakes. The routine is always created if any repo has the `triage-ci-failures` task selected.
 
 **Do not hardcode task ids in the skill.** Always derive them from `manifest.yml` so new tasks added later flow through automatically.
 
@@ -341,6 +342,14 @@ For routines other than the build routine, set `mcp_connections: []` — none of
 - **wrapper URL**: `https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/multi-audits.md`
 - **prompt**: Fetch the wrapper URL with WebFetch, then use its full contents as the prompt. Append the `<night-shift-config>` block at the end.
 
+### Routine 5 — Triage CI failures
+
+- **name**: `night-shift-triage`
+- **cron_expression**: `30 3 * * 1-5` (Mon-Fri UTC; **runs last** so it triages every PR the other routines opened that night; skips Sat+Sun mornings)
+- **wrapper URL**: `https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/multi-triage-ci.md`
+- **prompt**: Fetch the wrapper URL with WebFetch, then use its full contents as the prompt. This bundle does **not** take a `<night-shift-config>` block — it always processes every open Night Shift PR in every source repo, no per-repo allowlist.
+- **`mcp_connections`**: `[]`. The triage task only uses `gh` and does not need Rovo.
+
 **Step 4b — Handle the routine cap.**
 
 If the user's plan rejects the create with `trigger_limit_reached`, tell them:
@@ -360,6 +369,7 @@ Once all routines that should exist have been created, print:
 | docs | <local time> | <N> | <M> selected |
 | code-fixes | <local time> | <N> | <M> selected |
 | audit | <local time> | <N> | <M> selected |
+| triage | <local time> | <N> | triage-ci-failures |
 
 (Skipped: <any routines not created because no repo selected any of their
 tasks — list them here, or "none" if all four were created.)

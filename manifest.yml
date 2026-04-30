@@ -51,6 +51,12 @@ bundles:
     schedule_hint: weekly
     parallelism: independent
     stop_on_failure: false
+  triage-ci:
+    title: Triage CI failures on open Night Shift PRs
+    description: Comments on each failed/cancelled check explaining whether it's caused by the PR's diff, and re-runs cancellations + clearly-unrelated flakes.
+    schedule_hint: nightly
+    parallelism: independent
+    stop_on_failure: false
 
 tasks:
   - id: build-planned-features
@@ -174,3 +180,11 @@ tasks:
     order: 4
     scope: app
     needs: [test, build]
+
+  - id: triage-ci-failures
+    title: Triage CI failures
+    description: For every open `night-shift` PR, comments on each failed or cancelled check explaining whether the failure is caused by the PR's diff, and re-runs cancellations + unrelated flakes. Does not open new PRs.
+    bundle: triage-ci
+    mode: direct-to-main
+    order: 1
+    scope: repo
