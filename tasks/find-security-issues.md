@@ -24,7 +24,18 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
    ```
    gh pr list --search "night-shift/security in:title" --state open
    ```
-2. Look for patterns (inside `<app_path>` when scoped; skip the "Exposed secrets" row here — it's handled by the pre-step above):
+2. Collect Semgrep findings first (best effort), then use manual pattern review as fallback:
+   - Run Semgrep in JSON mode (scope to `<app_path>` when scoped):
+   ```
+   # scoped
+   semgrep scan --config auto --json "<app_path>" > /tmp/night-shift-semgrep.json
+   # unscoped
+   semgrep scan --config auto --json . > /tmp/night-shift-semgrep.json
+   ```
+   - If Semgrep is unavailable or fails, continue with manual OWASP pattern review (do not fail the task).
+   - Use Semgrep findings as the primary prioritization signal when present.
+
+3. Look for patterns (inside `<app_path>` when scoped; skip the "Exposed secrets" row here — it's handled by the pre-step above):
    - **Auth bypass / broken access control** — routes/handlers that read user IDs from request without authorization checks (IDOR)
    - **Injection** — raw SQL string building, shell exec with user input, unsafe template eval
    - **XSS** — `dangerouslySetInnerHTML`, `innerHTML`, unescaped output in templates
@@ -32,17 +43,17 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
    - **CSRF** — state-changing routes without origin/CSRF protection
    - **Missing rate limiting** on auth, signup, password reset, expensive endpoints
    - **Insecure deserialization, SSRF, open redirects**
-3. Pick **one** real, non-speculative issue tonight. Skip anything that requires guessing about intent. When scoped, the issue and its fix must live under `<app_path>`.
-4. Create a branch (include the app slug when scoped):
+4. Pick **one** real, non-speculative issue tonight. Skip anything that requires guessing about intent. When scoped, the issue and its fix must live under `<app_path>`. When Semgrep findings exist, prioritize the highest-severity, clearly valid finding first.
+5. Create a branch (include the app slug when scoped):
    ```
    # scoped:
    git checkout -b night-shift/security-<app-slug>-YYYY-MM-DD
    # unscoped:
    git checkout -b night-shift/security-YYYY-MM-DD
    ```
-5. Fix the issue at the smallest reasonable scope. Add a regression test.
-6. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-7. Push and open a PR (prefix the title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
+6. Fix the issue at the smallest reasonable scope. Add a regression test.
+7. Run the scoped **test suite** and the scoped **build command**. Both must pass.
+8. Push and open a PR (prefix the title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
    ```
    cat > /tmp/night-shift-pr-body.md <<'EOF'
    ## Plain summary
@@ -59,6 +70,9 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
 
    ## Verification
    <how the new test demonstrates the fix>
+   
+   ## Detection source
+   <semgrep | heuristic-fallback | mixed>
 
    ---
    _Run by Night Shift • audits/find-security-issues_

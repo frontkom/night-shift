@@ -24,9 +24,20 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
    ```
    If one exists for the same app, exit silently — do not stack PRs.
 
-2. Read the source of each configured **key page** (scoped to `<app_path>` when set) and the components they render.
+2. Collect runtime a11y signals from Axe CLI (best effort), then use source review as fallback:
+   - Exclude pages that require login/authentication.
+   - For each remaining key page URL, run Axe and store JSON output:
+     ```
+     npx -y @axe-core/cli "<absolute-production-url>" \
+       --stdout --format json > "/tmp/night-shift-axe-<page-slug>.json"
+     ```
+   - If Axe fails on a page (timeout/network/tooling), continue with remaining pages and report partial results in the PR.
+   - If Axe is unavailable in the environment, continue with heuristic WCAG code review (do not fail the task).
+   - Use Axe findings as the primary prioritization signal when present.
 
-3. Audit against the **WCAG 2.1 AA success criteria**. Check each category:
+3. Read the source of each configured **key page** (scoped to `<app_path>` when set) and the components they render.
+
+4. Audit against the **WCAG 2.1 AA success criteria**. Check each category:
 
    **Perceivable**
    - Images missing meaningful `alt` text (decorative images should have `alt=""`)
@@ -59,23 +70,23 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
    - Duplicate `id` attributes on the same page
    - Heading hierarchy that skips levels (h1 → h3) or uses headings for styling
 
-4. Fix **all** clear violations. Prioritize by impact — issues that block access entirely (keyboard traps, missing form labels, broken focus management) before cosmetic issues (contrast tweaks on secondary text). Every violation must be real and demonstrable from reading the code, not hypothetical. Fix at the component level so all consumers benefit.
+5. Fix **all** clear violations. Prioritize by impact — issues that block access entirely (keyboard traps, missing form labels, broken focus management) before cosmetic issues (contrast tweaks on secondary text). Every violation must be real and demonstrable from reading the code, not hypothetical. Fix at the component level so all consumers benefit. When Axe findings exist, prioritize them first.
 
-5. **Verify fixes don't introduce regressions:**
+6. **Verify fixes don't introduce regressions:**
    - If the project has a11y tests (e.g. jest-axe, @axe-core/react, Playwright a11y assertions), add tests that would have caught the original violations.
    - Otherwise, add tests that exercise the fixes — at minimum render tests asserting the corrected attributes/elements are present.
    - Read the surrounding code and any existing tests for each component. Make sure fixes don't break existing behavior: conditional rendering, event handlers, CSS class names, prop interfaces.
    - Do not change existing `<title>`, metadata, heading text, or visible copy unless the fix specifically requires it.
 
-6. Collect all fixes in one branch (include app slug when scoped):
+7. Collect all fixes in one branch (include app slug when scoped):
    ```
    # scoped:
    git checkout -b night-shift/a11y-<app-slug>-YYYY-MM-DD
    # unscoped:
    git checkout -b night-shift/a11y-YYYY-MM-DD
    ```
-7. Run the scoped **test suite** and the scoped **build command**. Both must pass.
-8. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
+8. Run the scoped **test suite** and the scoped **build command**. Both must pass.
+9. Push and open the PR (prefix title with `<app_path> — ` when scoped). The wrapper has already created the standard labels for this repo — just attach them. **Always use `--body-file`, never inline `--body`.** End the body with the Night Shift footer:
    ```
    cat > /tmp/night-shift-pr-body.md <<'EOF'
    ## Plain summary
@@ -92,6 +103,7 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
 
    ## Verification
    - <how to confirm each fix in the rendered page>
+   - Signal source: <axe-cli | heuristic-fallback | mixed>
 
    ---
    _Run by Night Shift • code-fixes/improve-accessibility_
