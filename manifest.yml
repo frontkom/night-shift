@@ -57,12 +57,6 @@ bundles:
     schedule_hint: nightly
     parallelism: independent
     stop_on_failure: false
-  shopify:
-    title: Shopify-specific automation
-    description: Vendor-update cherry-picks (Horizon/Dawn/Skeleton releases) and pre-flight migration-risk audits. Opt-in for Shopify projects only — set `bundles: [shopify]` in CLAUDE.md Night Shift Config.
-    schedule_hint: weekly
-    parallelism: independent
-    stop_on_failure: false
 
 tasks:
   - id: build-planned-features
@@ -193,21 +187,4 @@ tasks:
     bundle: triage-ci
     mode: direct-to-main
     order: 1
-    scope: repo
-
-  - id: cherry-pick-vendor-update
-    title: Cherry-pick vendor theme update (Shopify)
-    description: When a vendor-update issue is open (Horizon/Dawn/Skeleton released a newer version than .vendor-baseline), downloads the upstream tree, classifies changes via the project's diff_vendor_update.py, and opens one PR per concern (perf, schema, components, i18n, settings, meta).
-    bundle: shopify
-    mode: pull-request
-    order: 1
-    scope: repo
-    needs: [theme-check, test]
-
-  - id: audit-migration-risk
-    title: Audit migration risk (Shopify)
-    description: Runs the project's audit_migration_risk.py to surface installed apps that fire side effects on bulk imports (Klaviyo, Judge.me, etc.). Opens an issue ONLY when known-risky apps are detected AND recent commits suggest a migration is being prepared. Never modifies code.
-    bundle: shopify
-    mode: direct-to-main
-    order: 2
     scope: repo
