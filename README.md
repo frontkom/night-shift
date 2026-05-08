@@ -62,8 +62,11 @@ Every Night Shift run leaves a labelled PR per task (`night-shift`), so `gh pr l
 | **code-fixes** | Adds tests, fixes accessibility, completes translations | One PR per task |
 | **audits** | Finds security / bug / SEO / performance issues | One PR per area |
 | **triage-ci** | Comments on red checks on Night Shift PRs, re-runs cancellations + clearly-unrelated flakes | Comments only, no new PRs |
+| **shopify** *(opt-in)* | Vendor cherry-picks (Horizon/Dawn/Skeleton) + pre-flight migration-risk audits | One PR per vendor-update concern; issue-only for risk audit |
 
 `manifest.yml` is the single source of truth for what tasks exist, what they do, what bundle they belong to, and what order they run in. Edit one file to add, rename, reorder, or move tasks.
+
+The `shopify` bundle is opt-in for Shopify projects only. To enable: add `bundles: [shopify]` (alongside any other bundles) in the project's `CLAUDE.md` Night Shift Config block. The tasks expect the project to be running on `claude-shopify-boilerplate` conventions (specifically `scripts/tasks/diff_vendor_update.py`, `scripts/tasks/audit_migration_risk.py`, and a `.vendor-baseline` file at repo root).
 
 ## GitHub Actions
 
