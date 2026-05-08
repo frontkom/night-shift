@@ -2,13 +2,13 @@
 
 Run the project's pre-flight audit for "what apps will fire side effects on the next bulk import?" — Klaviyo flows, Judge.me review-request scheduling, channel-sync apps that push to Amazon/eBay/Walmart, etc. **One issue when known-risky apps are detected AND a migration-shape change appears in flight; otherwise silent.**
 
-This task is Shopify-specific and only enabled when the project's CLAUDE.md Night Shift Config opts in via the `shopify` bundle.
+This task is Shopify-specific. Enable it for a project by selecting it during night-shift bundle setup.
 
 The trigger for the May 2026 hovedsmann incident was Judge.me being told to "schedule requests for previous Shopify orders" — it used the Matrixify import date as the purchase date for ALL historical orders and queued 13,833 emails. This task surfaces those apps BEFORE a bulk import is scheduled.
 
 ## Read project config first
 
-Read `CLAUDE.md` for **Night Shift Config**: default branch, `bundles` setting (must include `shopify`). If the dispatcher passed `allowed_tasks` and `audit-migration-risk` is not in it, exit silently.
+Read `CLAUDE.md` for **Night Shift Config**: default branch. If the dispatcher passed `allowed_tasks` and `shopify-audit-migration-risk` is not in it, exit silently.
 
 ## High bar — default is silent
 

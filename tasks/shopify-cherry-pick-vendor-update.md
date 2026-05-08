@@ -2,11 +2,11 @@
 
 When the project's `vendor-update-watch` workflow files an issue noting that an upstream Shopify theme (Horizon, Dawn, Skeleton-theme) has a newer version than `.vendor-baseline`, this task downloads the upstream tree, runs the project's `diff_vendor_update.py`, and opens **one PR per logical concern** (perf, a11y, new sections, fixes) rather than a single mega-commit. **One issue → one batch of PRs.**
 
-This task is Shopify-specific and only enabled when the project's CLAUDE.md Night Shift Config opts in via the `shopify` bundle.
+This task is Shopify-specific. Enable it for a project by selecting it during night-shift bundle setup.
 
 ## Read project config first
 
-Read `CLAUDE.md` for **Night Shift Config**: default branch, push protocol, `bundles` setting (must include `shopify` for this task to run). If the dispatcher passed `allowed_tasks` and `cherry-pick-vendor-update` is not in it, exit silently.
+Read `CLAUDE.md` for **Night Shift Config**: default branch, push protocol. If the dispatcher passed `allowed_tasks` and `shopify-cherry-pick-vendor-update` is not in it, exit silently.
 
 ## High bar — default is silent
 
