@@ -65,26 +65,30 @@ Update the multi-runner / wrapper prompts so the routine, as its final step, app
 
 ### 2. Persist events durably
 
-Stand up a dedicated `frontkom/night-shift-logs` repo with one JSONL file per month (`logs/2026-05.jsonl`). Append-only; each line is a schema-conformant event.
+Stand up a dedicated **private** `frontkom/night-shift-logs` repo with one JSONL file per month (`logs/2026-05.jsonl`). Append-only; each line is a schema-conformant event.
 
-- **GH-Actions backend** — have the workflow itself append directly via `gh api` contents API (read JSONL → append line → put with sha). No hosted webhook receiver needed.
-- **Routine backend** — same pattern: the routine commits one JSONL line at the end of its run.
+- **GH-Actions backend** — have the workflow itself append directly via `gh api` contents API (read JSONL → append line → put with sha) using a fine-scoped PAT stored as `NIGHTSHIFT_LOGS_TOKEN`. No hosted webhook receiver needed.
+- **Routine backend** — same pattern: the routine commits one JSONL line at the end of its run, using the same PAT.
 
-Logs repo can be public-readable (no secrets in events; the schema fields are repo name, timestamp, PR URLs, durations, token counts).
+**Why private even though events contain no credentials:** the events still carry sensitive metadata — repo names of every targeted project (including any private repos, which leaks their existence and naming), bundle outcomes (e.g. "audits failed on repo X" is a soft attention signal), and aggregate token/cost volume. The framework repo (`frontkom/night-shift`) stays open source; only the *operational telemetry* moves behind an auth boundary.
 
 ### 3. Dashboard
 
-Start with a **static site on GitHub Pages** under the existing `perandre/ns` mirror at `https://perandre.github.io/ns/dashboard/`. Single `index.html` that:
+The dashboard reads the same JSONL feed, so it inherits the same privacy boundary — it must not be a public GitHub Pages site.
 
-- Fetches `https://raw.githubusercontent.com/frontkom/night-shift-logs/main/logs/*.jsonl` (or uses the GitHub contents API to enumerate months).
-- Aggregates client-side with a tiny vanilla-JS reducer.
-- Renders with Chart.js (no build step):
+Recommended host: **Vercel + GitHub OAuth** (or Clerk). A minimal Next.js app that:
+
+- On the server, uses a GitHub App / PAT to fetch `frontkom/night-shift-logs/logs/*.jsonl` from the private repo.
+- Gates access to the page itself (only the maintainer / a configured allowlist).
+- Renders with Chart.js or Recharts:
   - **Headline number** per project: cumulative active AI time (sum of `duration_api_ms`), with a wall-clock fallback line clearly labelled "approximate (routine backend)".
   - **Time series** per project: stacked area, one band per bundle (plans / docs / code-fixes / audits).
   - **Token + cost** breakdown (only for GH-Actions runs, where data exists).
   - **Cadence**: nights with activity vs. silent nights.
 
-Upgrade path if richer behaviour becomes useful: same JSONL feed, swap the renderer for a Next.js app on Vercel. No data-format changes needed.
+Cheaper fallback if you don't want to stand up a Next.js app yet: a single `index.html` served from a private S3 bucket behind Cloudflare Access, fetching the JSONL via a worker that injects the GitHub token. Same data shape, less framework.
+
+**If you ever want a public showcase**, the path is opt-in only: log a whitelisted set of repos by name (e.g. `frontkom/night-shift` itself, sandbox repos) and aggregate everything else under anonymised `private/*` buckets in a separate public-safe feed.
 
 ## Critical files
 
@@ -96,8 +100,8 @@ Upgrade path if richer behaviour becomes useful: same JSONL feed, swap the rende
 | `reporting/README.md` | Document the new fields and the logs-repo location. |
 | `bundles/_multi-runner.md` (and any wrapper prompts) | Add a final step that appends a JSONL event to the logs repo. |
 | `skills/night-shift/SKILL.md` | Bump `NIGHT_SHIFT_VERSION` (frontmatter + HTML comment) per `CLAUDE.md` workflow rule. |
-| `dashboard/index.html` (new) | Single-page Chart.js dashboard reading the JSONL feed. |
-| `frontkom/night-shift-logs` (new repo) | Append-only JSONL store. README explains the schema. |
+| Dashboard app (new, separate Vercel project) | Auth-gated Next.js page reading the JSONL feed via a server-side GitHub token. Not in this repo. |
+| `frontkom/night-shift-logs` (new **private** repo) | Append-only JSONL store. README explains the schema. Private because events carry repo names + activity metadata. |
 
 ## What about historical data
 
@@ -116,7 +120,7 @@ But: artifacts older than 90 days are gone, and `duration_api_ms` was never capt
 1. **Workflow change:** trigger manually on the sandbox repo (`gh workflow run night-shift.yml -R <sandbox>`); confirm the produced `event.json` artifact has `duration_api_ms`, `total_cost_usd`, and `usage` populated and validates against the updated schema.
 2. **End-to-end:** confirm a new line appended to `frontkom/night-shift-logs/logs/<YYYY-MM>.jsonl` with the same data.
 3. **Routine path:** trigger one routine-backed run (existing `night-shift-test` skill); confirm the routine commits a JSONL line with `backend: "routine"` and `duration_seconds`.
-4. **Dashboard:** open `https://perandre.github.io/ns/dashboard/`; confirm per-project totals render and that routine-backed bars are labelled approximate.
+4. **Dashboard:** open the deployed Vercel URL (auth-gated); confirm per-project totals render and that routine-backed bars are labelled approximate.
 5. **Schema check:** `npx ajv-cli validate -s reporting/schema.json -d 'logs/*.jsonl'` passes.
 
 ## Scope estimate
