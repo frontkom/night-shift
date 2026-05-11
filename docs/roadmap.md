@@ -101,3 +101,19 @@ Today Night Shift only does what its prompts define — it discovers work on its
 - **Client-facing reports** — could be added later, but internal adoption comes first
 - **Cost optimization** — model choice, turn limits, skipping idle repos — optimize after the system is proven valuable
 - **Multi-model strategy** — using cheaper models for simpler tasks — premature optimization for now
+
+## Next candidate phase: unified quality-signal ingestion (Plan B)
+
+**Goal:** Move from task-local CLI signals to a shared, validated signal layer consumed by multiple tasks.
+
+Current v1 direction (already useful): `improve-accessibility` consumes Axe CLI findings and `find-security-issues` consumes Semgrep findings directly in each task, with heuristic fallback.
+
+Plan B evolves this into one shared ingestion contract:
+
+- Add a prelude step that writes a normalized `/tmp/night-shift-signals.json`
+- Include tool metadata, timestamps, target URL/path, severity/impact, and parse errors
+- Enforce freshness and context checks (age window, app scope, target matching)
+- Let `improve-performance`, `improve-accessibility`, and `find-security-issues` consume the same schema
+- Keep graceful fallback to heuristic review when signals are missing or invalid
+
+**Why later:** Better consistency and observability, but meaningfully more implementation complexity than v1.

@@ -30,7 +30,44 @@ Only open a PR when you can point to a concrete, low-risk win that will clearly 
    - **Render-blocking resources** — synchronous scripts, blocking CSS, large inline blobs.
    - **Client/server boundary** — components marked client-only that could be server, large data fetched on the client that could be fetched on the server.
    - **Database / API calls** — N+1 patterns, missing indexes implied by query shape, missing caching where appropriate.
-   - **Lighthouse-style checks** for each configured **key page** by reading the source (no live browser needed).
+   - **Lighthouse CLI benchmark** for each configured **key page** against the production URL (do not replace with source-only heuristics).
+     - Benchmark all configured key pages each run (no page cap).
+     - Exclude pages that require login/authentication from the benchmark set.
+     - Measure both profiles for each key page:
+       - Mobile (default Lighthouse settings)
+       - Desktop (`--preset=desktop`)
+     - Include all core Lighthouse performance KPIs in prioritization:
+       - Performance score
+       - LCP
+       - INP
+       - CLS
+       - TBT
+     - Use this command pattern (per key page URL):
+       ```
+       # Run 3 times per page/profile and compare medians
+       for i in 1 2 3; do
+         lighthouse "<absolute-production-url>" \
+           --quiet \
+           --chrome-flags="--headless=new" \
+           --output=json \
+           --output-path="/tmp/lh-mobile-${i}.json"
+       done
+
+       for i in 1 2 3; do
+         lighthouse "<absolute-production-url>" \
+           --quiet \
+           --preset=desktop \
+           --chrome-flags="--headless=new" \
+           --output=json \
+           --output-path="/tmp/lh-desktop-${i}.json"
+       done
+       ```
+     - Use latest available Lighthouse CLI version.
+     - Treat measurement as best effort (network variance is expected on production targets), and use median values from the 3 runs when reporting/comparing.
+     - If a page benchmark fails (timeout, 403, or similar), continue the run and report partial results in the PR.
+     - Treat all listed KPIs with equal weight.
+     - Prioritize fixes by largest relative improvement potential across key pages and both profiles, not fixed absolute thresholds.
+     - It is acceptable to ship a change that improves overall Lighthouse score even if one or more individual KPIs regress, but the PR must include a clear warning naming the regressed KPI(s), affected page(s), and estimated regression size.
 3. Fix all clear, low-risk issues in one branch (include app slug when scoped):
    ```
    # scoped:
@@ -54,6 +91,7 @@ Only open a PR when you can point to a concrete, low-risk win that will clearly 
 
    ## Expected impact
    - <bundle size delta, render path improvements, etc.>
+  - <best-effort Lighthouse deltas for key pages (mobile + desktop): score, LCP, INP, CLS, TBT>
 
    ---
    _Run by Night Shift • audits/improve-performance_

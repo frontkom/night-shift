@@ -31,6 +31,45 @@ In any Claude Code session, type:
 
 Claude will walk you through setup interactively — pick repos, choose tasks, confirm before anything is created.
 
+## Required CLI tools for Night Shift runs
+
+Some Night Shift audit tasks can consume runtime signals from local CLI tools (performance, accessibility, and code-security checks). Install these tools on the machine that runs Night Shift routines.
+
+- `semgrep` (code security and code-pattern findings)
+- `lighthouse` (performance metrics for key pages)
+- `@axe-core/cli` (accessibility checks for key pages)
+
+### Install
+
+```bash
+# Semgrep (Homebrew)
+brew install semgrep
+
+# Lighthouse + axe CLI (npm)
+npm install -g lighthouse @axe-core/cli
+```
+
+If you prefer not to install globally, use `npx` in task commands:
+
+```bash
+npx lighthouse --version
+npx @axe-core/cli --help
+```
+
+### Verify
+
+```bash
+semgrep --version
+lighthouse --version
+axe --version
+```
+
+### Notes
+
+- `semgrep` is available via Homebrew.
+- `@axe-core/cli` is installed via npm (not Homebrew).
+- Use latest tool versions by default unless your org needs pinned versions for reproducibility.
+
 Night Shift supports two backends:
 
 | Backend | How it runs | Requirements |

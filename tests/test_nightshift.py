@@ -42,7 +42,7 @@ REPO_ROOT = TESTS_DIR.parent
 MANIFEST_PATH = REPO_ROOT / "manifest.yml"
 TASKS_DIR = REPO_ROOT / "tasks"
 BUNDLES_DIR = REPO_ROOT / "bundles"
-SKILL_PATH = REPO_ROOT / "skill" / "SKILL.md"
+SKILL_PATH = REPO_ROOT / "skills" / "night-shift" / "SKILL.md"
 README_PATH = REPO_ROOT / "README.md"
 HOWTO_PATH = REPO_ROOT / "HOW-TO.md"
 
@@ -70,12 +70,12 @@ def all_task_ids() -> set[str]:
 
 
 class TestManifestStructure(unittest.TestCase):
-    def test_twelve_tasks(self):
-        self.assertEqual(len(load_manifest()["tasks"]), 12)
+    def test_manifest_has_expected_task_count(self):
+        self.assertEqual(len(load_manifest()["tasks"]), 15)
 
-    def test_four_bundles(self):
+    def test_manifest_has_expected_bundles(self):
         self.assertEqual(set(load_manifest()["bundles"].keys()),
-                         {"plans", "docs", "code-fixes", "audits"})
+                         {"plans", "docs", "code-fixes", "audits", "triage-ci"})
 
     def test_every_task_has_file(self):
         for tid in all_task_ids():
@@ -302,6 +302,7 @@ class TestBundleFilter(unittest.TestCase):
         "document-decisions", "suggest-improvements", "add-tests",
         "improve-accessibility", "translate-ui", "find-security-issues",
         "find-bugs", "improve-seo", "improve-performance",
+        "work-on-issues", "work-on-jira-issues", "triage-ci-failures",
     }
 
     def test_fall_back_returns_full_bundle(self):
@@ -479,12 +480,12 @@ class TestEndToEndPipeline(unittest.TestCase):
         )
         plans_parsed = parse_allowlist(plans_prompt)
         self.assertFalse(plans_parsed.fell_back)
-        # Only repo-a has build-planned-features (audits-off leaves plans intact)
+        # Only repo-a has plans tasks (audits-off leaves plans intact)
         self.assertEqual(set(plans_parsed.repos), {repo_a})
         tasks, _ = filter_bundle_for_repo(
             list(plans_ids), plans_parsed, repo_a, self.manifest_ids,
         )
-        self.assertEqual(tasks, ["build-planned-features"])
+        self.assertEqual(sorted(tasks), sorted(self.by_bundle["plans"]))
 
         # --- Docs + code-fixes trigger ---
         docs_fix_ids = set(self.by_bundle["docs"]) | set(self.by_bundle["code-fixes"])
