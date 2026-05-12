@@ -25,6 +25,13 @@
 #   repo            — always runs once per repo, even when `apps:` is set. Use
 #                     for cross-cutting work (ADRs, repo-wide suggestions,
 #                     secret scans) that shouldn't be duplicated per app.
+#
+# slug (per pull-request task): the short token used in branch names and PR
+# titles — `night-shift/<slug>-YYYY-MM-DD` and `night-shift/<slug>: …`. This is
+# the **single source of truth** for the slug; bundle docs and the post-create
+# title-format check both consult this field. The task id (`find-security-issues`)
+# must never appear in a branch or PR title — only the slug (`security`).
+# Tasks in `direct-to-main` or issue-only modes omit `slug`.
 
 bundles:
   plans:
@@ -59,7 +66,7 @@ bundles:
     stop_on_failure: false
   shopify:
     title: Shopify-specific automation
-    description: Vendor-update cherry-picks (Horizon/Dawn/Skeleton releases) and pre-flight migration-risk audits. Opt-in for Shopify projects only — set `bundles: [shopify]` in CLAUDE.md Night Shift Config.
+    description: "Vendor-update cherry-picks (Horizon/Dawn/Skeleton releases) and pre-flight migration-risk audits. Opt-in for Shopify projects only — set `bundles: [shopify]` in CLAUDE.md Night Shift Config."
     schedule_hint: weekly
     parallelism: independent
     stop_on_failure: false
@@ -70,6 +77,7 @@ tasks:
     description: Picks the next pending phase from a docs/*-PLAN.md file and implements it on a feature branch.
     bundle: plans
     mode: pull-request
+    slug: plan
     order: 1
     scope: app
     needs: [test, build]
@@ -79,6 +87,7 @@ tasks:
     description: Picks up GitHub Issues labeled "night-shift" and implements fixes/features as PRs.
     bundle: plans
     mode: pull-request
+    slug: issue
     order: 2
     scope: repo
     needs: [test, build]
@@ -88,6 +97,7 @@ tasks:
     description: Picks up Jira issues labelled "night-shift" in the repo's configured Jira project and implements them as GitHub PRs.
     bundle: plans
     mode: pull-request
+    slug: jira
     order: 3
     scope: repo
     needs: [test, build]
@@ -97,6 +107,7 @@ tasks:
     description: Adds entries for any user-facing changes since the last release.
     bundle: docs
     mode: pull-request
+    slug: changelog
     order: 1
     scope: app
 
@@ -105,6 +116,7 @@ tasks:
     description: Discovers and refreshes all project docs — user guides, READMEs, technical docs, concept docs, model descriptions, and more.
     bundle: docs
     mode: pull-request
+    slug: docs
     order: 2
     scope: app
 
@@ -113,6 +125,7 @@ tasks:
     description: Captures architectural decisions visible in code and git history as ADRs.
     bundle: docs
     mode: pull-request
+    slug: adr
     order: 3
     scope: repo
 
@@ -121,6 +134,7 @@ tasks:
     description: Analyzes the codebase for improvement ideas to pitch to stakeholders.
     bundle: docs
     mode: pull-request
+    slug: suggestions
     order: 4
     scope: repo
 
@@ -129,6 +143,7 @@ tasks:
     description: Finds coverage gaps and adds up to 10 new tests in one PR, following project conventions.
     bundle: code-fixes
     mode: pull-request
+    slug: tests
     order: 1
     scope: app
     needs: [test, build]
@@ -138,6 +153,7 @@ tasks:
     description: Audits key pages against WCAG 2.1 AA criteria (contrast, keyboard, ARIA, labels, focus, headings) and fixes all violations in one PR with regression tests.
     bundle: code-fixes
     mode: pull-request
+    slug: a11y
     order: 2
     scope: app
     needs: [test, build]
@@ -147,6 +163,7 @@ tasks:
     description: Finds all hardcoded UI strings and extracts them to translation files in one PR.
     bundle: code-fixes
     mode: pull-request
+    slug: i18n
     order: 3
     scope: app
     needs: [test, build]
@@ -156,6 +173,7 @@ tasks:
     description: Picks one entry from the project's static-analysis baseline (PHPStan, Psalm, ESLint, mypy, RuboCop, etc.), fixes the underlying issue, and removes the suppression.
     bundle: code-fixes
     mode: pull-request
+    slug: lint-baseline
     order: 4
     scope: app
     needs: [test, build]
@@ -165,6 +183,7 @@ tasks:
     description: Scans for OWASP Top 10 patterns and opens a PR for each issue found.
     bundle: audits
     mode: pull-request
+    slug: security
     order: 1
     scope: app
     needs: [test, build]
@@ -174,6 +193,7 @@ tasks:
     description: Looks for subtle bugs, race conditions, and edge cases. Opens a PR per bug.
     bundle: audits
     mode: pull-request
+    slug: bug
     order: 2
     scope: app
     needs: [test, build]
@@ -183,6 +203,7 @@ tasks:
     description: Reviews page metadata, Open Graph tags, structured data, and robots directives.
     bundle: audits
     mode: pull-request
+    slug: seo
     order: 3
     scope: app
     needs: [test, build]
@@ -192,6 +213,7 @@ tasks:
     description: Reviews bundle size, image optimization, render-blocking resources, and database query patterns.
     bundle: audits
     mode: pull-request
+    slug: perf
     order: 4
     scope: app
     needs: [test, build]
@@ -201,6 +223,7 @@ tasks:
     description: Runs the ecosystem's dependency audit (composer audit, npm audit, pip-audit, cargo audit, bundle audit, govulncheck) and opens a PR pinning known-vulnerable transitive deps to safe versions.
     bundle: audits
     mode: pull-request
+    slug: deps
     order: 5
     scope: app
     needs: [test, build]
@@ -218,6 +241,7 @@ tasks:
     description: When a vendor-update issue is open (Horizon/Dawn/Skeleton released a newer version than .vendor-baseline), downloads the upstream tree, classifies changes via the project's diff_vendor_update.py, and opens one PR per concern (perf, schema, components, i18n, settings, meta).
     bundle: shopify
     mode: pull-request
+    slug: vendor-update
     order: 1
     scope: repo
     needs: [theme-check, test]

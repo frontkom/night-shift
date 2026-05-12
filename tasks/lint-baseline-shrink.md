@@ -5,7 +5,7 @@ For repos that carry a static-analysis baseline file (an inventory of suppressed
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `lint-baseline-shrink` is not in it, exit silently.
 
-**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Only fix violations whose target file lives inside `Audit scope` (when set); never edit code under `Exclude` or the hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`).
+**Audit scope.** Honor `Audit scope`, `Exclude`, and the **hardcoded baseline exclude** defined in `bundles/_multi-runner.md` → "Optional config fields" (single source of truth — do not inline the list here). Only fix violations whose target file lives inside `Audit scope` (when set); never edit code under `Exclude` or the baseline list.
 
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Look for baseline files **under `<app_path>`** first; fall back to the repo root only if none exist.
@@ -23,6 +23,8 @@ Open a PR **only** when:
 
 If the smallest entry's fix would require a refactor, a behavioral change, or guessing at intent, exit silently — leave that entry for a human.
 
+**Deliberately stricter than `add-tests`.** `add-tests` has an exception that allows writing unit-only tests when dependency install fails. This task has **no** such exception: claiming "one fewer baseline entry" requires the tool itself to re-run cleanly, which requires a working dep install. If `composer install` / `npm install` / `bundle install` / etc. fails, or if the scoped test or build command regresses after the fix, exit silently. Leave the entry for a human.
+
 ## Steps
 
 1. Check for an existing open night-shift lint-baseline PR for this app (or repo when unscoped):
@@ -31,20 +33,21 @@ If the smallest entry's fix would require a refactor, a behavioral change, or gu
    ```
    If one exists for the same app, exit silently — do not stack PRs.
 
-2. **Detect the baseline file.** Look for any of these (in order). Pick the first one present; if multiple, pick the one with the most entries (largest debt → most appetite to chip away).
+2. **Detect the baseline file.** Look for any of these *canonical* baseline files (best-effort detection — if you find something that looks similar but isn't on this list, exit silently rather than guess; a misidentified "baseline" risks editing a cache file or per-module silencing block instead of a true debt inventory). Pick the first one present; if multiple, pick the one with the most entries (largest debt → most appetite to chip away).
 
-   | Baseline file | Tool | Re-run command |
-   |---|---|---|
-   | `phpstan-baseline.neon` (or referenced via `phpstan.neon`/`phpstan.dist.neon`) | PHPStan | `vendor/bin/phpstan analyse --no-progress` |
-   | `psalm-baseline.xml` | Psalm | `vendor/bin/psalm --no-progress` |
-   | `.phpcs-cache` / `phpcs-baseline.xml` | PHP_CodeSniffer (with phpcs-baseline plugin) | `vendor/bin/phpcs` |
-   | `.eslintbaseline.json` (with `eslint-plugin-baseline` or `eslint --max-warnings` snapshot) | ESLint | `npx eslint .` |
-   | `tsconfig.tsbuildinfo` + `// @ts-expect-error` inventory | TypeScript | `tsc --noEmit` |
-   | `mypy.ini` `[mypy-*]` ignore_errors blocks (or `mypy_baseline` plugin output) | mypy | `mypy .` |
-   | `.rubocop_todo.yml` | RuboCop | `bundle exec rubocop` |
-   | `pylint-baseline.json` / `pylint --output-format=parseable` snapshot | Pylint | `pylint .` |
+   | Baseline file | Tool | Notes | Re-run command |
+   |---|---|---|---|
+   | `phpstan-baseline.neon` | PHPStan | Must be referenced from `phpstan.neon` / `phpstan.dist.neon`. Auto-regenerated. | `vendor/bin/phpstan analyse --no-progress` |
+   | `psalm-baseline.xml` | Psalm | Must be referenced from `psalm.xml`. Auto-regenerated. | `vendor/bin/psalm --no-progress` |
+   | `phpcs-baseline.xml` | PHP_CodeSniffer | Only valid if the `phpcs-baseline` (or equivalent) plugin is listed in `composer.json`. Skip `.phpcs-cache` — that's a cache file, not a baseline. | `vendor/bin/phpcs` |
+   | `.rubocop_todo.yml` | RuboCop | Hand-maintained or generated via `rubocop --auto-gen-config`. | `bundle exec rubocop` |
+   | `mypy_baseline.json` (or whatever the project's `mypy_baseline` config points at) | mypy | Only valid if the `mypy_baseline` package is installed. Skip `mypy.ini` `[mypy-*]` blocks — those are per-module silencing, not a debt inventory. | `mypy .` |
+   | `pylint-baseline.json` | Pylint | Only valid if produced by a checked-in snapshot (`pylint --output-format=json > pylint-baseline.json`); skip ad-hoc CI artefacts. | `pylint .` |
+   | An ESLint baseline file checked into the repo (filename varies — `.eslint-baseline.json`, `eslint-baseline.json`, etc.) | ESLint | Only valid if the project uses an explicit ESLint baseline plugin referenced from `.eslintrc*` / `eslint.config.*`. Skip if the only inventory is `eslint-disable` comments scattered across the codebase. | `npx eslint .` |
 
-   If none of these are present, exit silently — there is no baseline to shrink.
+   **TypeScript intentionally omitted.** TS has no canonical baseline-file format; `// @ts-expect-error` comments live inline and are out of scope for this task. If a project uses a custom TS-snapshot approach, document it in `CLAUDE.md` and treat it as a project-specific extension.
+
+   If none of these canonical files are present, exit silently — there is no baseline to shrink.
 
 3. **Pick the smallest-fix entry.** Read the baseline file. For each entry, the "smallest fix" heuristic is:
    - Single file (not a regex / glob across many files).

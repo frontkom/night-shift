@@ -5,7 +5,7 @@ Scan for OWASP Top 10 patterns. **One PR per issue.**
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `find-security-issues` is not in it, exit silently.
 
-**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` as not-applicable. The hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`) is always honored. **The repo-wide secret scan is the one exception** — it scans the whole repo regardless of `Audit scope`, but it still honors `Exclude` and the baseline list so it doesn't re-discover secrets that live in vendored code.
+**Audit scope.** Honor `Audit scope`, `Exclude`, and the **hardcoded baseline exclude** defined in `bundles/_multi-runner.md` → "Optional config fields" (single source of truth — do not inline the list here). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` or the baseline list as not-applicable. **The repo-wide secret scan is the one exception** — it scans the whole repo regardless of `Audit scope`, but it still honors `Exclude` and the baseline list so it doesn't re-discover secrets that live in vendored code.
 
 **Scoping.** Secret scanning is always repo-wide. The OWASP code review is per-app when the dispatching multi-runner passes an `app_path` (non-empty, not `—`):
 - If `app_path` is set, review only code under `<app_path>` for injection / auth / CSRF / XSS patterns.

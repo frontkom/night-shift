@@ -5,7 +5,7 @@ Look for subtle bugs, missing logic, race conditions, and edge cases. **One PR p
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `find-bugs` is not in it, exit silently.
 
-**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` as not-applicable — do not read, audit, or modify them. Always honor the hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`) regardless of whether the fields are set.
+**Audit scope.** Honor `Audit scope`, `Exclude`, and the **hardcoded baseline exclude** defined in `bundles/_multi-runner.md` → "Optional config fields" (single source of truth — do not inline the list here). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` or the baseline list as not-applicable — do not read, audit, or modify them.
 
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Only scan files under `<app_path>` for bugs.

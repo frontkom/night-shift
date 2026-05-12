@@ -66,7 +66,7 @@ If `.vendor-baseline` is missing or doesn't reference a known upstream (`horizon
    git checkout -b night-shift/vendor-update-<theme>-<upstream>-<group>-YYYY-MM-DD
    # Copy the group's files from /tmp/<theme>-<upstream>/ to repo root
    git add <files>
-   git commit -m "vendor-update: <theme> <ours> → <upstream> (<group>)"
+   git commit -m "night-shift(vendor-update): <theme> <ours> → <upstream> (<group>)"
    git push -u origin HEAD
    ```
    Then run the project's `theme-check` and `cypress` smoke spec (see CLAUDE.md Night Shift Config for the exact commands). Both must pass before opening the PR. If either fails:
@@ -74,7 +74,7 @@ If `.vendor-baseline` is missing or doesn't reference a known upstream (`horizon
    - Comment on the trigger issue: "Night Shift attempted the `<group>` slice of `<theme>@<upstream>` but verification failed: <one-line reason>. Leaving for manual cherry-pick."
    - Move on to the next group.
 
-9. **Open the PR with the standard footer.** Always use `--body-file`, never inline `--body`. Title format: `vendor-update: <theme> <ours> → <upstream> (<group>)`. Body:
+9. **Open the PR with the standard footer.** Always use `--body-file`, never inline `--body`. Title format: `night-shift/vendor-update: <theme> <ours> → <upstream> (<group>)` — the `night-shift/<slug>:` convention applies here exactly as it does to every other Night Shift task; the slug is `vendor-update` (from `manifest.yml`). Body:
    ```
    cat > /tmp/night-shift-pr-body.md <<EOF
    ## Plain summary
@@ -103,8 +103,8 @@ If `.vendor-baseline` is missing or doesn't reference a known upstream (`horizon
    EOF
 
    gh pr create \
-     --title "vendor-update: $theme $ours → $upstream ($group)" \
-     --label "vendor-update,$theme,claude-monitor" \
+     --title "night-shift/vendor-update: $theme $ours → $upstream ($group)" \
+     --label "night-shift,vendor-update,$theme,claude-monitor" \
      --body-file /tmp/night-shift-pr-body.md
    ```
 

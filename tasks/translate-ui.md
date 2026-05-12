@@ -5,7 +5,7 @@ Find hardcoded UI strings that should be localized and fix them. **One PR with a
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: doc/UI language(s), translation file location, test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `translate-ui` is not in it, exit silently.
 
-**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Only grep UI templates and components inside `Audit scope` (when set), and never edit code or translation files under `Exclude` or the hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`).
+**Audit scope.** Honor `Audit scope`, `Exclude`, and the **hardcoded baseline exclude** defined in `bundles/_multi-runner.md` → "Optional config fields" (single source of truth — do not inline the list here). Only grep UI templates and components inside `Audit scope` (when set); never edit code or translation files under `Exclude` or the baseline list.
 
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Detect the i18n setup **under `<app_path>`** first. Most monorepos have per-app translation files (`<app_path>/locales/`, `<app_path>/messages/`, `<app_path>/i18n/`). Fall back to the top-level translation file location only if none exist inside the app.
@@ -36,7 +36,7 @@ Only open a PR when there are clearly user-visible hardcoded strings that belong
    - **Python — Flask/Babel:** `flask_babel` / `babel`, `messages.pot` + `translations/<lang>/LC_MESSAGES/`.
    - **Ruby — Rails:** `I18n.t` / `t(…)` in views/controllers, `config/locales/*.yml`.
    - **Other:** any custom dictionary keyed lookup (`messages.<lang>.json`, `locales/<lang>.json`, etc.).
-   
+
    If there is no i18n setup at all, exit silently — that is a config decision, not a night-shift fix.
 
 3. Grep UI templates and components (under `<app_path>` when scoped) for hardcoded user-visible strings. Match the grep to the template language(s) actually used in the repo:
@@ -47,7 +47,7 @@ Only open a PR when there are clearly user-visible hardcoded strings that belong
    - **Raw PHP** (WordPress / Drupal `*.module` and `*.theme` / framework-less): `echo`, `print`, `return` of user-visible strings in helpers, rendered widgets, hook implementations.
    - **ERB / HAML** (Rails): text outside `<%= t('…') %>` / `= t('…')`.
    - **Django/Jinja templates:** text outside `{% trans %}` / `{{ _('…') }}` / `{{ gettext('…') }}`.
-   
+
    Skip dev-only strings, log messages, exception messages with no UI surface, and test files.
 4. For **all** components with clear hardcoded text:
    - Extract the strings to the project's translation files using existing key-naming conventions.

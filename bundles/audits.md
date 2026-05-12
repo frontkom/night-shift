@@ -30,11 +30,11 @@ For each task in order:
 
 Per the manifest, this bundle is **pull-request** mode. Each task creates its own feature branch and opens its own PR.
 
-## Branch and PR naming — short slugs, never the task id
+## Branch and PR naming — read the slug from `manifest.yml`
 
-Every audit task fetched from `tasks/<id>.md` declares its own short `<area>` slug for branches and PR titles. **Use that slug — never the raw task id.** Specifically:
+Every pull-request task in `manifest.yml` declares its own `slug:` field. That field is the **single source of truth** for branch names and PR-title prefixes. **Use it — never the raw task id.** For the audits bundle the values today are (cross-check `manifest.yml` if this list ever feels stale):
 
-| Task id (as in `manifest.yml`) | Correct `<area>` slug |
+| Task id (as in `manifest.yml`) | `slug:` field |
 |---|---|
 | `find-security-issues` | `security` |
 | `find-bugs` | `bug` |
@@ -44,7 +44,7 @@ Every audit task fetched from `tasks/<id>.md` declares its own short `<area>` sl
 
 A branch must therefore look like `night-shift/perf-YYYY-MM-DD` or `night-shift/perf-<app-slug>-YYYY-MM-DD` — **not** `night-shift/improve-performance`. The PR title must start with `night-shift/<slug>:` (e.g. `night-shift/perf: …`), **not** `night-shift/improve-performance: …`. The post-create ritual's title-format check (`_multi-runner.md`) will warn if you used the task id instead of the slug; re-run `gh pr edit --title` to fix before returning.
 
-This same rule applies recursively to anything calling subagents from inside this bundle — pass the **task id** through `allowed_tasks`, but read the slug from inside the task file before naming branches or PR titles.
+This same rule applies recursively to anything calling subagents from inside this bundle — pass the **task id** through `allowed_tasks`, but read the slug from `manifest.yml` (or the task file's branch-naming example) before naming branches or PR titles.
 
 ## Self-review
 

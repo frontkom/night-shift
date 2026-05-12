@@ -5,7 +5,7 @@ Run the ecosystem's dependency audit and open a PR pinning known-vulnerable tran
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `dep-audit` is not in it, exit silently.
 
-**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Only consider manifests inside `Audit scope` (when set); never modify lockfiles under `Exclude` or the hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`).
+**Audit scope.** Honor `Audit scope`, `Exclude`, and the **hardcoded baseline exclude** defined in `bundles/_multi-runner.md` → "Optional config fields" (single source of truth — do not inline the list here). Only consider manifests inside `Audit scope` (when set); never modify lockfiles under `Exclude` or the baseline list.
 
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Discover manifest files **under `<app_path>`** first.
@@ -23,6 +23,8 @@ Open a PR **only** when:
 
 Major-version bumps, deprecation warnings, and license-policy violations do **not** qualify — they belong in a manual review, not a nightly automated PR.
 
+**Deliberately stricter than `add-tests`.** `add-tests` has an exception that allows writing unit-only tests when dependency install fails (so the work isn't lost). This task has **no** such exception: pinning a vulnerable dep you cannot verify is worse than not pinning it at all. If `composer install` / `npm install` / `pip install -r requirements.txt` / etc. fails — or if the scoped test or build command fails after the bump — exit silently. Leave a note in `docs/SUGGESTIONS.md` listing the advisory so a human picks it up.
+
 ## Steps
 
 1. Check for an existing open night-shift deps PR for this app (or repo when unscoped):
@@ -33,20 +35,26 @@ Major-version bumps, deprecation warnings, and license-policy violations do **no
 
 2. **Detect the ecosystem(s) by manifest file.** Pick the first manifest found inside the scoped path (or the repo root when unscoped). If more than one ecosystem is present (a polyglot repo), pick the one with the largest dependency surface tonight and leave the others for the next run — one PR per task per night.
 
-   | Manifest | Ecosystem | Audit command | Apply-fix command |
-   |---|---|---|---|
-   | `composer.json` + `composer.lock` | PHP | `composer audit --format=json` | Edit `composer.json` constraint, run `composer update --with-dependencies <pkg>` |
-   | `package.json` + `package-lock.json` | npm | `npm audit --json` | `npm audit fix` (only on the affected packages; never `--force`) |
-   | `package.json` + `pnpm-lock.yaml` | pnpm | `pnpm audit --json` | `pnpm update <pkg>@<version>` |
-   | `package.json` + `yarn.lock` | yarn | `yarn npm audit --json` (Berry) or `yarn audit --json` (Classic) | `yarn up <pkg>@<version>` or edit + `yarn install` |
-   | `pyproject.toml` / `requirements.txt` | Python | `pip-audit -f json` (preferred) or `safety check --json` | Edit pin, run `pip install -r requirements.txt` / `poetry update <pkg>` |
-   | `Cargo.toml` + `Cargo.lock` | Rust | `cargo audit --json` | `cargo update -p <pkg> --precise <version>` |
-   | `Gemfile` + `Gemfile.lock` | Ruby | `bundle audit check --update` | `bundle update --conservative <pkg>` |
-   | `go.mod` + `go.sum` | Go | `govulncheck -json ./...` | `go get <pkg>@<version> && go mod tidy` |
+   | Manifest | Ecosystem | Audit command | Apply-fix command | Audit tool ships with the toolchain? |
+   |---|---|---|---|---|
+   | `composer.json` + `composer.lock` | PHP | `composer audit --format=json` | Edit `composer.json` constraint, run `composer update --with-dependencies <pkg>` | Yes — built into Composer ≥ 2.4. |
+   | `package.json` + `package-lock.json` | npm | `npm audit --json` | `npm audit fix` (only on the affected packages; never `--force`) | Yes — built into npm. |
+   | `package.json` + `pnpm-lock.yaml` | pnpm | `pnpm audit --json` | `pnpm update <pkg>@<version>` | Yes — built into pnpm. |
+   | `package.json` + `yarn.lock` | yarn | Detect version first (see note below). Berry (`yarn --version` ≥ 2, or `.yarnrc.yml` present): `yarn npm audit --json`. Classic (1.x, only `.yarnrc` or no rc file): `yarn audit --json`. | Berry: `yarn up <pkg>@<version>`. Classic: edit `package.json` + `yarn install`. | Yes — built into yarn. |
+   | `pyproject.toml` / `requirements.txt` | Python | `pip-audit -f json` (preferred) or `safety check --json` | Edit pin, run `pip install -r requirements.txt` / `poetry update <pkg>` | **No** — needs `pip install pip-audit` (or `safety`) in the sandbox first. |
+   | `Cargo.toml` + `Cargo.lock` | Rust | `cargo audit --json` | `cargo update -p <pkg> --precise <version>` | **No** — needs `cargo install cargo-audit` first. |
+   | `Gemfile` + `Gemfile.lock` | Ruby | `bundle audit check --update` | `bundle update --conservative <pkg>` | **No** — needs the `bundler-audit` gem (`gem install bundler-audit`) first. |
+   | `go.mod` + `go.sum` | Go | `govulncheck -json ./...` | `go get <pkg>@<version> && go mod tidy` | **No** — needs `go install golang.org/x/vuln/cmd/govulncheck@latest` first. |
+
+   **Yarn version detection.** Lockfile presence alone doesn't tell you Berry vs Classic. Check, in order: (1) is `.yarnrc.yml` present in the repo? → Berry. (2) does `yarn --version` start with `1.`? → Classic. (3) otherwise (≥2) → Berry. Never run `yarn audit` against a Berry repo or `yarn npm audit` against a Classic repo — both will error with a non-obvious message and the task will exit silently instead of running.
 
    If none of these manifests are present, exit silently — there is nothing to audit.
 
-3. **Run the audit.** If the audit command isn't installed in the sandbox, attempt the standard install path once (`composer require --dev roave/security-advisories` is **not** a substitute — use the audit subcommand). If it's still unavailable, exit silently and leave a note in `docs/SUGGESTIONS.md` (repo-root): "Run `<audit cmd>` locally; sandbox missing the tool tonight." Do not fabricate findings.
+3. **Run the audit.**
+   - For tools that ship with the toolchain (composer, npm, yarn, pnpm — see the "ships with the toolchain?" column above), the command should just work; if it doesn't, the toolchain itself is missing and you should exit silently rather than try to repair the sandbox.
+   - **Yarn-specific:** before invoking `yarn audit` or `yarn npm audit`, run the version detection from step 2's "Yarn version detection" note (presence of `.yarnrc.yml` → Berry → `yarn npm audit --json`; `yarn --version` starts with `1.` → Classic → `yarn audit --json`; otherwise Berry). Running the wrong subcommand fails with a non-obvious error.
+   - For tools that don't ship with the toolchain (pip-audit, cargo-audit, bundler-audit, govulncheck), attempt the documented install path **once** in a transient way that doesn't touch the project's own dep manifests (`pipx install pip-audit` or `pip install --user pip-audit`; `cargo install cargo-audit`; `gem install bundler-audit`; `go install golang.org/x/vuln/cmd/govulncheck@latest`). Never edit `composer.json`, `Gemfile`, `pyproject.toml`, etc. to add the audit tool as a project dep — that's an unrelated change that would land in the wrong PR. In particular, `composer require --dev roave/security-advisories` is **not** a substitute for `composer audit` — use the audit subcommand.
+   - If the install step fails or the command is still unavailable afterwards, exit silently and leave a note in `docs/SUGGESTIONS.md` (repo-root): "Run `<audit cmd>` locally; sandbox missing the tool tonight." Do not fabricate findings.
 
 4. **Filter findings.** Discard anything that doesn't meet all three "high bar" criteria above. If nothing remains, exit silently — most repos with a recently-run audit will have nothing actionable.
 

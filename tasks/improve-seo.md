@@ -5,7 +5,7 @@ Review page metadata across the site. **One PR with all fixes.**
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: key pages, doc/UI language, test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `improve-seo` is not in it, exit silently.
 
-**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` as not-applicable — note that `robots.txt` and `sitemap.xml` typically live at the repo root and should be edited from there regardless. The hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`) is always honored.
+**Audit scope.** Honor `Audit scope`, `Exclude`, and the **hardcoded baseline exclude** defined in `bundles/_multi-runner.md` → "Optional config fields" (single source of truth — do not inline the list here). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` or the baseline list as not-applicable — note that `robots.txt` and `sitemap.xml` typically live at the repo root and should be edited from there regardless of `Audit scope`.
 
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Read `key pages` from the scoped config (the `apps[]` entry for this app), not the top-level list.

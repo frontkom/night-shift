@@ -5,7 +5,7 @@ Find coverage gaps and add both **unit tests** and **e2e tests** following the p
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `add-tests` is not in it, exit silently.
 
-**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Only hunt for coverage gaps inside `Audit scope` (when set), and never write tests for code under `Exclude` or the hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`).
+**Audit scope.** Honor `Audit scope`, `Exclude`, and the **hardcoded baseline exclude** defined in `bundles/_multi-runner.md` → "Optional config fields" (single source of truth — do not inline the list here). Only hunt for coverage gaps inside `Audit scope` (when set); never write tests for code under `Exclude` or the baseline list.
 
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Only walk files under `<app_path>` when hunting for coverage gaps.
@@ -39,7 +39,7 @@ Without an `app_path` (single-app repo), behave as before: walk the whole repo, 
 4. Identify **up to 10** coverage gaps across the application — aim for a mix of both types:
    - **Unit tests** for untested utilities, business logic, data transformations, hooks, components, API handlers, or model methods.
    - **E2e tests** for untested user flows, critical paths, form submissions, navigation, or interactive features.
-   
+
    Prioritize areas with no existing test coverage. Stop at 10 even if more gaps exist.
 
 5. Write tests for each identified gap. Follow the conventions discovered in step 2. Do not touch files outside `<app_path>` when scoped.

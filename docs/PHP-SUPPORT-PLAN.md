@@ -1,5 +1,13 @@
 # PHP support — PLAN
 
+> **Status: complete (2026-05-12).** All three buckets landed:
+> - **Bucket 1** (polyglot prompt edits) — frontkom/night-shift#10.
+> - **Bucket 2** (`Audit scope` / `Exclude` config fields) — frontkom/night-shift#10.
+> - **Bucket 3** (`dep-audit`, `lint-baseline-shrink`) — frontkom/night-shift#10.
+> - **Follow-up review fixes** (slug field in `manifest.yml`, list-dedup, tighter detection tables, yarn-version detection, fallback-divergence note, shopify-task PR-title alignment) — frontkom/night-shift#11.
+>
+> Verification step (reproduce monolog / symfony-demo / Drupal runs) is being executed against live PHP repos as part of the follow-up PR. Once the verification report lands in `docs/SUGGESTIONS.md` (or as a comment on the follow-up PR), this plan can be archived or deleted.
+
 Make Night Shift work as well on PHP repos (Laravel, Symfony, WordPress, Drupal, raw PHP libraries) as it does today on JS/TS. The headline result from three live runs is that **PHP already works substantially better than expected**: the routine sandbox ships with PHP and composer, the audit tasks generalise without modification, and most "JS-bias" we worried about turned out to be over-specific *examples* the model routes around rather than hard blockers.
 
 The plan therefore favours **polyglot prompt edits to the existing tasks** over per-stack bundles. Per the user's direction: tasks that work across multiple stacks > parallel per-stack tasks. There is one exception (a generic config field for audit scope, motivated by Drupal's contrib/custom split) and two optional new tasks that are generic from day one, not PHP-specific.

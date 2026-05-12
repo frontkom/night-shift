@@ -186,7 +186,7 @@ Each task file contains the body template inside the HEREDOC block. Follow the t
 Every PR opened by Night Shift must follow these conventions so reviewers can filter, attribute, and audit the work consistently across all tasks and bundles.
 
 ### PR title format
-Always `night-shift/<area>: <description>`. Slash + colon. The `<area>` is the task's short slug (`bug`, `a11y`, `tests`, `plan`, `docs`, `changelog`, `suggestions`, `adr`, `seo`, `perf`, `security`, `i18n`, `issue`). Never use the parens form `night-shift(<area>):` for PR titles — the parens form is reserved for `git commit -m` messages on direct-to-main work, not for PR titles. When the task is scoped to an app, the title includes `<app_path> — ` after the colon.
+Always `night-shift/<area>: <description>`. Slash + colon. The `<area>` is the task's `slug:` field from `manifest.yml` — never the raw task id. Today's slugs (cross-check `manifest.yml` if this list looks stale): `plan`, `issue`, `jira`, `changelog`, `docs`, `adr`, `suggestions`, `tests`, `a11y`, `i18n`, `lint-baseline`, `security`, `bug`, `seo`, `perf`, `deps`, `vendor-update`. Never use the parens form `night-shift(<area>):` for PR titles — the parens form is reserved for `git commit -m` messages on direct-to-main work, not for PR titles. When the task is scoped to an app, the title includes `<app_path> — ` after the colon.
 
 ### Labels (created at wrapper level, applied at task level)
 Every `gh pr create` call must add the single `night-shift` label. The bundle is already obvious from the PR title (`night-shift/plan:`, `night-shift/bug:`, etc.), so per-bundle sub-labels (`night-shift:plans` etc.) are intentionally **not** used — one label is enough to filter every Night Shift PR.
@@ -256,12 +256,15 @@ date +%s > /tmp/night-shift-pr-last-created
 # landed label-less. `gh pr edit --add-label` is idempotent and surfaces errors.
 gh pr edit "$PR_URL" --add-label night-shift
 
-# (2) Verify title format. The PR title MUST match 'night-shift/<area>: '. The
+# (2) Verify title format. The PR title MUST match 'night-shift/<slug>: ' where
+# <slug> is one of the values declared in manifest.yml `slug:` fields. The
 # parens form `nightshift(<area>):` is reserved for direct-to-main commit
-# messages and must not appear on PR titles.
+# messages and must not appear on PR titles. The allowlist below must stay in
+# sync with manifest.yml — if you add a new pull-request task, add its slug here.
+VALID_SLUGS='(plan|issue|jira|changelog|docs|adr|suggestions|tests|a11y|i18n|lint-baseline|security|bug|seo|perf|deps|vendor-update)'
 TITLE=$(gh pr view "$PR_URL" --json title -q .title)
-if ! echo "$TITLE" | grep -qE '^night-shift/[a-z]+(:| —)'; then
-  echo "ERROR: PR title does not match 'night-shift/<area>: …' convention: $TITLE" >&2
+if ! echo "$TITLE" | grep -qE "^night-shift/${VALID_SLUGS}(:| —)"; then
+  echo "ERROR: PR title does not match 'night-shift/<slug>: …' convention (slug must be one of the manifest.yml values): $TITLE" >&2
   echo "Rename the PR via 'gh pr edit \"$PR_URL\" --title ...' before continuing." >&2
 fi
 
