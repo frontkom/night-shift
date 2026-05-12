@@ -4,7 +4,7 @@
 > - **Bucket 1** (polyglot prompt edits) — frontkom/night-shift#10.
 > - **Bucket 2** (`Audit scope` / `Exclude` config fields) — frontkom/night-shift#10.
 > - **Bucket 3** (`dep-audit`, `lint-baseline-shrink`) — frontkom/night-shift#10.
-> - **Follow-up review fixes** (slug field in `manifest.yml`, list-dedup, tighter detection tables, yarn-version detection, fallback-divergence note) — follow-up PR after #10.
+> - **Follow-up review fixes** (slug field in `manifest.yml`, list-dedup, tighter detection tables, yarn-version detection, fallback-divergence note, shopify-task PR-title alignment) — frontkom/night-shift#11.
 >
 > Verification step (reproduce monolog / symfony-demo / Drupal runs) is being executed against live PHP repos as part of the follow-up PR. Once the verification report lands in `docs/SUGGESTIONS.md` (or as a comment on the follow-up PR), this plan can be archived or deleted.
 
