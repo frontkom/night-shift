@@ -41,13 +41,13 @@ bundles:
     stop_on_failure: false
   code-fixes:
     title: Fix code quality issues
-    description: Add tests, fix accessibility issues, complete missing translations.
+    description: Add tests, fix accessibility issues, complete missing translations, shrink lint baselines.
     schedule_hint: weekly
     parallelism: sequential
     stop_on_failure: true
   audits:
     title: Audit and propose PRs
-    description: Find security, bug, SEO, and performance issues. Open one PR per area.
+    description: Find security, bug, SEO, performance, and known-vulnerable dependency issues. Open one PR per area.
     schedule_hint: weekly
     parallelism: independent
     stop_on_failure: false
@@ -151,6 +151,15 @@ tasks:
     scope: app
     needs: [test, build]
 
+  - id: lint-baseline-shrink
+    title: Shrink lint baseline
+    description: Picks one entry from the project's static-analysis baseline (PHPStan, Psalm, ESLint, mypy, RuboCop, etc.), fixes the underlying issue, and removes the suppression.
+    bundle: code-fixes
+    mode: pull-request
+    order: 4
+    scope: app
+    needs: [test, build]
+
   - id: find-security-issues
     title: Find security issues
     description: Scans for OWASP Top 10 patterns and opens a PR for each issue found.
@@ -184,6 +193,15 @@ tasks:
     bundle: audits
     mode: pull-request
     order: 4
+    scope: app
+    needs: [test, build]
+
+  - id: dep-audit
+    title: Audit dependencies
+    description: Runs the ecosystem's dependency audit (composer audit, npm audit, pip-audit, cargo audit, bundle audit, govulncheck) and opens a PR pinning known-vulnerable transitive deps to safe versions.
+    bundle: audits
+    mode: pull-request
+    order: 5
     scope: app
     needs: [test, build]
 

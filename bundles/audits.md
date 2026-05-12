@@ -30,6 +30,22 @@ For each task in order:
 
 Per the manifest, this bundle is **pull-request** mode. Each task creates its own feature branch and opens its own PR.
 
+## Branch and PR naming — short slugs, never the task id
+
+Every audit task fetched from `tasks/<id>.md` declares its own short `<area>` slug for branches and PR titles. **Use that slug — never the raw task id.** Specifically:
+
+| Task id (as in `manifest.yml`) | Correct `<area>` slug |
+|---|---|
+| `find-security-issues` | `security` |
+| `find-bugs` | `bug` |
+| `improve-seo` | `seo` |
+| `improve-performance` | `perf` |
+| `dep-audit` | `deps` |
+
+A branch must therefore look like `night-shift/perf-YYYY-MM-DD` or `night-shift/perf-<app-slug>-YYYY-MM-DD` — **not** `night-shift/improve-performance`. The PR title must start with `night-shift/<slug>:` (e.g. `night-shift/perf: …`), **not** `night-shift/improve-performance: …`. The post-create ritual's title-format check (`_multi-runner.md`) will warn if you used the task id instead of the slug; re-run `gh pr edit --title` to fix before returning.
+
+This same rule applies recursively to anything calling subagents from inside this bundle — pass the **task id** through `allowed_tasks`, but read the slug from inside the task file before naming branches or PR titles.
+
 ## Self-review
 
 After each task's post-create ritual finishes, run the **Self-review + one revision** step from `_multi-runner.md` before returning. One review, at most one revision commit, same branch. If the revision breaks tests, revert with `--force-with-lease` and keep the original PR. Any code change carries some risk — audits introduce code (fixes + regression tests), so they get the same self-review pass as `plans` and `code-fixes`.

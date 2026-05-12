@@ -5,6 +5,8 @@ Find coverage gaps and add both **unit tests** and **e2e tests** following the p
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `add-tests` is not in it, exit silently.
 
+**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Only hunt for coverage gaps inside `Audit scope` (when set), and never write tests for code under `Exclude` or the hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`).
+
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Only walk files under `<app_path>` when hunting for coverage gaps.
 - Use the app-scoped test and build commands from the scoped config.
@@ -27,6 +29,12 @@ Without an `app_path` (single-app repo), behave as before: walk the whole repo, 
    - For **e2e tests**: check if Playwright, Cypress, or another e2e framework is already set up. If no e2e framework exists, use **Playwright** as the default. Check for existing page objects, test helpers, or base fixtures to build on.
 
 3. Run the scoped test command once to confirm a green baseline. If it fails, **exit immediately** — do not try to fix unrelated breakage tonight.
+
+   **Exception: dependency-install failures on real-world repos.** If the dependency install step itself fails (e.g. `composer install` blocked by a vendor abandonment such as CKEditor 4, `npm install` blocked by a peer-dep mismatch, `bundle install` blocked by a yanked gem) and you cannot get a green baseline at all, do **not** exit silently — instead:
+   - Still write tests that target **pure-language logic** with no framework bootstrap requirement (plain unit tests on a class/function, no DI container, no database, no HTTP kernel).
+   - Skip writing tests that need the framework bootstrap (integration tests, Drupal kernel tests, Symfony WebTestCase, Laravel feature tests, Rails system tests, Django LiveServerTestCase).
+   - Document the unverified state in the PR body under a `## Verification` section: explain that the dependency install failed locally, list which classes/functions are covered, and note that the tests target pure-PHP/Python/Ruby/JS logic that doesn't need the framework to run.
+   - Do **not** mark the PR as "all tests pass" if you couldn't actually run them.
 
 4. Identify **up to 10** coverage gaps across the application — aim for a mix of both types:
    - **Unit tests** for untested utilities, business logic, data transformations, hooks, components, API handlers, or model methods.

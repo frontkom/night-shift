@@ -5,6 +5,8 @@ Scan for OWASP Top 10 patterns. **One PR per issue.**
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `find-security-issues` is not in it, exit silently.
 
+**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` as not-applicable. The hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`) is always honored. **The repo-wide secret scan is the one exception** — it scans the whole repo regardless of `Audit scope`, but it still honors `Exclude` and the baseline list so it doesn't re-discover secrets that live in vendored code.
+
 **Scoping.** Secret scanning is always repo-wide. The OWASP code review is per-app when the dispatching multi-runner passes an `app_path` (non-empty, not `—`):
 - If `app_path` is set, review only code under `<app_path>` for injection / auth / CSRF / XSS patterns.
 - Run the repo-wide secret scan pre-step **only** when the multi-runner tells you to (first work-item of a repo). Subsequent app work-items skip the secret scan.
@@ -26,9 +28,9 @@ Regardless of app scope, once per repo per night, grep the whole repo for accide
    ```
 2. Look for patterns (inside `<app_path>` when scoped; skip the "Exposed secrets" row here — it's handled by the pre-step above):
    - **Auth bypass / broken access control** — routes/handlers that read user IDs from request without authorization checks (IDOR)
-   - **Injection** — raw SQL string building, shell exec with user input, unsafe template eval
-   - **XSS** — `dangerouslySetInnerHTML`, `innerHTML`, unescaped output in templates
-   - **Exposed secrets** — API keys, tokens, private URLs in client bundles, public repos, or `NEXT_PUBLIC_*`
+   - **Injection** — raw SQL string building (any language), shell exec with user input (`exec()`, `shell_exec()`, `system()`, `popen()`, Node `child_process` with concatenated input), unsafe template eval (`eval()` in PHP/JS/Python, Twig `eval` filter, Blade `@php` blocks with request data)
+   - **XSS** — JS: `dangerouslySetInnerHTML`, `innerHTML`, `document.write`. Twig: `{{ var | raw }}`, `{% autoescape false %}`. Blade: `{!! $var !!}`. Raw PHP: `echo $_GET[…]` / `echo $_POST[…]` / `echo $_REQUEST[…]` without `htmlspecialchars()` / `esc_html()` / `esc_attr()` (or WordPress `esc_*` family / Drupal `Html::escape()`). Django/Jinja: `|safe` on user-supplied data, `{% autoescape off %}`. ERB: `raw(…)` / `<%==` on user-supplied data.
+   - **Exposed secrets** — API keys, tokens, private URLs in client bundles, public repos, `NEXT_PUBLIC_*`, committed `.env` / `.env.local`, hardcoded credentials in `config/*.php` / `settings.php` / `wp-config.php` / `database.yml`
    - **CSRF** — state-changing routes without origin/CSRF protection
    - **Missing rate limiting** on auth, signup, password reset, expensive endpoints
    - **Insecure deserialization, SSRF, open redirects**

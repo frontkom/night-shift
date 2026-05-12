@@ -24,6 +24,23 @@ The next run reports `opted-out` and skips it. Remove the marker to re-enable.
 ### Customise per project
 Add a `## Night Shift Config` section to the project's `CLAUDE.md`. All fields optional — see the example in `README.md`. Without it, Night Shift autodetects sensible defaults.
 
+#### Constrain which code Night Shift audits — `Audit scope` and `Exclude`
+
+For repos where most of the code is vendored (Drupal `web/modules/contrib`, WordPress vendored plugins, monorepos with a legacy package, Rails `vendor/bundle`, etc.) you can tell Night Shift which paths to read from and which to skip:
+
+```markdown
+## Night Shift Config
+- Audit scope: web/modules/custom, web/themes/custom, src/
+- Exclude:     web/modules/contrib, web/core, vendor, node_modules
+```
+
+- `Audit scope` is the allowlist — when set, every code-reading task (`find-bugs`, `find-security-issues`, `improve-performance`, `improve-accessibility`, `add-tests`, `translate-ui`, `improve-seo`) treats anything outside this list as not-applicable.
+- `Exclude` always wins — paths in `Exclude` are skipped even if they sit inside `Audit scope`.
+- Both fields are optional. Without them, Night Shift still applies a hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`) and reads everything else.
+- In monorepos with an `apps:` block, each app entry can declare its own `Audit scope` / `Exclude` that replace the top-level values for that app.
+
+Use this when inference fails — e.g. when your custom code lives in a non-obvious directory, or when you want to limit Night Shift to a subset of the custom code (say, only the auth-facing modules) while you assess its output.
+
 ### Monorepos with multiple apps
 If a repo holds several apps owned by different teams (a Turborepo with `apps/web` and `apps/admin`, for example), list them under an optional `apps:` block. Night Shift fans out most tasks to one subagent per app, so each team sees PRs scoped to their own code. Without the block, everything runs as a single app (same as today).
 

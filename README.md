@@ -50,7 +50,8 @@ During setup, `/night-shift` runs a **per-repo task picker** — for each repo y
 - **New test coverage** — fills coverage gaps following your existing test patterns
 - **Fixed accessibility issues** — WCAG AA violations on key pages
 - **Translated UI strings** — moves hardcoded text into your i18n system
-- **Audit PRs** — security, bug, SEO, and performance issues
+- **Audit PRs** — security, bug, SEO, performance, and dependency-vulnerability issues
+- **Lint-baseline shrink** — picks one entry from your project's PHPStan/Psalm/ESLint/mypy/RuboCop baseline, fixes the underlying violation, and removes the suppression
 - **Triage comments on red CI** — every failed or cancelled check on a Night Shift PR gets an explanatory comment by morning, with cancellations and clearly-unrelated flakes already re-run
 
 Every Night Shift run leaves a labelled PR per task (`night-shift`), so `gh pr list --label night-shift` is the audit trail — no per-repo log file is written. The bundle is recoverable from the PR title prefix (`night-shift/plan:`, `night-shift/bug:`, `night-shift/a11y:`, etc.).
@@ -62,7 +63,7 @@ Every Night Shift run leaves a labelled PR per task (`night-shift`), so `gh pr l
 | **plans** | Implements the next phase of a planning document | One PR per plan |
 | **docs** | Updates changelog, user guide, decision records, suggestions | One PR per task |
 | **code-fixes** | Adds tests, fixes accessibility, completes translations | One PR per task |
-| **audits** | Finds security / bug / SEO / performance issues | One PR per area |
+| **audits** | Finds security / bug / SEO / performance / dependency issues | One PR per area |
 | **triage-ci** | Comments on red checks on Night Shift PRs, re-runs cancellations + clearly-unrelated flakes | Comments only, no new PRs |
 | **shopify** *(opt-in)* | Vendor cherry-picks (Horizon/Dawn/Skeleton) + pre-flight migration-risk audits | One PR per vendor-update concern; issue-only for risk audit |
 
@@ -131,7 +132,7 @@ The wrapper reports `opted-out` for that repo and moves on.
 
 ## Customising per project
 
-Add a `## Night Shift Config` section to the project's `CLAUDE.md`. All fields are optional — anything unset uses sensible defaults autodetected from your `package.json` and repo layout.
+Add a `## Night Shift Config` section to the project's `CLAUDE.md`. All fields are optional — anything unset uses sensible defaults autodetected from your manifest (`package.json`, `composer.json`, `pyproject.toml`, `Cargo.toml`, `Gemfile`, `go.mod`) and repo layout.
 
 ```markdown
 ## Night Shift Config
@@ -141,6 +142,19 @@ Add a `## Night Shift Config` section to the project's `CLAUDE.md`. All fields a
 - Push: git push mirror main && git push origin main
 - Key pages: /dashboard, /surveys, /people
 ```
+
+The same shape works for non-JS stacks — Night Shift dispatches the commands you write here, regardless of language:
+
+```markdown
+## Night Shift Config
+- Test command: vendor/bin/phpunit
+- Build command: composer install --no-dev --no-progress
+- Audit scope: web/modules/custom, web/themes/custom
+- Exclude: web/modules/contrib, web/core, vendor
+- Key pages: web/themes/custom/viken/templates/page.html.twig
+```
+
+`Audit scope` and `Exclude` are useful for vendored-heavy projects (Drupal, WordPress, Rails monoliths, monorepos with vendored packages) — see [HOW-TO.md](HOW-TO.md) for details.
 
 ## Recommended target-repo setup (optional)
 
