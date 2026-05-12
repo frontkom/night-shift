@@ -9,8 +9,10 @@ While you sleep, an AI agent works across your repositories. You wake up to fres
 **Install (run in your shell, not in Claude):**
 
 ```bash
-npx skills add frontkom/night-shift
+npx skills add -g frontkom/night-shift
 ```
+
+The `-g` flag installs globally to `~/.claude/skills/` so the skill is available in every Claude Code session. Without it, `npx skills` defaults to a *project-local* install when run inside a git repo, which only loads the skill for sessions opened in that specific project.
 
 
 Or fetch the single file directly — no CLI required:

@@ -460,7 +460,7 @@
       </div>
 
       <div class="install" role="group" aria-label="Install command">
-        <code><span class="prompt">$</span> npx skills add frontkom/night-shift</code>
+        <code><span class="prompt">$</span> npx skills add -g frontkom/night-shift</code>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:.6"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
       </div>
       <div class="install-hint">Then type <code>/night-shift</code> in any Claude Code session.</div>
@@ -621,7 +621,8 @@
         <span class="step-num">01 / Install</span>
         <h3>Add the skill</h3>
         <p>One command in your shell — not in Claude.</p>
-<pre class="snippet"><span class="p">$</span> npx skills add <span class="s">frontkom/night-shift</span></pre>
+<pre class="snippet"><span class="p">$</span> npx skills add -g <span class="s">frontkom/night-shift</span></pre>
+        <p class="step-note"><code>-g</code> installs globally so the skill works in every session, not just inside one project.</p>
       </article>
       <article class="step">
         <span class="step-num">02 / Open</span>
