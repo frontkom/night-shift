@@ -5,6 +5,8 @@ Audit key pages for WCAG 2.1 AA violations. **One PR with all fixes.**
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: key pages, test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `improve-accessibility` is not in it, exit silently.
 
+**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` as not-applicable. The hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`) is always honored.
+
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Read `key pages` from the scoped config (the `apps[]` entry for this app), not the top-level list.
 - Only audit and modify files under `<app_path>`.
@@ -24,7 +26,7 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
    ```
    If one exists for the same app, exit silently — do not stack PRs.
 
-2. Read the source of each configured **key page** (scoped to `<app_path>` when set) and the components they render.
+2. Read the source of each configured **key page** (scoped to `<app_path>` when set) and the components/templates they render. The audit applies to any template language the project uses — JSX/TSX, Vue/Svelte single-file components, Twig (Symfony/Drupal), Blade (Laravel), ERB (Rails), Django/Jinja, plain HTML, or hook-rendered HTML from PHP. Apply the same WCAG 2.1 AA criteria regardless of template language.
 
 3. Audit against the **WCAG 2.1 AA success criteria**. Check each category:
 
@@ -62,8 +64,8 @@ Only open a PR for violations that are clearly demonstrable from the code and wh
 4. Fix **all** clear violations. Prioritize by impact — issues that block access entirely (keyboard traps, missing form labels, broken focus management) before cosmetic issues (contrast tweaks on secondary text). Every violation must be real and demonstrable from reading the code, not hypothetical. Fix at the component level so all consumers benefit.
 
 5. **Verify fixes don't introduce regressions:**
-   - If the project has a11y tests (e.g. jest-axe, @axe-core/react, Playwright a11y assertions), add tests that would have caught the original violations.
-   - Otherwise, add tests that exercise the fixes — at minimum render tests asserting the corrected attributes/elements are present.
+   - If the project already has an a11y test framework in use, add tests that would have caught the original violations using that framework's existing patterns.
+   - Otherwise, add tests that exercise the fixes — at minimum render/snapshot tests asserting the corrected attributes/elements are present in the rendered output.
    - Read the surrounding code and any existing tests for each component. Make sure fixes don't break existing behavior: conditional rendering, event handlers, CSS class names, prop interfaces.
    - Do not change existing `<title>`, metadata, heading text, or visible copy unless the fix specifically requires it.
 

@@ -452,8 +452,8 @@ If a target repo has no `CLAUDE.md` (or one without a `## Night Shift Config` se
 
 | Setting | Default |
 |---|---|
-| Test command | First of: `npm test`, `pnpm test`, `yarn test`, `bun test`, `cargo test`, `pytest`, `go test ./...`. If none, test-needing tasks self-skip. |
-| Build command | First of: `npm run build`, `pnpm build`, `yarn build`, `bun run build`, `cargo build`, `go build ./...`. If none, build-needing tasks self-skip. |
+| Test command | First of: `npm test`, `pnpm test`, `yarn test`, `bun test`, `cargo test`, `pytest`, `go test ./...`, `composer test`, `vendor/bin/phpunit`, `vendor/bin/simple-phpunit`, `php artisan test`, `vendor/bin/pest`, `bundle exec rspec`, `bundle exec rake test`. If none, test-needing tasks self-skip. |
+| Build command | First of: `npm run build`, `pnpm build`, `yarn build`, `bun run build`, `cargo build`, `go build ./...`, `composer install --no-dev --no-progress`, `php bin/console assets:install`, `php artisan optimize`. If none, build-needing tasks self-skip. |
 | Push protocol | `git push origin <branch>` |
 | Default branch | Read from `git symbolic-ref refs/remotes/origin/HEAD` |
 | Doc language | Match existing docs in `docs/` or `README.md`; fall back to English |
@@ -461,6 +461,36 @@ If a target repo has no `CLAUDE.md` (or one without a `## Night Shift Config` se
 | Task subset | All tasks; each one self-skips when not applicable |
 
 A project with explicit Night Shift Config in `CLAUDE.md` always overrides these defaults.
+
+## Optional config fields — `Audit scope` and `Exclude`
+
+Two optional fields constrain which paths code-reading tasks (`find-bugs`, `find-security-issues`, `improve-performance`, `improve-accessibility`, `add-tests`, `translate-ui`, `improve-seo`) may read from or write to. Useful when a repo's directory structure doesn't make the custom-vs-vendored boundary obvious by inference.
+
+```markdown
+## Night Shift Config
+- Audit scope: web/modules/custom, web/themes/custom, src/
+- Exclude:     web/modules/contrib, web/core, vendor, node_modules
+```
+
+**Semantics:**
+
+- `Audit scope` (optional): a comma-separated list of relative paths that form the **allowlist** for code reads and writes. When set, every task that reads source code must treat any file outside this list as not-applicable. When unset, the implicit scope is the whole repo (minus `Exclude` and the hardcoded list below).
+- `Exclude` (optional): a comma-separated list of relative paths to **always** skip, even if they appear inside `Audit scope`. Use for vendored / generated / third-party directories.
+- **Hardcoded baseline exclude** (always applied, even when neither field is set): `vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`. Tasks honor this list unconditionally.
+- For monorepos with an `apps:` block, each `apps[i]` entry may declare its own `Audit scope` and `Exclude`. The app-scoped values **replace** the top-level ones for that work-item (they do not merge). The hardcoded baseline always applies.
+
+**Examples by stack:**
+
+| Stack | Typical setting |
+|---|---|
+| Drupal | `Audit scope: web/modules/custom, web/themes/custom` + `Exclude: web/modules/contrib, web/core, vendor` |
+| WordPress (custom theme/plugins only) | `Audit scope: wp-content/themes/<theme>, wp-content/plugins/<custom>` + `Exclude: wp-content/plugins/<vendored>, wp-includes, wp-admin` |
+| Symfony / Laravel monolith | `Audit scope: src/` + `Exclude: vendor, var, public/build` |
+| Rails | `Audit scope: app/, lib/, config/` + `Exclude: vendor/bundle, tmp, log` |
+| Next.js monorepo | `Audit scope: apps/web, apps/admin, packages/ui` + `Exclude: packages/legacy-bundle, node_modules` |
+| Go monorepo | `Audit scope: cmd/, internal/, pkg/` + `Exclude: internal/third_party, vendor` |
+
+Tasks consult these fields once at the top of their run; everything else (which file to grep, which directory to walk, where to write tests) flows from there.
 
 ## Final report
 

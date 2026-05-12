@@ -5,6 +5,8 @@ Review page metadata across the site. **One PR with all fixes.**
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: key pages, doc/UI language, test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `improve-seo` is not in it, exit silently.
 
+**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` as not-applicable — note that `robots.txt` and `sitemap.xml` typically live at the repo root and should be edited from there regardless. The hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`) is always honored.
+
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Read `key pages` from the scoped config (the `apps[]` entry for this app), not the top-level list.
 - Only audit and modify files under `<app_path>`.
@@ -25,11 +27,16 @@ Only open a PR for clear, real SEO issues on genuinely public pages. Do not add 
    If one exists for the same app, exit silently — do not stack PRs.
 
 2. **Classify each key page as public or authenticated** before auditing.
-   A page is **authenticated** (not public-facing) if **any** of the following are true:
-   - It lives under a route segment wrapped by auth middleware that redirects unauthenticated users (check `middleware.ts`/`middleware.js` matcher config).
-   - The page or its layout calls auth/session helpers (`getServerSession`, `auth()`, `getSession`, `requireAuth`, `useSession` with required, `redirect` on missing session, etc.) and **redirects or blocks** unauthenticated visitors rather than rendering public content.
-   - The route sits inside a group or folder whose name strongly implies auth: `(dashboard)`, `(app)`, `(protected)`, `(admin)`, `(account)`, `(settings)`, or similar.
-   - The page is not referenced in `sitemap.xml` or `sitemap.ts` **and** has `noindex` or is excluded by `robots.txt`.
+   A page is **authenticated** (not public-facing) if **any** of the following are true (the markers vary by framework — match the one(s) the project actually uses):
+   - **Next.js / generic JS:** lives under a route segment wrapped by auth middleware (`middleware.ts`/`middleware.js` matcher config), or the page/layout calls auth/session helpers (`getServerSession`, `auth()`, `getSession`, `requireAuth`, `useSession` with required, `redirect()` on missing session, etc.) and **redirects or blocks** unauthenticated visitors.
+   - **Symfony:** controller has `#[IsGranted(...)]` / `@IsGranted(...)` annotation, or `config/packages/security.yaml` `access_control` requires a role for the path, or the controller `denyAccessUnlessGranted(...)`s before rendering.
+   - **Laravel:** route declared with `Route::middleware('auth')` / `->middleware(['auth', ...])`, or controller `__construct` calls `$this->middleware('auth')`, or the Blade view is rendered only inside an `@auth` block.
+   - **WordPress:** lives under `wp-admin/`, `wp-login.php`, or only renders when `is_user_logged_in()` / `current_user_can(...)` is true.
+   - **Drupal:** route YAML (`*.routing.yml`) requires `_role: 'authenticated user'`, `_permission: '…'`, or any non-`access content` permission; controller returns `AccessResult::forbidden()` for anonymous users.
+   - **Django:** view is decorated with `@login_required` / `@permission_required`, inherits `LoginRequiredMixin`, or its URL pattern is included only inside an authenticated namespace.
+   - **Rails:** controller filters with `before_action :authenticate_user!` (Devise) or an equivalent custom auth filter.
+   - **Folder/route group naming** (any stack): `(dashboard)`, `(app)`, `(protected)`, `(admin)`, `(account)`, `(settings)`, `Admin/`, `dashboard/`, or similar.
+   - The page is not referenced in `sitemap.xml` / `sitemap.ts` / a sitemap generator config **and** has `noindex` or is excluded by `robots.txt`.
 
    When in doubt, treat the page as authenticated — it is far worse to add social-preview meta to a private page than to miss it on a public one.
 

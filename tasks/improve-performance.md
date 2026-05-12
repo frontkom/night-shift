@@ -5,6 +5,8 @@ Review performance across key pages. **One PR with all fixes.**
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: key pages, test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `improve-performance` is not in it, exit silently.
 
+**Audit scope.** Honor `Audit scope` and `Exclude` from the resolved scoped config (see `bundles/_multi-runner.md` → "Optional config fields"). Treat paths outside `Audit scope` (when set) and any path inside `Exclude` as not-applicable. The hardcoded baseline exclude (`vendor`, `node_modules`, `.git`, `dist`, `build`, `.next`, `.nuxt`, `.svelte-kit`, `target`, `__pycache__`, `.venv`) is always honored.
+
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`), operate inside that app only:
 - Read `key pages` from the scoped config (the `apps[]` entry for this app), not the top-level list.
 - Only audit and modify files under `<app_path>`.
@@ -23,14 +25,34 @@ Only open a PR when you can point to a concrete, low-risk win that will clearly 
    gh pr list --search "night-shift/perf in:title" --state open
    ```
    If one exists for the same app, exit silently — do not stack PRs.
-2. Audit:
+2. Audit the project against the buckets below. Apply only the buckets that match the stack actually in use — a pure PHP library has no frontend bucket; a static site has no backend runtime bucket.
+
+   **Always-on (every stack)**
+   - **N+1 / unbatched queries** — ORM `find(...)` in a loop, repeated `\Drupal::database()->select()` in a render loop, `Model::find($id)` per row in Laravel, ActiveRecord `find(...)` in views. Prefer `loadMultiple()` / `whereIn()` / eager-load (`with('relation')`, Doctrine `addSelect('rel')` + `join`).
+   - **Missing indexes** implied by query shape — `WHERE foo = ?` on an unindexed column hit on listing pages, `ORDER BY created_at` without an index.
+   - **Missing caches** where appropriate — repeated expensive computation that could use the framework's cache (HTTP cache, fragment cache, `Cache::remember`, Drupal cache backends, Rails `Rails.cache.fetch`, Symfony cache pools).
+   - **Blocking I/O** in request path — synchronous external HTTP calls without a timeout, blocking shell-outs, large file reads loaded into memory.
+
+   **Frontend (when the project ships UI assets)**
    - **Bundle size** — run the project's bundle analyzer if available, or inspect built output. Look for unexpectedly large modules and accidental client-side imports of server-only code.
-   - **Images** — using next/image (or framework equivalent), correct sizes, modern formats, lazy loading on below-the-fold imagery.
-   - **Fonts** — preloaded, `font-display: swap`, no FOIT.
+   - **Images** — using `next/image` or framework equivalent (Symfony LiipImagine, Drupal image styles, Laravel intervention/image, `picture` with `srcset`), correct sizes, modern formats (WebP/AVIF), lazy loading on below-the-fold imagery.
+   - **Fonts** — preloaded, `font-display: swap`, no FOIT, subset where possible.
    - **Render-blocking resources** — synchronous scripts, blocking CSS, large inline blobs.
-   - **Client/server boundary** — components marked client-only that could be server, large data fetched on the client that could be fetched on the server.
-   - **Database / API calls** — N+1 patterns, missing indexes implied by query shape, missing caching where appropriate.
-   - **Lighthouse-style checks** for each configured **key page** by reading the source (no live browser needed).
+   - **Client/server boundary** (JS frameworks) — components marked client-only that could be server-rendered, large data fetched on the client that could be fetched on the server.
+
+   **Backend runtime (server-side PHP / Python / Ruby / Node / Go)**
+   - **OPcache / bytecode cache** misconfiguration in PHP (`opcache.enable=0`, low `opcache.memory_consumption`, `opcache.validate_timestamps=1` in production).
+   - **Eager ORM loading without limits** — Doctrine `findAll()`, Eloquent `Model::all()`, Drupal `loadMultiple()` with no `range()`, Django `.objects.all()` without `iterator()` / pagination.
+   - **Unbounded query result sets** on listing/search routes — missing `LIMIT` / `paginate()` / `range()`.
+   - **Synchronous work in the request path** that belongs in a queue — email send, image processing, third-party API fan-out.
+
+   **Database**
+   - Covering indexes for hot queries; composite indexes for multi-column `WHERE` + `ORDER BY`.
+   - Full-table scans on commonly-filtered columns.
+   - Missing `LIMIT` on listing routes.
+   - `SELECT *` where a narrow projection would do.
+
+   **Per key page** — run a Lighthouse-style read of each configured **key page** by reading the source (no live browser needed) and apply the relevant buckets above.
 3. Fix all clear, low-risk issues in one branch (include app slug when scoped):
    ```
    # scoped:
