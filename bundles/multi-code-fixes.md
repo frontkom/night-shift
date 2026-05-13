@@ -2,8 +2,16 @@
 
 You are running the Night Shift **Code fixes** bundle across **all target repositories** cloned into this session.
 
-**Before doing anything else**, print a single status line so the user sees immediate output:
-`Night Shift code-fixes bundle starting (multi-repo)...`
+**Before doing anything else**, capture the wall-dashboard start time and print a single status line so the user sees immediate output:
+
+```bash
+NS_RUN_START_EPOCH=$(date +%s)
+NS_RUN_START_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+NS_BUNDLE=code-fixes
+echo "Night Shift code-fixes bundle starting (multi-repo)..."
+```
+
+Hold `NS_RUN_START_EPOCH`, `NS_RUN_START_TS`, `NS_BUNDLE`, and an `NS_PROCESSED=()` bash array (filled as you build the summary table) in shell state. They feed the wall-dashboard logging step at the very end. See `bundles/_multi-runner.md` → **Wall-dashboard logging** for the protocol.
 
 ## Discover repos
 List sibling directories at the top of your working tree. For each candidate, confirm via `git rev-parse --show-toplevel`.
@@ -79,3 +87,9 @@ Night Shift code-fixes — multi-repo summary
 |------|--------|-------|
 | ...  | ok / silent / opted-out / dirty-skip / failed | <terse> |
 ```
+
+## Wall-dashboard logging (last action)
+
+After printing the summary table, append one JSONL event per processed repo to `dashboard/runs.jsonl` in the dashboard host repo. Follow the exact protocol in `bundles/_multi-runner.md` → **Wall-dashboard logging** → Step 2.
+
+Recap of what to do here, no prose: use `NS_RUN_START_EPOCH`, `NS_BUNDLE=code-fixes`, and the `NS_PROCESSED` array you've been filling. A repo is "processed" when its summary row's status is `ok`, `silent`, or `failed`. Best-effort — never let the dashboard append fail the routine.

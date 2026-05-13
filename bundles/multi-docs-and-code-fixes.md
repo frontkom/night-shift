@@ -2,8 +2,16 @@
 
 You are running **two** Night Shift bundles in one session: **docs** first, then **code-fixes**, against all target repositories cloned into this session.
 
-**Before doing anything else**, print a single status line so the user sees immediate output:
-`Night Shift docs + code-fixes bundle starting (multi-repo)...`
+**Before doing anything else**, capture the wall-dashboard start time and print a single status line so the user sees immediate output:
+
+```bash
+NS_RUN_START_EPOCH=$(date +%s)
+NS_RUN_START_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+NS_BUNDLE=code-fixes
+echo "Night Shift docs + code-fixes bundle starting (multi-repo)..."
+```
+
+Hold `NS_RUN_START_EPOCH`, `NS_RUN_START_TS`, `NS_BUNDLE`, and an `NS_PROCESSED=()` bash array (filled as you build the summary table) in shell state. They feed the wall-dashboard logging step at the very end. See `bundles/_multi-runner.md` → **Wall-dashboard logging** for the protocol.
 
 This is a runtime composition that runs docs and code-fixes in a single session. It exists as a convenience for setups that want to minimise the number of routines. For setups with enough routine slots, `multi-docs.md` and `multi-code-fixes.md` can be used separately instead. The two underlying bundles are unchanged — see `bundles/docs.md` and `bundles/code-fixes.md` for what each does.
 
@@ -129,3 +137,9 @@ Night Shift docs+code-fixes — multi-repo summary
 ```
 
 The `App` column shows `—` for single-app repos and one row per app for monorepos that declare `apps:`.
+
+## Wall-dashboard logging (last action)
+
+After printing the summary table, append one JSONL event per processed repo to `dashboard/runs.jsonl` in the dashboard host repo. Follow the exact protocol in `bundles/_multi-runner.md` → **Wall-dashboard logging** → Step 2.
+
+Recap of what to do here, no prose: use `NS_RUN_START_EPOCH`, `NS_BUNDLE=code-fixes`, and the `NS_PROCESSED` array you've been filling. A repo is "processed" when its summary row's status is `ok`, `silent`, or `failed`. Best-effort — never let the dashboard append fail the routine.
