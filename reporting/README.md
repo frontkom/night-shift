@@ -89,3 +89,27 @@ jobs:
 ```
 
 The secret is optional. If omitted, reporting still writes the artifact.
+
+## Wall dashboard
+
+There's a tiny static dashboard at `dashboard/index.html` (deployed to
+GitHub Pages alongside the framework site) that shows two numbers per
+project — hours worked last night, hours worked in total. It reads
+`dashboard/runs.jsonl` (one event per line) from the same repo.
+
+To feed the dashboard from your nightly runs, set two optional caller
+secrets:
+
+```
+NIGHTSHIFT_DASHBOARD_REPO   = "owner/dashboard-host"   # e.g. frontkom/night-shift
+NIGHTSHIFT_DASHBOARD_TOKEN  = <PAT with contents:write on that repo>
+```
+
+…and pass them through in your caller workflow (see
+`github-actions/caller-template.yml`). The reusable workflow then
+appends one JSONL line per run, with conflict-retry, so multiple repos
+can write concurrently.
+
+"Hours worked" is wall-clock from env start to idle (`duration_seconds`
+in the event), which is what the workflow already records — close
+enough that drift of a few minutes per run is not a concern.

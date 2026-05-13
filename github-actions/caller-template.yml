@@ -34,3 +34,9 @@ jobs:
       # Uncomment to enable Slack notifications after each Night Shift run.
       # Add SLACK_WEBHOOK_URL to your repo secrets (Settings → Secrets → Actions).
       # SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #
+      # Uncomment to log this run to the Night Shift wall dashboard.
+      # The dashboard reads dashboard/runs.jsonl from the configured repo.
+      # NIGHTSHIFT_DASHBOARD_TOKEN must be a PAT with `contents: write` on that repo.
+      # NIGHTSHIFT_DASHBOARD_REPO:  ${{ secrets.NIGHTSHIFT_DASHBOARD_REPO }}    # e.g. "frontkom/night-shift"
+      # NIGHTSHIFT_DASHBOARD_TOKEN: ${{ secrets.NIGHTSHIFT_DASHBOARD_TOKEN }}

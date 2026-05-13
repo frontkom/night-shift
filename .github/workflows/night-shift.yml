@@ -32,6 +32,10 @@ on:
         required: false
       SLACK_WEBHOOK_URL:
         required: false
+      NIGHTSHIFT_DASHBOARD_TOKEN:
+        required: false
+      NIGHTSHIFT_DASHBOARD_REPO:
+        required: false
 
 jobs:
   night-shift:
@@ -255,6 +259,52 @@ jobs:
           name: nightshift-report
           path: /tmp/nightshift-report/event.json
           retention-days: 90
+
+      - name: Append run to wall dashboard
+        if: always() && steps.run.outcome != 'cancelled'
+        env:
+          NIGHTSHIFT_DASHBOARD_TOKEN: ${{ secrets.NIGHTSHIFT_DASHBOARD_TOKEN }}
+          NIGHTSHIFT_DASHBOARD_REPO:  ${{ secrets.NIGHTSHIFT_DASHBOARD_REPO }}
+        run: |
+          # Optional: if a dashboard token + repo are configured, append this run's
+          # event as a single JSONL line to <repo>/dashboard/runs.jsonl. Skipped
+          # silently when the secrets are not set. Retries on push conflicts to
+          # tolerate concurrent runs from other repos.
+          if [ -z "${NIGHTSHIFT_DASHBOARD_TOKEN}" ] || [ -z "${NIGHTSHIFT_DASHBOARD_REPO}" ]; then
+            echo "Dashboard secrets not set — skipping wall-dashboard append."
+            exit 0
+          fi
+          if [ ! -f /tmp/nightshift-report/event.json ]; then
+            echo "No event.json produced — skipping wall-dashboard append."
+            exit 0
+          fi
+          LINE=$(jq -c . /tmp/nightshift-report/event.json)
+          TMP=$(mktemp -d)
+          cd "${TMP}"
+          git clone --depth=1 \
+            "https://x-access-token:${NIGHTSHIFT_DASHBOARD_TOKEN}@github.com/${NIGHTSHIFT_DASHBOARD_REPO}.git" \
+            repo
+          cd repo
+          git config user.email "night-shift[bot]@users.noreply.github.com"
+          git config user.name  "Night Shift[bot]"
+          mkdir -p dashboard
+          for attempt in 1 2 3 4 5; do
+            printf '%s\n' "${LINE}" >> dashboard/runs.jsonl
+            git add dashboard/runs.jsonl
+            if git diff --cached --quiet; then
+              echo "No diff — nothing to commit."
+              exit 0
+            fi
+            git commit -m "dashboard: log run from ${{ github.repository }}"
+            if git push origin HEAD; then
+              echo "Appended event to ${NIGHTSHIFT_DASHBOARD_REPO}/dashboard/runs.jsonl."
+              exit 0
+            fi
+            echo "Push rejected (attempt ${attempt}); rebasing and retrying…"
+            git reset --hard "origin/$(git rev-parse --abbrev-ref HEAD)"
+            git pull --rebase origin "$(git rev-parse --abbrev-ref HEAD)" || true
+          done
+          echo "::warning::Wall-dashboard append failed after retries — event is still in the run artifact."
 
       - name: Notify Slack (success)
         if: success() && env.SLACK_WEBHOOK_URL != ''
