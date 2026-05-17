@@ -41,6 +41,7 @@ Every pull-request task in `manifest.yml` declares its own `slug:` field. That f
 | `improve-seo` | `seo` |
 | `improve-performance` | `perf` |
 | `dep-audit` | `deps` |
+| `find-flaky-tests` | `flake` |
 
 A branch must therefore look like `night-shift/perf-YYYY-MM-DD` or `night-shift/perf-<app-slug>-YYYY-MM-DD` — **not** `night-shift/improve-performance`. The PR title must start with `night-shift/<slug>:` (e.g. `night-shift/perf: …`), **not** `night-shift/improve-performance: …`. The post-create ritual's title-format check (`_multi-runner.md`) will warn if you used the task id instead of the slug; re-run `gh pr edit --title` to fix before returning.
 

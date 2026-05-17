@@ -228,6 +228,16 @@ tasks:
     scope: app
     needs: [test, build]
 
+  - id: find-flaky-tests
+    title: Find recurring flaky tests
+    description: Mines recent default-branch CI history for tests that fail nondeterministically, picks the worst offender whose cause is identifiable from the test source, and opens one PR with a root-cause fix (or a last-resort quarantine).
+    bundle: audits
+    mode: pull-request
+    slug: flake
+    order: 6
+    scope: repo
+    needs: [test, build]
+
   - id: triage-ci-failures
     title: Triage CI failures
     description: For every open `night-shift` PR, comments on each failed or cancelled check explaining whether the failure is caused by the PR's diff, and re-runs cancellations + unrelated flakes. Does not open new PRs.
