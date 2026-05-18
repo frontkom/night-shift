@@ -29,15 +29,17 @@ List sibling directories at the top of your working tree. For each candidate, co
 
 `build-planned-features` is `scope: app` in `manifest.yml`, so a repo with an `apps:` block fans out to one work-item per app. **On top of that, plans fan out further: one subagent per plan file.** Every pending plan gets its own agent and its own PR — no plan is ever skipped because another plan ran first.
 
-**Per-repo execution order — dispatch the small caps first.** Within each repo, the order is fixed and load-bearing:
+**Per-repo execution order — dispatch the small items first.** Within each repo, the order is fixed and load-bearing:
 
 1. **Per-repo prelude** (Step 1 below — dirty/opt-out/labels/CLAUDE.md parse).
-2. **`work-on-issues` dispatch** if allowlisted (see "work-on-issues dispatch" section). Hard cap: 3 issues / one subagent.
-3. **`work-on-jira-issues` dispatch** if allowlisted (see "work-on-jira-issues dispatch" section). Hard cap: 3 issues / one subagent.
-4. **Plan-file fan-out** (Step 2 below — one subagent per surviving plan file; can be 10+ subagents).
+2. **`work-on-issues` fan-out** if allowlisted (see "work-on-issues dispatch" section). One subagent per discovered tagged issue.
+3. **`work-on-jira-issues` fan-out** if allowlisted (see "work-on-jira-issues dispatch" section). One subagent per discovered tagged Jira issue.
+4. **Plan-file fan-out** (Step 2 below — one subagent per surviving plan file by default; plans marked `night-shift: parallel-phases` further fan out to one subagent per pending phase).
 5. **PR body sweep** (after every dispatch above completes for this repo).
 
-This order matters: the plan fan-out can dispatch 10+ subagents and burn most of the wrapper's budget. If issues + jira ran *after* plans (the historical order), a budget-exhausted wrapper would silently never reach them — causing the symptom of "tagged issues sitting open for nights with no PR and no skip-comment." Issues and jira are bounded to ≤3 issues each, so running them first costs a small, predictable amount of context and guarantees they fire.
+This order matters: the plan fan-out can dispatch 10+ subagents and burn most of the wrapper's budget. If issues + jira ran *after* plans (the historical order), a budget-exhausted wrapper would silently never reach them — causing the symptom of "tagged issues sitting open for nights with no PR and no skip-comment." Issues and Jira typically discover a small number of items per repo, so running them first costs a small, predictable amount of context and guarantees they fire.
+
+**No PR cap.** The wrapper does not throttle the number of PRs opened per morning. Throughput is the explicit goal; review is bounded by the per-issue / per-phase scoping (each subagent owns one narrow unit of work), not by a count ceiling.
 
 For each discovered target repo, in directory-name order:
 
@@ -69,15 +71,19 @@ For each discovered target repo, in directory-name order:
      - **Every** phase / item / step / milestone in the plan is already marked done. Look for any of: `**Status: Implemented`, `**Status: Done`, `[x]`, `~~…~~` strikethrough, `✅`, or a bold `Status:` line whose value is `Implemented`/`Done`/`Complete`. If you cannot find any pending unit, the plan is fully implemented.
      - The plan file is empty or has no parseable units.
    - Plans skipped by the pre-filter get **one** wrapper-level row in the summary table (`Status: not-applicable`) — they do **not** spin up a subagent. This keeps the silent rate low and avoids spending a subagent budget on plans known to have nothing to do.
-   - Each **surviving** plan file becomes its own work-item `{repo, app_path, scoped_config, plan_file}`. **Every** surviving plan must be dispatched — no plan-count cap. If a repo has 20 pending plans, the wrapper dispatches 20 subagents (each in its own context window, so the cost scales linearly without contention).
+   - Each **surviving** plan file becomes its own work-item `{repo, app_path, scoped_config, plan_file, phase_index}`. **Every** surviving plan must be dispatched — no plan-count cap. If a repo has 20 pending plans, the wrapper dispatches 20 subagents (each in its own context window, so the cost scales linearly without contention).
+   - **Parallel-phase fan-out (opt-in).** For each surviving plan file, look for a `night-shift: parallel-phases` marker in the file's frontmatter, an HTML comment, or a top-of-file metadata block. When present, the plan author is asserting that its pending phases are mutually independent — each can branch off the default branch and land its own PR without depending on any other pending phase's changes. In that case, expand the plan into one work-item *per pending phase*: each carries the same `{repo, app_path, scoped_config, plan_file}` plus an explicit `phase_index` (1-based, in plan order). When the marker is absent (the default), emit one work-item with `phase_index = —` and the subagent handles phases sequentially as today.
+   - The `parallel-phases` opt-in is a quality contract: phases that share schema migrations, depend on each other's exports, or sequentially mutate the same file are **not** independent and the marker must be omitted. There is no automatic independence detection — the plan author makes the call.
    - If an app-scope has zero plan files at all (after discovery), emit one work-item with `plan_file = —` so it can report `silent` in the summary. If there were plan files but the pre-filter rejected all of them, do **not** emit an empty work-item — the per-plan `not-applicable` rows already cover that case.
    - Capture the absolute repo path. `cd` back to the parent.
-2. For each work-item from this repo, dispatch a `Task` subagent with this prompt (substitute `{REPO_PATH}`, `{APP_PATH}` — literal `—` when repo-wide, `{SCOPED_CONFIG}` as inline JSON / YAML, `{PLAN_FILE}` — literal `—` when no plans):
+2. For each work-item from this repo, dispatch a `Task` subagent with this prompt (substitute `{REPO_PATH}`, `{APP_PATH}` — literal `—` when repo-wide, `{SCOPED_CONFIG}` as inline JSON / YAML, `{PLAN_FILE}` — literal `—` when no plans, `{PHASE_INDEX}` — literal `—` for sequential plans, integer for `parallel-phases` plans):
 
    ```
    Your working directory is {REPO_PATH}. cd into it now.
    App scope: {APP_PATH}          # "—" means repo-wide, single-app mode
    Plan file: {PLAN_FILE}         # "—" means no plans to process; exit silent
+   Phase index: {PHASE_INDEX}     # "—" means sequential mode (implement multiple phases);
+                                  # integer means parallel-phases mode (implement THIS phase only)
    Allowed tasks: [build-planned-features]   # this subagent runs this one task only
    Scoped config: {SCOPED_CONFIG}  # resolved test/build/plans dir/key pages
 
@@ -86,10 +92,17 @@ For each discovered target repo, in directory-name order:
    Otherwise, fetch
    https://raw.githubusercontent.com/frontkom/night-shift/main/tasks/build-planned-features.md
    and execute it against THIS ONE PLAN FILE ONLY. Do not scan for other plans; the
-   dispatcher has already fanned out one subagent per plan. Implement as many
-   pending phases of PLAN_FILE as reasonably fit in one PR and open one PR for
-   the bundled result. See the task file's "How far to go in one run" heading
-   for stop conditions.
+   dispatcher has already fanned out one subagent per plan (and, when the plan is
+   marked `night-shift: parallel-phases`, one subagent per pending phase).
+
+   - If PHASE_INDEX is "—": implement as many pending phases of PLAN_FILE as
+     reasonably fit in one PR, bundled. See the task file's "How far to go in
+     one run" heading for stop conditions.
+   - If PHASE_INDEX is an integer: implement ONLY that phase (1-based, in plan
+     order). Branch off the default branch — not off any other phase's branch.
+     Open one PR titled `phase {PHASE_INDEX}`. Do not touch other phases'
+     scope. If your phase's tests fail, leave a Night Shift Notes entry under
+     that phase and open a `[blocked]` PR — do not bleed into adjacent phases.
 
    When APP_PATH is not "—":
    - Branch name must include the app slug:
@@ -142,54 +155,76 @@ After all work-items for this repo (the `work-on-issues` and `work-on-jira-issue
 
 Pre-filtered plans (skipped before dispatch — fully implemented, deferred, blocked, etc.) appear in the summary table as `Status: not-applicable` rows; no subagent is dispatched.
 
-## work-on-issues dispatch (scope: repo, once per repo)
+## work-on-issues dispatch (scope: repo, one subagent per tagged issue)
 
-**Dispatched BEFORE the plan-file fan-out** for this repo (see "Per-repo execution order" above). After Step 1's prelude completes, check if `work-on-issues` is in the repo's allowlist. If so, dispatch **one `Task` subagent per repo** (not per app — `work-on-issues` is `scope: repo`):
+**Dispatched BEFORE the plan-file fan-out** for this repo (see "Per-repo execution order" above). After Step 1's prelude completes, check if `work-on-issues` is in the repo's allowlist. If so, **discover tagged issues at the wrapper level** (cheap — no subagent yet) and fan out one subagent per issue:
+
+```bash
+( cd "$REPO_PATH" && \
+  gh issue list --label "night-shift" --state open --json number,title --jq 'sort_by(.number) | .[] | .number' )
+```
+
+Print one discovery line listing the numbers found: `Discovered tagged issues: #12, #15, #18 (3 total).` If the list is empty, print `Discovered tagged issues: none.` and skip to the Jira dispatch. There is **no count cap** — every tagged issue gets its own subagent.
+
+For each discovered issue, dispatch one `Task` subagent (substitute `{REPO_PATH}` and `{ISSUE_NUMBER}`):
 
 ```
 Your working directory is {REPO_PATH}. cd into it now.
+
+Issue: #{ISSUE_NUMBER}    # exactly one issue — do not scan for others
 
 Fetch https://raw.githubusercontent.com/frontkom/night-shift/main/tasks/work-on-issues.md
-and execute it against this repository. Process up to 3 open GitHub Issues
-labeled "night-shift", opening one PR per issue.
+and execute it against THIS ONE ISSUE ONLY. The dispatcher has already fanned out
+one subagent per tagged issue; do not run the discovery query and do not process
+any other issues. Open at most one PR.
 
 CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
 the defaults from
 https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
 Return EXACTLY ONE LINE to me in this format:
-    <ok|silent|failed> | PRs: <comma-separated URLs or —> | <terse note, max 60 chars>
+    <ok|silent|failed> | PR: <url or —> | #{ISSUE_NUMBER} — <terse note, max 60 chars>
 ```
 
-Record the result in the summary as a row with `App = —`, `Plan = work-on-issues`.
+Record one summary row per issue with `App = —`, `Plan = work-on-issues #<n>`. The wrapper-level PR body sweep covers any PRs these subagents opened.
 
-## work-on-jira-issues dispatch (scope: repo, once per repo)
+## work-on-jira-issues dispatch (scope: repo, one subagent per tagged Jira issue)
 
-**Dispatched BEFORE the plan-file fan-out** for this repo, immediately after the `work-on-issues` dispatch (or after skipping it when not allowlisted). Check if `work-on-jira-issues` is in the repo's allowlist. If so, dispatch **one `Task` subagent per repo**:
+**Dispatched BEFORE the plan-file fan-out** for this repo, immediately after the `work-on-issues` fan-out (or after skipping it when not allowlisted). Check if `work-on-jira-issues` is in the repo's allowlist. If so, **discover tagged Jira issues at the wrapper level** by calling the Atlassian Rovo MCP `Search with JQL` tool. The wrapper has the connector attached; the subagents don't need it for their narrowed prompts. Use the JQL from CLAUDE.md (`Jira project key:` is required, `Jira label:` defaults to `night-shift`):
+
+```
+project = <KEY> AND labels = "<LABEL>" AND statusCategory != Done ORDER BY created ASC
+```
+
+If `CLAUDE.md` lacks `Jira project key:`, skip the entire Jira dispatch silently. If the Rovo connector is not attached at the wrapper level, skip silently. If the JQL search returns zero issues, print `Discovered tagged Jira issues: none.` and continue.
+
+Otherwise, print one discovery line: `Discovered tagged Jira issues: FGPW-12, FGPW-15 (2 total).` There is **no count cap** — every tagged Jira issue gets its own subagent.
+
+For each discovered Jira key, dispatch one `Task` subagent (substitute `{REPO_PATH}` and `{ISSUE_KEY}`):
 
 ```
 Your working directory is {REPO_PATH}. cd into it now.
 
-Fetch https://raw.githubusercontent.com/frontkom/night-shift/main/tasks/work-on-jira-issues.md
-and execute it against this repository. Process up to 3 open Jira issues
-labelled "night-shift" from the project key configured in CLAUDE.md, opening
-one GitHub PR per issue.
+Jira issue: {ISSUE_KEY}    # exactly one issue — do not scan for others
 
-The task uses the Atlassian Rovo MCP connector — no API tokens or env vars
-involved. It self-skips silently if any of the following is true:
-- CLAUDE.md does not contain `Jira project key:` in `## Night Shift Config`.
-- The Atlassian Rovo MCP connector is not attached to this routine.
-- The JQL search returns zero issues.
+Fetch https://raw.githubusercontent.com/frontkom/night-shift/main/tasks/work-on-jira-issues.md
+and execute it against THIS ONE JIRA ISSUE ONLY. The dispatcher has already
+fanned out one subagent per tagged Jira issue; do not run the JQL search and
+do not process any other issues. Open at most one PR.
+
+The task uses the Atlassian Rovo MCP connector. If the connector is not
+attached to this subagent, return `failed | PR: — | rovo connector not
+available` — the wrapper will pick this up.
 
 CLAUDE.md is optional. Honor `## Night Shift Config` if present, otherwise apply
 the defaults from
 https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/_multi-runner.md.
 
 Return EXACTLY ONE LINE to me in this format:
-    <ok|silent|failed> | PRs: <comma-separated URLs or —> | <terse note, max 60 chars>
+    <ok|silent|failed> | PR: <url or —> | {ISSUE_KEY} — <terse note, max 60 chars>
 ```
 
-Record the result in the summary as a row with `App = —`, `Plan = work-on-jira-issues`. The wrapper-level PR body sweep already covers any PR opened by this dispatch (label-based, runs once per repo after all subagents finish), so no extra cleanup is needed here.
+Record one summary row per Jira key with `App = —`, `Plan = work-on-jira-issues <KEY>`. The wrapper-level PR body sweep covers any PRs these subagents opened.
 
 ## Final report
 Print this summary table and stop. The summary table is the primary artifact — it appears in the routines dashboard and is how the user reviews the run, alongside the PR list (`gh pr list --label night-shift`); filter by title prefix (`night-shift/plan:`, `night-shift/issue:`) to narrow to this bundle.

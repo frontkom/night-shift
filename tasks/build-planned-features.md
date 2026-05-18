@@ -1,8 +1,13 @@
 # Implement Plans
 
-Implement as many pending phases of **one** plan file as you reasonably can, bundled into a **single PR**. One PR per plan, per run. The multi-plans wrapper fans out — it dispatches one subagent per plan file, so every pending plan gets its own run and its own PR on the same night. **Never scan for or process plans beyond the one you were given.**
+Implement pending phases of **one** plan file. The multi-plans wrapper fans out — it dispatches one subagent per plan file, so every pending plan gets its own run and its own PR on the same night. **Never scan for or process plans beyond the one you were given.**
 
-**How far to go in one run.** Keep implementing pending phases sequentially until one of the following is true:
+This task runs in two modes, selected by whether the dispatcher passed you a `PHASE_INDEX`:
+
+- **Sequential mode** (`PHASE_INDEX` is `—` or absent — the default): implement as many pending phases as reasonably fit in one PR, bundled. Use this when phases build on each other.
+- **Single-phase mode** (`PHASE_INDEX` is an integer): the plan is marked `night-shift: parallel-phases` and the wrapper has dispatched you for exactly one phase. Implement only `PHASE_INDEX`. Branch from the default branch — not from any sibling phase's branch. Open exactly one PR for that phase. Do not touch other phases' scope.
+
+**How far to go in sequential mode.** Keep implementing pending phases sequentially until one of the following is true:
 - Every phase of the plan is done (you're completing the plan — include the plan deletion in this PR).
 - The next phase fails tests, build, or reveals a blocker (stop, keep the passing phases, note the blocker).
 - The next phase cannot be started without feedback from review of earlier phases (e.g. its design depends on a decision the previous phase surfaced).
@@ -10,6 +15,8 @@ Implement as many pending phases of **one** plan file as you reasonably can, bun
 - You are approaching the limits of your own context window and want to leave headroom for test runs and PR assembly.
 
 Use your judgement — the goal is the fewest PRs that still review cleanly. A two-phase plan should usually land as one PR; a ten-phase plan will likely land as two or three.
+
+**`night-shift: parallel-phases` — when to mark a plan.** Plan authors add the marker (anywhere in the file — frontmatter, an HTML comment like `<!-- night-shift: parallel-phases -->`, or a metadata bullet) when **every** pending phase can branch off the default branch independently of every other pending phase. Translation files, repetitive scaffolding, doc updates, and many lint-baseline-style sweeps qualify. Schema migrations, refactors where phase N depends on phase N-1's exports, and most feature builds do **not** qualify — omit the marker for those and the wrapper falls back to sequential mode. There is no automatic independence detection; the marker is a contract from the plan author to the wrapper.
 
 ## Read project config first
 Read `CLAUDE.md` for the **Night Shift Config** section (test command, build command, default branch, plans dir). If not present, use the defaults documented in `bundles/_multi-runner.md`.
@@ -35,7 +42,7 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
    - **Skip plans that are fully implemented.** If every phase is marked as done or implemented, exit silently.
    - **Skip plans marked as deferred, blocked, or on hold.**
 
-3. Implement pending phases sequentially, in plan order. One PR will bundle all phases you land in this run.
+3. Implement pending phases.
 
    What counts as a "phase" depends on the plan's structure:
    - **Numbered phases** (`## Phase 1`, `## Phase 2`, …).
@@ -43,9 +50,11 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
    - **Step-by-step lists** (`### Step 1`, `### Step 2`, …).
    - **Free-form milestones** (`## Milestone: …`).
 
-   Between phases, run the test command and build command (see step 8). If either fails, **stop** — keep the phases that passed, revert the failing phase's changes, record the blocker in the plan file under `## Night Shift Notes`, and proceed to open the PR with what you have.
+   **Sequential mode** (no `PHASE_INDEX`): work through pending phases in plan order, bundling them into one PR. Between phases, run the test command and build command (see step 8). If either fails, **stop** — keep the phases that passed, revert the failing phase's changes, record the blocker in the plan file under `## Night Shift Notes`, and proceed to open the PR with what you have.
 
-   The PR title and body MUST name the exact phase range landed (e.g. `phases 2–4`, or `phase 2` if only one phase fit). Never obscure the range behind a generic title.
+   **Single-phase mode** (`PHASE_INDEX` is an integer): map `PHASE_INDEX` to the 1-based pending phase in plan order and implement only that one. Branch off the default branch — never off another phase's branch. If your phase fails tests or build, do not try to "make it work" by reaching into a sibling phase's scope; revert your changes, leave a `## Night Shift Notes` entry naming the blocker, and open a `[blocked]` PR so a human can pick it up. Sibling subagents are working other phases of the same plan in parallel; touching their scope corrupts the parallel-phases contract.
+
+   The PR title and body MUST name the exact phase range landed (e.g. `phases 2–4` in sequential mode, or `phase 2` in single-phase mode). Never obscure the range behind a generic title.
 
 4. **Update the plan file.** For every phase you landed, mark it as completed in the plan file so future runs don't re-implement it. Use the plan's existing convention (checkboxes `[x]`, strikethrough, `**Status: Done**`, etc.). If no convention exists, add a line like `**Status: Implemented (YYYY-MM-DD)**` under each completed phase heading.
 
@@ -59,7 +68,10 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
    ```
    gh pr list --search "night-shift/plan in:title" --state open --json title
    ```
-   If **any** open PR already exists for this plan (and app, when scoped) — regardless of which phases it covers — exit silently. Stacking multiple open PRs for one plan creates merge-order ambiguity for the human reviewer; wait for the existing one to merge or close.
+
+   **Sequential mode:** if **any** open PR already exists for this plan (and app, when scoped) — regardless of which phases it covers — exit silently. Stacking multiple open PRs for one plan creates merge-order ambiguity for the human reviewer; wait for the existing one to merge or close.
+
+   **Single-phase mode** (parallel-phases plan): one open PR per *sibling* phase is expected — that's the whole point of the mode. Only skip if there's an open PR for **this specific `PHASE_INDEX`** (match on the title's `phase {PHASE_INDEX}` suffix). Phases that aren't yours are someone else's subagent — leave them alone.
 
 6. Create a branch:
    ```

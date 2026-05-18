@@ -1,8 +1,13 @@
 # Work on Tagged Jira Issues
 
-Pick up Jira issues labelled `night-shift` in the repo's configured Jira project and implement them as GitHub PRs. **One PR per issue, max 3 issues per run.**
+Pick up Jira issues labelled `night-shift` in the repo's configured Jira project and implement them as GitHub PRs. **One PR per Jira issue.**
 
 This task is the Jira-equivalent of `work-on-issues.md` (which handles GitHub Issues). The flow is identical except for issue discovery, commenting back, and the optional best-effort transition to "In Progress".
+
+This task runs in two modes:
+
+- **Dispatched mode** (the multi-plans wrapper passed you a specific `ISSUE_KEY` in your prompt): work on that one Jira issue only. Skip the JQL discovery search. The wrapper has already discovered tagged Jira issues and fanned out one subagent per key.
+- **Standalone mode** (no `ISSUE_KEY` in the prompt): run the JQL search yourself and process every issue it returns. There is no count cap.
 
 ## Tooling: Atlassian Rovo MCP connector
 
@@ -27,15 +32,17 @@ If the dispatcher passed `allowed_tasks` and `work-on-jira-issues` is not in it,
 
 ## Steps
 
-1. **List tagged Jira issues.** Call the Rovo **Search with JQL** tool with this JQL (substitute `<KEY>` and `<LABEL>` from `CLAUDE.md`):
+**Dispatched mode:** if `ISSUE_KEY` was supplied, skip step 1 entirely and jump to step 2 with that single key. The JQL search is the wrapper's responsibility.
+
+1. **Standalone mode only — list tagged Jira issues.** Call the Rovo **Search with JQL** tool with this JQL (substitute `<KEY>` and `<LABEL>` from `CLAUDE.md`):
 
    ```
    project = <KEY> AND labels = "<LABEL>" AND statusCategory != Done ORDER BY created ASC
    ```
 
-   Limit to the first 3 results. If zero issues come back, exit silently — this is expected. Not every repo will have tagged Jira issues every night.
+   If zero issues come back, exit silently — this is expected. Not every repo will have tagged Jira issues every night.
 
-2. For each of up to 3 issues (oldest first):
+2. For each issue (oldest first in standalone mode; the single supplied key in dispatched mode):
 
 ### Evaluate complexity
 
@@ -188,7 +195,7 @@ git checkout <default-branch>
 - **Never self-assign issues** — only work on issues explicitly tagged `night-shift` by a human.
 - **Always open a PR, never push to main** — human review is mandatory for issue-driven work.
 - **One PR per Jira issue.** Do not bundle multiple Jira issues into a single PR.
-- **Max 3 issues per run.** If more than 3 are tagged, process the 3 oldest and leave the rest for the next night.
+- **No count cap.** When the wrapper dispatches you, it has already picked one Jira key for you. When you're running standalone, work every key the JQL search returns.
 
 ## Idempotency
 

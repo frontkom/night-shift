@@ -1,12 +1,20 @@
 # Work on Tagged Issues
 
-Pick up GitHub Issues labeled `night-shift` and implement fixes/features as PRs. **One PR per issue, max 3 issues per run.**
+Pick up GitHub Issues labeled `night-shift` and implement fixes/features as PRs. **One PR per issue.**
+
+This task runs in two modes:
+
+- **Dispatched mode** (the multi-plans wrapper passed you a specific `ISSUE_NUMBER` in your prompt): work on that one issue only. Skip the discovery step. The wrapper has already discovered tagged issues and fanned out one subagent per issue.
+- **Standalone mode** (no `ISSUE_NUMBER` in the prompt): discover all tagged issues yourself and process every one of them. There is no count cap — the multi-runner enforces the `Max PRs per morning` ceiling at the wrapper level.
 
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `work-on-issues` is not in it, exit silently.
 
 ## Steps
-1. Find tagged issues:
+
+**Dispatched mode:** if `ISSUE_NUMBER` was supplied, skip step 1 entirely and jump to step 2 with that single issue. The discovery line is the wrapper's responsibility.
+
+1. **Standalone mode only.** Find tagged issues:
    ```
    gh issue list --label "night-shift" --state open --json number,title,body,labels,assignees
    ```
@@ -14,11 +22,11 @@ Read `CLAUDE.md` for **Night Shift Config**: test command, build command, defaul
 
    **Print a discovery summary line** before doing any per-issue work, so the routines dashboard shows what was found vs. what was acted on. Format (one line, comma-separated, oldest first):
    ```
-   Discovered tagged issues: #<n>, #<n>, ... (N total). Will consider oldest 3.
+   Discovered tagged issues: #<n>, #<n>, ... (N total).
    ```
    If `N == 0`, print `Discovered tagged issues: none.` and exit silently. This mirrors the plans wrapper's `Discovered plans: ... (N total)` convention and is the single best signal that discovery itself is working.
 
-2. Process up to **3 issues** per run (oldest first). For each issue:
+2. Process every discovered issue (oldest first in standalone mode; the single supplied issue in dispatched mode). For each issue:
 
 ### Skip if recently triaged
 **Before** running scope-evaluation or implementation, check if Night Shift has already commented on this issue in the last 7 days. If so, exit silently for this issue — re-posting the same skip-comment every night is noise, and a human who wants to override the skip can remove the comment or close+reopen the issue.
@@ -141,7 +149,7 @@ git checkout <default-branch>
 - **Never self-assign issues** — only work on issues explicitly tagged `night-shift` by a human.
 - **Always open a PR, never push to main** — human review is mandatory for issue-driven work.
 - **One PR per issue.** Do not bundle multiple issues into a single PR.
-- **Max 3 issues per run.** If more than 3 are tagged, process the 3 oldest and leave the rest for the next night.
+- **No count cap.** When the wrapper dispatches you, it has already picked one issue for you. When you're running standalone, work every discovered tagged issue.
 
 ## Idempotency
 - If no issues are labeled `night-shift`, exit silently.
