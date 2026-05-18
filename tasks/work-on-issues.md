@@ -28,20 +28,41 @@ Read `CLAUDE.md` for **Night Shift Config**: test command, build command, defaul
 
 2. Process every discovered issue (oldest first in standalone mode; the single supplied issue in dispatched mode). For each issue:
 
-### Skip if recently triaged
-**Before** running scope-evaluation or implementation, check if Night Shift has already commented on this issue in the last 7 days. If so, exit silently for this issue — re-posting the same skip-comment every night is noise, and a human who wants to override the skip can remove the comment or close+reopen the issue.
+### Skip if the latest comment is already a Night Shift comment
+**Before** running scope-evaluation or implementation, check whether the **most recent** comment on the issue starts with `Night Shift`. If it does, exit silently for this issue — the previous Night Shift run has already said what it needs to say, and there is no fresh human signal to react to.
 
 ```bash
-SEVEN_DAYS_AGO=$(date -u -v-7d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)
-RECENT_NS_COMMENTS=$(gh issue view <number> --json comments --jq \
-  "[.comments[] | select(.body | startswith(\"Night Shift\")) | select(.createdAt > \"$SEVEN_DAYS_AGO\")] | length")
-if [ "${RECENT_NS_COMMENTS:-0}" -gt 0 ]; then
-  # Already triaged within the last 7 days — silent skip.
+LATEST_NS=$(gh issue view <number> --json comments \
+  --jq '.comments | sort_by(.createdAt) | last | .body // "" | startswith("Night Shift")')
+if [ "$LATEST_NS" = "true" ]; then
+  # Last word on this issue is mine — silent skip. A human can override by
+  # commenting / editing / removing comments.
   continue
 fi
 ```
 
-If a Night Shift PR for this issue is already open (the next check covers that), this guard is moot — but it also catches issues that were skipped as too-complex or as failed-verification on a previous night, preventing duplicate skip-comments.
+Why latest-comment instead of a date window: with one subagent per issue (the multi-plans wrapper's fan-out), parallel subagents would both pass a "no comment in last 7 days" check and double-post on the same fire. Latest-comment is atomic; the only way two subagents on the same issue conflict is if the wrapper dispatched two — which it doesn't (discovery returns each issue number exactly once).
+
+A human who wants Night Shift to re-evaluate just adds any comment (asking a question, pointing at new info, or simply `please retry`) — that becomes the new latest comment and Night Shift will pick the issue up on the next run.
+
+### Close if the work is already done
+**Before** evaluating complexity or attempting an implementation, check whether the work described in the issue is **already in place** — the feature already exists in the codebase, the bug has been fixed in a prior PR, or the migration has already shipped. This is the most common "stuck open forever" failure mode: the issue was filed, someone fixed it in a side PR without linking it, and the issue lingers as backlog noise.
+
+How to check: read the issue body, identify the specific symbol / file / behaviour it asks for, then look in the current `main` checkout for whether that thing exists. Examples of "already done" signals:
+
+- The acceptance criterion ("function `foo` should accept `bar`") matches the current code.
+- A recently-merged PR (`gh pr list --search "<keyword> is:merged" --state merged --limit 5`) describes the same work.
+- The issue references a migration / endpoint / component that the codebase now contains.
+
+If the work is already done, **close the issue as completed** with a comment linking to where the work lives:
+
+```
+gh issue close <number> --reason completed --comment "Night Shift reviewed this issue and the described work is already in place. <Specific pointer: file path, PR number, or commit SHA showing where it landed.> Closing as completed. Reopen if anything in the acceptance criteria is still missing."
+```
+
+Then move to the next issue. **Do not** open a PR. **Do not** post a freestanding comment that explains "this is already done" without also closing — leaving such a comment without the close is exactly what created the open-issue backlog this step exists to drain.
+
+If you are not confident the work is fully done (only part of the acceptance criteria is in place, or you can't find a clean pointer), do **not** close. Fall through to "Evaluate complexity" and treat it like a normal issue.
 
 ### Evaluate complexity
 Read the issue body to understand what's needed. **Skip if too complex:** if the issue appears to require changes across more than ~5 files or involves major architectural changes, comment on the issue explaining why it was skipped and move to the next issue:

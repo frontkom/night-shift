@@ -44,6 +44,32 @@ If the dispatcher passed `allowed_tasks` and `work-on-jira-issues` is not in it,
 
 2. For each issue (oldest first in standalone mode; the single supplied key in dispatched mode):
 
+### Skip if the latest Jira comment is already a Night Shift comment
+
+**Before** evaluating complexity or attempting an implementation, fetch the issue's comments via the Rovo `Get issue` tool (or whatever the connector exposes for comment retrieval). If the **most recent** comment's body starts with `Night Shift`, skip this issue silently — the previous run already left its word, and there is no fresh human signal to react to. A human who wants Night Shift to re-evaluate just adds any comment of their own and the next run will pick the issue up again.
+
+This is intentionally stricter than a date window. With one subagent per Jira key (the multi-plans wrapper's fan-out), parallel subagents would both pass a "no comment in the last N days" check and double-post on the same fire. Latest-comment-is-mine is atomic and safe under fan-out.
+
+### Transition to Done if the work is already done
+
+**Before** evaluating complexity or attempting an implementation, check whether the work described in the Jira issue is **already in place** in the GitHub repo — the feature exists, the bug is fixed in a prior PR, or the migration has shipped. This is the most common "stuck open forever" failure mode in Jira: an engineer fixed something in a side PR without updating the linked Jira issue, and the issue lingers as backlog.
+
+How to check: read the issue's summary + description, identify the specific symbol / file / behaviour it asks for, then look in the current `main` checkout for whether that thing exists. Examples of "already done" signals:
+
+- The acceptance criterion matches the current code.
+- A recently-merged PR (`gh pr list --search "<keyword> is:merged" --state merged --limit 5`) describes the same work.
+- The issue references a migration / endpoint / component that the codebase now contains.
+
+If the work is already done:
+
+1. Call the Rovo **Add comment** tool with body:
+   > `Night Shift reviewed this issue and the described work is already in place. <Specific pointer: file path, PR URL, or commit SHA.> Transitioning to Done. Reopen if anything in the acceptance criteria is still missing.`
+2. Call the Rovo **Get transitions** tool, find the first transition whose target status sits in Jira's `done` status category, and call **Transition issue** with that transition id. Swallow all errors except a clean success — the comment has already landed, so even if the transition fails the human reviewer can move it manually.
+
+Then move to the next issue. **Do not** open a PR. **Do not** post a freestanding "already done" comment without also transitioning — the comment-without-transition is exactly what created the open-issue backlog this step exists to drain.
+
+If you are not confident the work is fully done (only part of the acceptance criteria is in place, or you can't find a clean pointer), do **not** transition. Fall through to "Evaluate complexity" and treat it like a normal issue.
+
 ### Evaluate complexity
 
 Read the issue's `summary` and `description`. **Skip if too complex:** if the fix requires changes across more than ~5 files or involves major architectural changes, comment on the issue explaining why, then move on:
