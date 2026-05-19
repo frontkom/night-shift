@@ -58,12 +58,6 @@ bundles:
     schedule_hint: weekly
     parallelism: independent
     stop_on_failure: false
-  triage-ci:
-    title: Triage CI failures on open Night Shift PRs
-    description: Comments on each failed/cancelled check explaining whether it's caused by the PR's diff, and re-runs cancellations + clearly-unrelated flakes.
-    schedule_hint: nightly
-    parallelism: independent
-    stop_on_failure: false
   shopify:
     title: Shopify-specific automation
     description: "Vendor-update cherry-picks (Horizon/Dawn/Skeleton releases) and pre-flight migration-risk audits. Opt-in for Shopify projects only — set `bundles: [shopify]` in CLAUDE.md Night Shift Config."
@@ -237,14 +231,6 @@ tasks:
     order: 6
     scope: repo
     needs: [test, build]
-
-  - id: triage-ci-failures
-    title: Triage CI failures
-    description: For every open `night-shift` PR, comments on each failed or cancelled check explaining whether the failure is caused by the PR's diff, and re-runs cancellations + unrelated flakes. Does not open new PRs.
-    bundle: triage-ci
-    mode: direct-to-main
-    order: 1
-    scope: repo
 
   - id: shopify-cherry-pick-vendor-update
     title: Cherry-pick vendor theme update (Shopify)

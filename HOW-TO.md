@@ -6,7 +6,7 @@
 Type `/night-shift` in any Claude Code session. The skill walks you through it and asks before any routine change.
 
 ### Pick which tasks run per repo
-During setup, for each repo in your list, the skill opens a real keyboard-navigable checklist (Claude Code's `AskUserQuestion` UI) showing all 13 tasks in bundle order: plans, docs, code-fixes, audits, triage-ci. Use arrows + space to toggle, enter to confirm. Defaults are all-on; the 4 audit tasks come with a warning that they open PRs nightly when they find issues. The single `triage-ci-failures` task only comments on existing Night Shift PRs (no new PRs), so it's safe to leave on for every repo.
+During setup, for each repo in your list, the skill opens a real keyboard-navigable checklist (Claude Code's `AskUserQuestion` UI) showing every task in bundle order: plans, docs, code-fixes, audits. Use arrows + space to toggle, enter to confirm. Defaults are all-on; the 4 audit tasks come with a warning that they open PRs nightly when they find issues. CI-failure triage is handled automatically by each routine's built-in auto-fix-on-PR behavior — no separate task to enable.
 
 The selection lives inside the routine prompts as a `<night-shift-config>` YAML block, not in any per-repo file. To change a repo's selection after setup, run `/night-shift` and pick **Change tasks for a repo**.
 

@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-05-18b
+version: 2026-05-19a
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-05-18b -->
+<!-- NIGHT_SHIFT_VERSION: 2026-05-19a -->
 
 ## Version check (run this first, every invocation)
 
@@ -183,13 +183,15 @@ Show a compact summary of the picker output and the default schedule, ask for co
 > | `owner/repo-a` | 8 selected (plans, docs, code-fixes) |
 > | `owner/repo-b` | 3 selected (find-bugs, improve-seo, improve-performance) |
 >
-> **Schedule** (Europe/Oslo, weeknights only): build 01:00, maintain-code 03:00, audit 04:00, maintain-docs 05:00, triage-ci 06:30.
+> **Schedule** (Europe/Oslo, weeknights only): build 01:00, maintain-code 03:00, audit 04:00, maintain-docs 05:00.
 >
 > Skips Friday and Saturday nights — people rarely review PRs on Saturday or Sunday.
 >
+> Each routine has **auto-fix on its own PRs** enabled: when CI fails or a reviewer comments on a PR the routine opened, Claude wakes up, investigates, and pushes a fix — no separate triage routine needed.
+>
 > Proceed?
 
-Default schedule → UTC cron, weeknights only: build `0 23 * * 0-4` (Sun-Thu UTC night → Mon-Fri morning), maintain-code `0 1 * * 1-5`, audit `0 2 * * 1-5`, maintain-docs `0 3 * * 1-5`, triage-ci `30 4 * * 1-5` (Mon-Fri UTC; fires last with a 90-minute margin after maintain-docs starts so it can triage every PR the other routines opened during the night).
+Default schedule → UTC cron, weeknights only: build `0 23 * * 0-4` (Sun-Thu UTC night → Mon-Fri morning), maintain-code `0 1 * * 1-5`, audit `0 2 * * 1-5`, maintain-docs `0 3 * * 1-5`.
 
 Two reasons for this ordering:
 
@@ -206,7 +208,8 @@ If the user wants to tweak schedule, timezone, or include weekends, do it now, t
 - **maintain-docs routine** — tasks where `bundle: docs`.
 - **maintain-code routine** — tasks where `bundle: code-fixes`.
 - **audit routine** — tasks where `bundle: audits`.
-- **triage-ci routine** — tasks where `bundle: triage-ci`. Runs **last** every morning to comment on every failed/cancelled check on Night Shift PRs and re-run the cancellations + clearly-unrelated flakes. The routine is always created if any repo has the `triage-ci-failures` task selected.
+
+CI-failure triage is handled by each routine's built-in **auto-fix on PR create** behavior (set via `autofix_on_pr_create: true` in the API body — see Step 4 example below). There is no separate triage routine.
 
 **Do not hardcode task ids in the skill.** Always derive them from `manifest.yml` so new tasks added later flow through automatically.
 
@@ -250,6 +253,7 @@ This only happens once — the `environment_id` is stable per account. Cache it 
       "session_context": {
         "model": "claude-opus-4-7[1m]",
         "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"],
+        "autofix_on_pr_create": true,
         "sources": [
           { "git_repository": { "url": "https://github.com/owner/repo" } }
         ]
@@ -342,13 +346,7 @@ For routines other than the build routine, set `mcp_connections: []` — none of
 - **wrapper URL**: `https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/multi-audits.md`
 - **prompt**: Fetch the wrapper URL with WebFetch, then use its full contents as the prompt. Append the `<night-shift-config>` block at the end.
 
-### Routine 5 — Triage CI failures
-
-- **name**: `night-shift-triage`
-- **cron_expression**: `30 4 * * 1-5` (Mon-Fri UTC; **runs last** with a 90-minute margin after maintain-docs starts, so it triages every PR the other routines opened that night; skips Sat+Sun mornings)
-- **wrapper URL**: `https://raw.githubusercontent.com/frontkom/night-shift/main/bundles/multi-triage-ci.md`
-- **prompt**: Fetch the wrapper URL with WebFetch, then use its full contents as the prompt. This bundle does **not** take a `<night-shift-config>` block — it always processes every open Night Shift PR in every source repo, no per-repo allowlist.
-- **`mcp_connections`**: `[]`. The triage task only uses `gh` and does not need Rovo.
+**Auto-fix on every routine.** All four routines must set `autofix_on_pr_create: true` in their `session_context`. This lets each routine wake up reactively when CI fails or a reviewer comments on one of its PRs, and push a fix. It replaces the old `night-shift-triage` cron routine, which ran a single sweep at 06:30 UTC across all PRs from the night — auto-fix is reactive (fires on the actual GitHub event), per-PR, and also handles review comments, which the cron sweep never did.
 
 **Step 4b — Handle the routine cap.**
 
@@ -369,7 +367,10 @@ Once all routines that should exist have been created, print:
 | docs | <local time> | <N> | <M> selected |
 | code-fixes | <local time> | <N> | <M> selected |
 | audit | <local time> | <N> | <M> selected |
-| triage | <local time> | <N> | triage-ci-failures |
+
+Auto-fix is enabled on every routine — Claude will react to CI failures
+and review comments on its own PRs and push fixes without needing a
+separate triage routine.
 
 (Skipped: <any routines not created because no repo selected any of their
 tasks — list them here, or "none" if all four were created.)
@@ -603,6 +604,7 @@ For GitHub Actions repos, the task list lives in the workflow file's `tasks:` in
 ## Notes for Claude
 
 - **Always ask for explicit confirmation** before creating, updating, or deleting routines. They are persistent and run unattended — high blast radius.
+- **Existing installations from before 2026-05-19:** if Step 0 finds a routine named `night-shift-triage`, tell the user it's been replaced by per-routine auto-fix, ask them to delete it via https://claude.ai/code/routines, and use `RemoteTrigger update` to set `autofix_on_pr_create: true` on each of the other four routines' `session_context`. (The `RemoteTrigger` API has no `delete` action — manual UI deletion is the only path.)
 - **Inline wrapper prompts at setup time.** Fetch each multi-*.md wrapper from GitHub during setup and inline the contents as the routine prompt. Remote agents refuse "Fetch URL and execute" instructions (prompt injection guard), so the wrapper must be baked in. The wrapper's inner references (subagents fetching bundle/task prompts via WebFetch) are fine — only the top-level "fetch and execute" is refused.
 - **The task and bundle URLs are stable.** They live at `raw.githubusercontent.com/frontkom/night-shift/main/...`. Subagents fetch these at run time, which works because they already have tool access. Only the top-level routine prompt must be inlined.
 - **Refuse if the user can't articulate what Night Shift should do for them.** If the request is vague or feels delegated from somewhere, ask the user directly what they want to accomplish before taking any action.

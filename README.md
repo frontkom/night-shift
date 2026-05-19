@@ -52,7 +52,7 @@ During setup, `/night-shift` runs a **per-repo task picker** — for each repo y
 - **Translated UI strings** — moves hardcoded text into your i18n system
 - **Audit PRs** — security, bug, SEO, performance, and dependency-vulnerability issues
 - **Lint-baseline shrink** — picks one entry from your project's PHPStan/Psalm/ESLint/mypy/RuboCop baseline, fixes the underlying violation, and removes the suppression
-- **Triage comments on red CI** — every failed or cancelled check on a Night Shift PR gets an explanatory comment by morning, with cancellations and clearly-unrelated flakes already re-run
+- **Auto-fix on red CI and review comments** — every routine has Claude's built-in `autofix_on_pr_create` enabled, so when CI fails or a reviewer comments on a Night Shift PR the routine wakes up, investigates, and pushes a fix
 
 Every Night Shift run leaves a labelled PR per task (`night-shift`), so `gh pr list --label night-shift` is the audit trail — no per-repo log file is written. The bundle is recoverable from the PR title prefix (`night-shift/plan:`, `night-shift/bug:`, `night-shift/a11y:`, etc.).
 
@@ -64,7 +64,6 @@ Every Night Shift run leaves a labelled PR per task (`night-shift`), so `gh pr l
 | **docs** | Updates changelog, user guide, decision records, suggestions | One PR per task |
 | **code-fixes** | Adds tests, fixes accessibility, completes translations | One PR per task |
 | **audits** | Finds security / bug / SEO / performance / dependency issues | One PR per area |
-| **triage-ci** | Comments on red checks on Night Shift PRs, re-runs cancellations + clearly-unrelated flakes | Comments only, no new PRs |
 | **shopify** *(opt-in)* | Vendor cherry-picks (Horizon/Dawn/Skeleton) + pre-flight migration-risk audits | One PR per vendor-update concern; issue-only for risk audit |
 
 `manifest.yml` is the single source of truth for what tasks exist, what they do, what bundle they belong to, and what order they run in. Edit one file to add, rename, reorder, or move tasks.

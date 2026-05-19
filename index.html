@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Night Shift — while you sleep, an AI agent works across your repositories</title>
-<meta name="description" content="Night Shift schedules nightly maintenance across your repositories. Plans, docs, tests, accessibility, translations, audit PRs, and morning triage comments on red CI — waiting for you in the morning." />
+<meta name="description" content="Night Shift schedules nightly maintenance across your repositories. Plans, docs, tests, accessibility, translations, and audit PRs — with auto-fix that reacts to red CI and reviewer comments on every Night Shift PR." />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f0a23'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%235dc6c0' stroke-width='1.5'/%3E%3Cpath d='M16 9 v7 l5 3' fill='none' stroke='%23e87964' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
 
 <meta property="og:title" content="Night Shift — autonomous overnight work for your repositories" />
@@ -303,7 +303,6 @@
   .bundle.b-docs { --bar: var(--teal); }
   .bundle.b-fixes { --bar: var(--sun); }
   .bundle.b-audits { --bar: #c69ed3; }
-  .bundle.b-triage { --bar: #8fbf6e; }
 
   /* backends */
   .grid-backends {
@@ -565,15 +564,8 @@
           <li>improve-performance</li>
         </ul>
       </article>
-      <article class="bundle b-triage">
-        <span class="name">triage-ci</span>
-        <h3>Explain every red check</h3>
-        <p>Comments on each failed or cancelled check on Night Shift PRs. Re-runs cancellations and clearly-unrelated flakes; leaves real failures for a human.</p>
-        <ul>
-          <li>triage-ci-failures</li>
-        </ul>
-      </article>
     </div>
+    <p class="section-lede" style="margin-top: 24px;">Each routine also has Claude's <strong>auto-fix on PR create</strong> behavior turned on — when CI fails or a reviewer comments on a Night Shift PR, Claude wakes up, investigates, and pushes a fix. No separate triage routine needed.</p>
   </div>
 </section>
 
@@ -590,7 +582,7 @@
         <p>Runs on your Claude account via Claude Code routines. Perfect for personal projects and small teams.</p>
         <ul>
           <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Included with your Claude subscription — no API key needed</li>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Five routines: build, code-fixes, audits, docs, triage</li>
+          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Four routines: build, code-fixes, audits, docs — each with auto-fix on its own PRs</li>
           <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Default schedule fires on weeknights only — quiet weekends</li>
           <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Atlassian Rovo for optional Jira pickup</li>
         </ul>

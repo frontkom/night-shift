@@ -565,7 +565,6 @@ NS_DURATION=$((NS_RUN_END_EPOCH - NS_RUN_START_EPOCH))
 #   multi-docs.md        → NS_BUNDLE=docs
 #   multi-code-fixes.md  → NS_BUNDLE=code-fixes
 #   multi-audits.md      → NS_BUNDLE=audits
-#   multi-triage-ci.md   → NS_BUNDLE=triage-ci
 
 # NS_DASHBOARD_REPO defaults to "perandre/ns" (the GitHub Pages host).
 # Override per-routine by exporting it before the wrapper runs.
@@ -633,7 +632,7 @@ If `gh api` fails on every retry (no network, no auth, repo gone), log a one-lin
 ### What lives where
 
 - `duration_seconds` is the **wall-clock of the multi-runner**, end-to-end (start of step 1 → after summary is printed in step 2). Same value attributed to every processed repo in this fire. Subagent fan-out runs in parallel inside that window, so per-repo time is a sum-of-attribution, not a divided slice — that matches the wall-display intent ("Night Shift worked on this project tonight for X minutes").
-- `bundle` names match the keys in `manifest.yml > bundles:` (`plans`, `docs`, `code-fixes`, `audits`, `triage-ci`). Multi-runner wrappers each set exactly one.
+- `bundle` names match the keys in `manifest.yml > bundles:` (`plans`, `docs`, `code-fixes`, `audits`). Multi-runner wrappers each set exactly one.
 - `backend: "routine"` distinguishes routine fires from GitHub Actions runs (`backend: "github-actions"`).
 - `model` is hard-coded to `claude-opus-4-7` because the routine API does not echo the model selection back to the prompt; if you wire it through, override.
 
