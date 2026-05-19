@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-05-19a
+version: 2026-05-19b
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-05-19a -->
+<!-- NIGHT_SHIFT_VERSION: 2026-05-19b -->
 
 ## Version check (run this first, every invocation)
 
@@ -280,6 +280,8 @@ This only happens once — the `environment_id` is stable per account. Cache it 
 
 Generate a fresh UUID for each routine's `events[0].data.uuid` using `python3 -c "import uuid; print(uuid.uuid4())"`.
 
+**`RemoteTrigger update` is NOT a deep partial update.** It shallow-merges top-level fields (`enabled`, `cron_expression`, `mcp_connections`, etc.) but **replaces `job_config.ccr` wholesale**. If you send `{job_config: {ccr: {session_context: {autofix_on_pr_create: true}}}}` thinking you're only changing one nested field, you will (1) get rejected with `ccr.environment_id missing` and, after re-adding `environment_id`, (2) silently lose `events` — i.e. the wrapper prompt that defines what the routine does. Every `update` call that touches anything inside `ccr` must include the **complete** `ccr` block: `environment_id`, `events` (with the full inlined wrapper prompt), and the **full** `session_context` with every key you want preserved (`allowed_tools`, `model`, `sources`, `autofix_on_pr_create`). The canonical recipe is **GET → modify in memory → PUT the full ccr** — never construct a delta.
+
 **Jira preflight — runs once when any repo's selection includes `work-on-jira-issues`.** Walk the user through this preflight before creating any routines. It has four checks; each gates on the previous one. Stop and instruct the user the moment any check fails — never proceed with a half-configured routine.
 
 **Check 1: Is Rovo connected at the account level?** Run:
@@ -452,7 +454,7 @@ Steps, for each of the four routines in turn:
 3. Parse the YAML, apply the change (add key, remove key, replace value), re-serialise.
 4. Splice the new YAML back between the delimiters, preserving everything else in the prompt.
 5. Update `sources[]` to match the union of `repos:` keys.
-6. Write back via `RemoteTrigger` (`action: "update"`).
+6. Write back via `RemoteTrigger` (`action: "update"`). **Send the full `job_config.ccr` block** — `environment_id`, `events` (with the modified prompt), and the **full** `session_context` (every key from the GET response). `update` replaces `ccr` wholesale; a slim body silently drops whatever you omitted. See the gotcha note under Step 4's API body section.
 
 If merging produces an empty `repos:` map for a routine, **delete that routine** (not just update it). If a merge would re-populate a routine that was previously deleted, **re-create it** using the Step 4 template from the Setup runbook.
 
