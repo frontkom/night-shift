@@ -5,6 +5,21 @@ Update the project's changelog if there are new user-facing changes since the la
 ## Read project config first
 Read `CLAUDE.md` for the **Night Shift Config** section: doc language, changelog format, push protocol. If the dispatcher passed `allowed_tasks` and `update-changelog` is not in it, exit silently.
 
+## Pre-flight: don't stack PRs
+
+Before scanning commits, check whether an open Night Shift changelog PR already exists for this repo (or app, when scoped):
+
+```bash
+gh pr list --search "night-shift/changelog in:title" --state open
+```
+
+If one exists for the same scope (repo or app), **exit silently** — do not stack a second changelog PR on top. The existing PR will be picked up in the next morning's triage; another one just adds noise. Resume normal behaviour once the open PR is merged or closed.
+
+## Language
+
+- **PR title, body, and commit messages are written in English** so anyone in the company can review them, regardless of which project they touched.
+- **Changelog entries written into `CHANGELOG.md` (or `<app_path>/CHANGELOG.md`)** stay in the project's configured `Doc language:` — that file is end-user-facing.
+
 **Scoping.** If the dispatching multi-runner passes an `app_path` (non-empty, not `—`):
 - Prefer a per-app changelog at `<app_path>/CHANGELOG.md`. Create it if missing.
 - If the app has no changelog but the repo root does (`CHANGELOG.md` or `docs/CHANGELOG.md`), write to the repo-root changelog **and** prefix each entry with the app name so readers know which app changed (`- (web) Added …`).
