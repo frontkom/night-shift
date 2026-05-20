@@ -212,6 +212,16 @@ tasks:
     scope: app
     needs: [test, build]
 
+  - id: act-on-lhci-artifact
+    title: Act on Lighthouse CI artifact (measured findings)
+    description: Reads the latest Lighthouse CI artifact (per `docs/lighthouse-ci-vercel.md`), identifies one concrete budget violation or failed audit, and opens a PR with a targeted fix. Complements improve-performance — that task is heuristic (agent reads source), this one is data-driven (real Lighthouse measurements from preview deploys).
+    bundle: audits
+    mode: pull-request
+    slug: lhci-fix
+    order: 4.5
+    scope: app
+    needs: [test, build]
+
   - id: dep-audit
     title: Audit dependencies
     description: Runs the ecosystem's dependency audit (composer audit, npm audit, pip-audit, cargo audit, bundle audit, govulncheck) and opens a PR pinning known-vulnerable transitive deps to safe versions.
