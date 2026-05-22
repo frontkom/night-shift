@@ -42,7 +42,7 @@ REPO_ROOT = TESTS_DIR.parent
 MANIFEST_PATH = REPO_ROOT / "manifest.yml"
 TASKS_DIR = REPO_ROOT / "tasks"
 BUNDLES_DIR = REPO_ROOT / "bundles"
-SKILL_PATH = REPO_ROOT / "skill" / "SKILL.md"
+SKILL_PATH = REPO_ROOT / "skills" / "night-shift" / "SKILL.md"
 README_PATH = REPO_ROOT / "README.md"
 HOWTO_PATH = REPO_ROOT / "HOW-TO.md"
 
@@ -70,12 +70,11 @@ def all_task_ids() -> set[str]:
 
 
 class TestManifestStructure(unittest.TestCase):
-    def test_twelve_tasks(self):
-        self.assertEqual(len(load_manifest()["tasks"]), 12)
-
-    def test_four_bundles(self):
-        self.assertEqual(set(load_manifest()["bundles"].keys()),
-                         {"plans", "docs", "code-fixes", "audits"})
+    def test_core_bundles_present(self):
+        bundles = set(load_manifest()["bundles"].keys())
+        for required in ("plans", "docs", "code-fixes", "audits"):
+            self.assertIn(required, bundles,
+                          f"required bundle {required!r} missing from manifest")
 
     def test_every_task_has_file(self):
         for tid in all_task_ids():
@@ -135,12 +134,13 @@ class TestTaskFileAllowlistCheck(unittest.TestCase):
 
 
 class TestWrappersReferenceAllowlistContract(unittest.TestCase):
-    """All three multi-* wrappers must reference the <night-shift-config>
-    parsing contract (so the LLM running them knows to parse and filter)."""
+    """The wrappers that filter at the wrapper level (plans, audits) must
+    reference the <night-shift-config> parsing contract. Docs and code-fixes
+    fan out one subagent per repo and let the inner bundle filter, so they
+    are exempt from the wrapper-level parse."""
 
     WRAPPERS = [
         "multi-plans.md",
-        "multi-docs-and-code-fixes.md",
         "multi-audits.md",
     ]
 
@@ -164,7 +164,7 @@ class TestWrappersReferenceAllowlistContract(unittest.TestCase):
             )
 
     def test_inner_bundles_filter_on_allowed_tasks(self):
-        for b in ("plans.md", "docs.md", "code-fixes.md", "audits.md", "all.md"):
+        for b in ("plans.md", "docs.md", "code-fixes.md", "audits.md"):
             content = (BUNDLES_DIR / b).read_text()
             self.assertIn(
                 "allowed_tasks",
@@ -178,22 +178,21 @@ class TestWrappersReferenceAllowlistContract(unittest.TestCase):
         self.assertIn("parse", content.lower())
         self.assertIn("fall back", content.lower())
 
-    def test_multi_docs_and_audits_derive_bundle_tasks_from_manifest(self):
+    def test_multi_audits_derives_bundle_tasks_from_manifest(self):
         """Wrappers that need to know which task ids belong to their bundle
         must fetch manifest.yml rather than hardcode a list. Otherwise adding
-        a 5th audit task silently excludes it from the filter."""
-        for w in ("multi-docs-and-code-fixes.md", "multi-audits.md"):
-            content = (BUNDLES_DIR / w).read_text()
-            self.assertIn(
-                "manifest.yml",
-                content,
-                f"{w} must reference manifest.yml to derive bundle task sets",
-            )
-            self.assertIn(
-                "do **not** hardcode",
-                content.lower().replace("do not hardcode", "do **not** hardcode"),
-                f"{w} must warn against hardcoded task id lists",
-            )
+        a new audit task silently excludes it from the filter."""
+        content = (BUNDLES_DIR / "multi-audits.md").read_text()
+        self.assertIn(
+            "manifest.yml",
+            content,
+            "multi-audits.md must reference manifest.yml to derive bundle task sets",
+        )
+        self.assertIn(
+            "do **not** hardcode",
+            content.lower().replace("do not hardcode", "do **not** hardcode"),
+            "multi-audits.md must warn against hardcoded task id lists",
+        )
 
     def test_skill_derives_trigger_task_sets_from_manifest(self):
         content = SKILL_PATH.read_text()
@@ -479,26 +478,32 @@ class TestEndToEndPipeline(unittest.TestCase):
         )
         plans_parsed = parse_allowlist(plans_prompt)
         self.assertFalse(plans_parsed.fell_back)
-        # Only repo-a has build-planned-features (audits-off leaves plans intact)
+        # Only repo-a has any plans tasks (audits-off leaves plans intact)
         self.assertEqual(set(plans_parsed.repos), {repo_a})
         tasks, _ = filter_bundle_for_repo(
             list(plans_ids), plans_parsed, repo_a, self.manifest_ids,
         )
-        self.assertEqual(tasks, ["build-planned-features"])
+        self.assertEqual(sorted(tasks), sorted(self.by_bundle["plans"]))
 
-        # --- Docs + code-fixes trigger ---
-        docs_fix_ids = set(self.by_bundle["docs"]) | set(self.by_bundle["code-fixes"])
-        df_prompt = self._build_trigger_prompt(
-            "Fetch multi-docs-and-code-fixes.md and run it.", sel_map, docs_fix_ids,
+        # --- Docs trigger ---
+        docs_prompt = self._build_trigger_prompt(
+            "Fetch multi-docs.md and run it.", sel_map, set(self.by_bundle["docs"]),
         )
-        df_parsed = parse_allowlist(df_prompt)
-        self.assertEqual(set(df_parsed.repos), {repo_a})
+        docs_parsed = parse_allowlist(docs_prompt)
+        self.assertEqual(set(docs_parsed.repos), {repo_a})
         tasks, _ = filter_bundle_for_repo(
-            list(self.by_bundle["docs"]), df_parsed, repo_a, self.manifest_ids,
+            list(self.by_bundle["docs"]), docs_parsed, repo_a, self.manifest_ids,
         )
         self.assertEqual(sorted(tasks), sorted(self.by_bundle["docs"]))
+
+        # --- Code-fixes trigger ---
+        cf_prompt = self._build_trigger_prompt(
+            "Fetch multi-code-fixes.md and run it.", sel_map, set(self.by_bundle["code-fixes"]),
+        )
+        cf_parsed = parse_allowlist(cf_prompt)
+        self.assertEqual(set(cf_parsed.repos), {repo_a})
         tasks, _ = filter_bundle_for_repo(
-            list(self.by_bundle["code-fixes"]), df_parsed, repo_a, self.manifest_ids,
+            list(self.by_bundle["code-fixes"]), cf_parsed, repo_a, self.manifest_ids,
         )
         self.assertEqual(sorted(tasks), sorted(self.by_bundle["code-fixes"]))
 

@@ -5,7 +5,7 @@ Document genuinely significant architectural decisions. **The bar is high, and t
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: doc language, push protocol. If the dispatcher passed `allowed_tasks` and `document-decisions` is not in it, exit silently.
 
-**Scoping.** This task is `scope: repo` in `manifest.yml`. ADRs describe repo-wide architectural choices, so even in a monorepo with `apps:` configured, this task runs **once per repo**, not once per app. Ignore any `app_path` passed by the multi-runner — the multi-docs-and-code-fixes wrapper will only dispatch this task during the first work-item of a repo.
+**Scoping.** This task is `scope: repo` in `manifest.yml`. ADRs describe repo-wide architectural choices, so even in a monorepo with `apps:` configured, this task runs **once per repo**, not once per app. Ignore any `app_path` passed by the multi-runner — the docs wrapper will only dispatch this task during the first work-item of a repo.
 
 ## High bar — most nights should produce zero ADRs
 

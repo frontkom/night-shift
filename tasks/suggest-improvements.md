@@ -8,7 +8,7 @@ Read `CLAUDE.md` for **Night Shift Config**: doc language, push protocol. If the
 ## High bar — default is silent
 Only write a suggestion if you are confident it would clearly help the project. A mediocre suggestion wastes the client's reading time and dilutes the list. One strong suggestion beats three weak ones. **Zero new suggestions is a correct outcome on most nights** — do not pad to hit a number.
 
-**Scoping.** This task is `scope: repo` in `manifest.yml`. Suggestions span the whole product, so even in a monorepo with `apps:` configured, this task runs **once per repo**, not once per app. Ignore any `app_path` passed by the multi-runner — the multi-docs-and-code-fixes wrapper will only dispatch this task during the first work-item of a repo.
+**Scoping.** This task is `scope: repo` in `manifest.yml`. Suggestions span the whole product, so even in a monorepo with `apps:` configured, this task runs **once per repo**, not once per app. Ignore any `app_path` passed by the multi-runner — the docs wrapper will only dispatch this task during the first work-item of a repo.
 
 ## One mode per run — never mix housekeeping with net-new
 Each run of this task does **exactly one** of the following, never both in the same PR:

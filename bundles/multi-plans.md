@@ -2,16 +2,11 @@
 
 You are running the Night Shift **Plans** bundle across **all target repositories** cloned into this session.
 
-**Before doing anything else**, capture the wall-dashboard start time and print a single status line so the user sees immediate output:
+**Before doing anything else**, print a single status line so the user sees immediate output:
 
-```bash
-NS_RUN_START_EPOCH=$(date +%s)
-NS_RUN_START_TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-NS_BUNDLE=plans
-echo "Night Shift plans bundle starting (multi-repo)..."
 ```
-
-Hold `NS_RUN_START_EPOCH`, `NS_RUN_START_TS`, `NS_BUNDLE`, and an `NS_PROCESSED=()` bash array (filled as you build the summary table) in shell state. They feed the wall-dashboard logging step at the very end. See `bundles/_multi-runner.md` → **Wall-dashboard logging** for the protocol.
+Night Shift plans bundle starting (multi-repo)...
+```
 
 ## Parse the per-repo allowlist first
 
@@ -240,9 +235,3 @@ Night Shift plans — multi-repo summary
 One row per (repo, app, plan). `App` is `—` for single-app repos. `Plan` is `—` when the app-scope had no plan files (the row will be `silent`). `Plan` is `work-on-issues` for the issues dispatch. A repo excluded from the allowlist produces one row with `App = —`, `Plan = —`, `Status = not-selected`.
 
 Include any `allowlist: …` or `allowlist warning: …` lines from the parsing step as bullet points beneath the table so the user sees them on the routines dashboard.
-
-## Wall-dashboard logging (last action)
-
-After printing the summary table, append one JSONL event per processed repo to `dashboard/runs.jsonl` in the dashboard host repo. Follow the exact protocol in `bundles/_multi-runner.md` → **Wall-dashboard logging** → Step 2.
-
-Recap of what to do here, no prose: use `NS_RUN_START_EPOCH`, `NS_BUNDLE=plans`, and the `NS_PROCESSED` array you've been filling. A repo is "processed" when its summary row's status is `ok`, `silent`, or `failed`. Best-effort — never let the dashboard append fail the routine.
