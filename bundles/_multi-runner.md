@@ -56,6 +56,22 @@ ls -1 -d */ 2>/dev/null
 
 A directory is a repo if `git rev-parse --show-toplevel` succeeds.
 
+## Routine start beacon — write once before the loop
+
+The wrapper is the only process that knows when the routine actually started — long before any subagent finishes exploring, drafting, testing, and finally committing. To make that start visible to downstream consumers (notably the [ns-dashboard](https://github.com/perandre/ns-dashboard), which otherwise can only see commit timestamps and undercounts pre-commit thinking), the wrapper stamps every Night Shift PR with the routine's start ISO.
+
+Right at the top of the wrapper invocation — **before** any repo is `cd`-ed into, before any subagent is dispatched — write the sentinel once:
+
+```bash
+date -u +%FT%TZ > /tmp/night-shift-routine-started
+```
+
+Every Task subagent in the routine shares this filesystem (same reason the PR-creation throttle uses `/tmp/night-shift-pr-last-created`), so a single write covers the whole fan-out across every repo, app, and task in the run.
+
+Each task reads the sentinel when building its PR body and inserts a `_Routine started: <iso>_` line as documented under "Body footer" below. The wrapper's PR body sweep also backfills the line for any PR that landed without it — see the sweep block.
+
+If the sentinel file is missing for any reason (direct task invocation outside a wrapper, manual replay, etc.), tasks **silently skip** the line. Never crash the run because the beacon is absent.
+
 ## The loop — one isolated subagent per work-item
 
 **Critical:** each work-item must be processed in its own subagent (via the `Task` tool) so the main wrapper's context window does not accumulate state across repos. The main wrapper only stores a single one-line result per work-item.
@@ -112,19 +128,39 @@ Each `multi-*.md` wrapper inlines this exact block in its per-repo loop, **immed
 After the label sweep above, the wrapper runs a **PR body sweep** in that repo to repair any subagent that skipped its per-task post-create ritual. The sweep is idempotent — it only modifies bodies that contain literal `\n` sequences.
 
 ```bash
+ROUTINE_STARTED=$(cat /tmp/night-shift-routine-started 2>/dev/null || true)
 ( cd "$REPO_PATH" && \
   for pr in $(gh pr list --label night-shift --state open --limit 1000 --json number --jq '.[].number'); do
     body=$(gh pr view "$pr" --json body -q .body)
+    fixed=0
     case "$body" in
       *'\n'*)
         printf '%s' "$body" | python3 -c "import sys;sys.stdout.write(sys.stdin.read().replace(chr(92)+chr(110),chr(10)))" > /tmp/night-shift-body-fix.md
-        gh pr edit "$pr" --body-file /tmp/night-shift-body-fix.md
+        body=$(cat /tmp/night-shift-body-fix.md)
+        fixed=1
         ;;
     esac
+    if [ -n "$ROUTINE_STARTED" ] && ! printf '%s' "$body" | grep -q '_Routine started:'; then
+      # Insert beacon line directly after the `_Run by Night Shift • …_` footer line.
+      printf '%s' "$body" | python3 -c "
+import sys, re
+body = sys.stdin.read()
+beacon = '_Routine started: ${ROUTINE_STARTED}_'
+pattern = re.compile(r'(_Run by Night Shift\b[^\n]*_)', re.MULTILINE)
+if pattern.search(body) and beacon not in body:
+    body = pattern.sub(r'\1\n' + beacon, body, count=1)
+sys.stdout.write(body)
+" > /tmp/night-shift-body-fix.md
+      body=$(cat /tmp/night-shift-body-fix.md)
+      fixed=1
+    fi
+    if [ "$fixed" = 1 ]; then
+      gh pr edit "$pr" --body-file /tmp/night-shift-body-fix.md
+    fi
   done )
 ```
 
-Why this exists: the per-task post-create ritual already includes the same fix, but a subagent reading a dense task file sometimes runs `gh pr create` and then returns without continuing through the ritual. The wrapper-level sweep catches that case before the run ends, so a flattened body never survives the night.
+Why this exists: the per-task post-create ritual already includes the same `\n`-flatten fix, but a subagent reading a dense task file sometimes runs `gh pr create` and then returns without continuing through the ritual. The wrapper-level sweep catches that case before the run ends, so a flattened body never survives the night. The sweep also **backfills the `_Routine started:_` beacon line** for any PR whose task forgot to inject it — same safety-net pattern as the label sweep above.
 
 Why label-based, not URL-extraction: result line formats vary by wrapper (`PR:` vs `PRs:` vs combined-status). Sweeping every open `night-shift`-labelled PR in the repo is robust to result-line drift and also opportunistically repairs older PRs that may still be open from earlier runs.
 
@@ -402,17 +438,40 @@ Every PR body must end with this footer block, separated from the body by a hori
 ```
 ---
 _Run by Night Shift • <bundle>/<task-id>_
+_Routine started: 2026-05-22T02:13:45Z_
 ```
 
-The footer is the only place the bundle + task id appears in the PR — keep it minimal. Tasks that have a Claude Code session URL available (passed by the dispatching wrapper) may add it as a second italic line:
+The footer carries two required lines:
+
+1. `_Run by Night Shift • <bundle>/<task-id>_` — the only place the bundle + task id appears in the PR.
+2. `_Routine started: <ISO-8601-UTC>_` — read from `/tmp/night-shift-routine-started` (written by the wrapper, see "Routine start beacon" above). This is the routine's true start time, which downstream consumers (ns-dashboard) use to measure end-to-end run duration without undercounting pre-commit thinking. If the sentinel file is missing, silently omit the line — the wrapper's body sweep will backfill it before the run ends. Use exact format: literal `_Routine started: ` prefix, ISO-8601 UTC with `Z` suffix, literal `_` suffix.
+
+Tasks that have a Claude Code session URL available (passed by the dispatching wrapper) may add it as a third italic line:
 
 ```
 ---
-_Run by Night Shift • <bundle>/<task-id>_  
+_Run by Night Shift • <bundle>/<task-id>_
+_Routine started: 2026-05-22T02:13:45Z_
 _[Session log](<session-url>)_
 ```
 
-The footer is required; the session line is optional. Together they make every PR self-describing for reviewers and auditable from `gh pr list --label night-shift`.
+The first two lines are required; the session line is optional. Together they make every PR self-describing for reviewers and auditable from `gh pr list --label night-shift`.
+
+**Inline pattern** for task templates building the body via HEREDOC:
+
+```bash
+ROUTINE_STARTED=$(cat /tmp/night-shift-routine-started 2>/dev/null || true)
+{
+  cat <<'EOF'
+## Summary
+- …
+
+---
+_Run by Night Shift • <bundle>/<task-id>_
+EOF
+  [ -n "$ROUTINE_STARTED" ] && printf '_Routine started: %s_\n' "$ROUTINE_STARTED"
+} > /tmp/night-shift-pr-body.md
+```
 
 ### Body header — `## Plain summary` (first section of every code PR body)
 
