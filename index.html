@@ -3,656 +3,1790 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Night Shift — while you sleep, an AI agent works across your repositories</title>
-<meta name="description" content="Night Shift schedules nightly maintenance across your repositories. Plans, docs, tests, accessibility, translations, and audit PRs — with auto-fix that reacts to red CI and reviewer comments on every Night Shift PR." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f0a23'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%235dc6c0' stroke-width='1.5'/%3E%3Cpath d='M16 9 v7 l5 3' fill='none' stroke='%23e87964' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E" />
+<title>Night Shift — while you sleep, an agent works</title>
+<meta name="description" content="Night Shift schedules nightly maintenance across your repositories. Implemented plans, fresh docs, new tests, accessibility fixes, audit PRs — and auto-fix that reacts to red CI and reviewer comments on every Night Shift PR." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231A0054'/%3E%3Cpath d='M9 7 h6 a9 9 0 0 1 0 18 h-6 z' fill='%23F86233'/%3E%3C/svg%3E" />
 
-<meta property="og:title" content="Night Shift — autonomous overnight work for your repositories" />
+<meta property="og:title" content="Night Shift — while you sleep, an agent works" />
 <meta property="og:description" content="An AI agent that opens PRs while you sleep — implemented plans, fresh docs, new tests, accessibility fixes, audits. You decide what to keep in the morning." />
 <meta property="og:image" content="https://frontkom.github.io/night-shift/night-shift.png" />
 <meta property="og:type" content="website" />
 <meta name="twitter:card" content="summary_large_image" />
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:ital,wght@0,400;1,400&family=Red+Hat+Text:ital,wght@0,400;0,700;1,400;1,700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
 <style>
-  :root {
-    --bg:        #0f0a23;
-    --bg-2:      #170f33;
-    --bg-3:      #1d143f;
-    --ink:       #f3ece1;
-    --ink-mute:  #b9b1c8;
-    --line:      rgba(243, 236, 225, 0.10);
-    --line-2:    rgba(243, 236, 225, 0.18);
-    --coral:     #e87964;
-    --teal:      #5dc6c0;
-    --sun:       #d9b274;
-    --plum:      #6b3a73;
-    --shadow:    0 30px 60px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04) inset;
-    --radius:    18px;
-    --radius-sm: 10px;
-  }
+/* ── Frontkom design tokens ────────────────────────────────── */
+:root {
+  --brand: #f86233;
+  --bg: #ffffff;
+  --bg-dark: #1a0054;
+  --bg-muted: #f7f7f8;
 
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
-    overflow-x: hidden;
-  }
+  --fg: #35323c;
+  --fg-muted: #5e5c66;
+  --fg-subtle: #9a98a0;
+  --on-dark: #ffffff;
+  --on-dark-muted: #c8b5ff;
 
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 0;
-    background:
-      radial-gradient(900px 600px at 12% -8%, rgba(232,121,100,0.18), transparent 60%),
-      radial-gradient(800px 700px at 95% 6%, rgba(93,198,192,0.14), transparent 60%),
-      radial-gradient(700px 500px at 50% 110%, rgba(217,178,116,0.10), transparent 60%);
-  }
-  main, header, footer { position: relative; z-index: 1; }
+  --link: #4f1be5;
+  --link-on-dark: #c8b5ff;
+  --warning: #fb1065;
 
-  ::selection { background: var(--coral); color: var(--bg); }
+  --border: #e8e7ec;
+  --border-strong: #d4d2dc;
+  --border-on-dark: #2d1170;
 
-  a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-  a:hover { color: var(--teal); }
-  code, kbd, pre {
-    font-family: ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
-    font-size: 0.92em;
-  }
+  --g1: #f86233;
+  --g2: #da446e;
+  --g3: #bc25a9;
+  --g4: #861fcb;
+  --g5: #521ce4;
+  --gradient: linear-gradient(90deg, var(--g1), var(--g2), var(--g3), var(--g4), var(--g5));
 
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px; }
+  --s-xs: 4px; --s-sm: 8px; --s-md: 16px; --s-lg: 24px;
+  --s-xl: 32px; --s-2xl: 48px; --s-3xl: 64px; --s-4xl: 96px;
 
-  /* ── nav ───────────────────────────────────────── */
-  header.top {
-    padding: 28px 0;
-    border-bottom: 1px solid var(--line);
-  }
-  .top-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: 0.02em; }
-  .brand-mark {
-    width: 32px; height: 32px; border-radius: 8px;
-    background: linear-gradient(135deg, var(--coral), var(--plum) 60%, var(--teal));
-    box-shadow: var(--shadow);
-    position: relative;
-  }
-  .brand-mark::after {
-    content: ""; position: absolute; inset: 6px; border-radius: 4px;
-    border: 1.5px solid rgba(255,255,255,0.7);
-    background:
-      conic-gradient(from -90deg, rgba(255,255,255,0.0), rgba(255,255,255,0.0) 88%, rgba(255,255,255,0.85) 92%, rgba(255,255,255,0.0) 100%);
-  }
-  .brand-name { font-size: 16px; }
-  nav.top-nav { display: flex; gap: 22px; font-size: 14px; color: var(--ink-mute); }
-  nav.top-nav a { text-decoration: none; }
-  nav.top-nav a:hover { color: var(--ink); }
-  .ghbtn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 9px 14px; border-radius: 999px;
-    background: rgba(255,255,255,0.05); border: 1px solid var(--line-2);
-    text-decoration: none; font-size: 14px; color: var(--ink);
-  }
-  .ghbtn:hover { background: rgba(255,255,255,0.10); color: var(--ink); }
+  --r-sm: 8px; --r-md: 12px; --r-lg: 16px;
+  --r-xl: 20px; --r-2xl: 28px; --r-3xl: 40px; --r-full: 9999px;
 
-  /* ── hero ──────────────────────────────────────── */
-  .hero { padding: 72px 0 56px; }
-  .hero-grid {
-    display: grid;
-    grid-template-columns: 1.05fr 0.95fr;
-    gap: 56px;
-    align-items: center;
-  }
-  .eyebrow {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 6px 12px; border-radius: 999px;
-    background: rgba(93,198,192,0.10);
-    border: 1px solid rgba(93,198,192,0.32);
-    color: var(--teal);
-    font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
-    font-weight: 600;
-  }
-  .eyebrow .dot {
-    width: 7px; height: 7px; border-radius: 50%; background: var(--teal);
-    box-shadow: 0 0 0 0 rgba(93,198,192, 0.55);
-    animation: pulse 2.4s ease-out infinite;
-  }
-  @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(93,198,192,0.55); }
-    70%  { box-shadow: 0 0 0 10px rgba(93,198,192,0); }
-    100% { box-shadow: 0 0 0 0 rgba(93,198,192,0); }
-  }
+  --font-display: 'Red Hat Display', 'Red Hat Text', system-ui, -apple-system, sans-serif;
+  --font-text: 'Red Hat Text', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
-  h1 {
-    font-size: clamp(44px, 6.5vw, 78px);
-    line-height: 1.02;
-    letter-spacing: -0.025em;
-    margin: 22px 0 18px;
-    font-weight: 800;
-  }
-  h1 .accent { color: var(--coral); }
-  h1 .accent-2 { color: var(--teal); }
-  .lede {
-    font-size: clamp(17px, 1.5vw, 20px);
-    color: var(--ink-mute);
-    max-width: 36ch;
-    margin: 0 0 30px;
-  }
+  --section-y: clamp(72px, 9vw, 128px);
+  --container-x: clamp(20px, 4vw, 40px);
+  --max-w: 1280px;
+  --max-w-prose: 768px;
+}
 
-  .cta-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-  .btn {
-    display: inline-flex; align-items: center; gap: 10px;
-    padding: 13px 20px; border-radius: 999px;
-    font-weight: 600; font-size: 15px;
-    text-decoration: none;
-    transition: transform 120ms ease, background 120ms ease;
-  }
-  .btn-primary {
-    background: var(--coral); color: #2a0e08;
-    box-shadow: 0 10px 30px -10px rgba(232,121,100,0.55);
-  }
-  .btn-primary:hover { transform: translateY(-1px); background: #f08e7a; color: #2a0e08; }
-  .btn-ghost {
-    background: transparent; color: var(--ink); border: 1px solid var(--line-2);
-  }
-  .btn-ghost:hover { background: rgba(255,255,255,0.06); color: var(--ink); }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-text);
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--brand); color: var(--bg-dark); }
 
-  .install {
-    margin-top: 28px;
-    background: rgba(0,0,0,0.35);
-    border: 1px solid var(--line-2);
-    border-radius: var(--radius-sm);
-    padding: 14px 16px;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    font-size: 14px;
-    max-width: 540px;
-  }
-  .install code { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .install .prompt { color: var(--teal); user-select: none; }
-  .install-hint { color: var(--ink-mute); font-size: 12px; margin-top: 8px; }
+a { color: var(--link); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--g4); }
 
-  .hero-art {
-    position: relative;
-    border-radius: var(--radius);
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    aspect-ratio: 16 / 10;
-    background: linear-gradient(135deg, #2a1856, #4a2055);
-  }
-  .hero-art img {
-    width: 100%; height: 100%; object-fit: cover; display: block;
-  }
-  .hero-art::after {
-    content: "";
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, transparent 65%, rgba(15,10,35,0.55));
-    pointer-events: none;
-  }
-  .hero-stamp {
-    position: absolute;
-    bottom: 16px; left: 16px;
-    padding: 8px 12px;
-    background: rgba(15,10,35,0.78);
-    border: 1px solid var(--line-2);
-    border-radius: 999px;
-    font-family: ui-monospace, monospace;
-    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--teal);
-    backdrop-filter: blur(6px);
-  }
+code, kbd, pre, samp {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
 
-  /* ── sections ──────────────────────────────────── */
-  section { padding: 88px 0; border-top: 1px solid var(--line); }
-  .kicker {
-    color: var(--sun);
-    font-size: 12px;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    font-weight: 700;
-    margin: 0 0 14px;
-  }
-  h2 {
-    font-size: clamp(30px, 3.6vw, 44px);
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    margin: 0 0 18px;
-    font-weight: 800;
-    max-width: 22ch;
-  }
-  .section-lede {
-    color: var(--ink-mute);
-    font-size: 17px;
-    max-width: 60ch;
-    margin: 0 0 44px;
-  }
+img, svg { max-width: 100%; display: block; }
 
-  /* outcomes */
-  .grid-outcomes {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 18px;
-  }
-  .tile {
-    border: 1px solid var(--line);
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0)) ,
-      var(--bg-2);
-    border-radius: var(--radius);
-    padding: 26px 24px 24px;
-    transition: transform 200ms ease, border-color 200ms ease, background 200ms ease;
-  }
-  .tile:hover {
-    transform: translateY(-3px);
-    border-color: var(--line-2);
-    background:
-      linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0)) ,
-      var(--bg-3);
-  }
-  .tile h3 {
-    font-size: 17px;
-    margin: 14px 0 8px;
-    font-weight: 700;
-  }
-  .tile p { color: var(--ink-mute); font-size: 14.5px; margin: 0; }
+/* ── Layout ────────────────────────────────────────────────── */
+.wrap { max-width: var(--max-w); margin: 0 auto; padding: 0 var(--container-x); }
+.wrap-prose { max-width: var(--max-w-prose); margin: 0 auto; padding: 0 var(--container-x); }
 
-  .icn {
-    width: 38px; height: 38px;
-    display: grid; place-items: center;
-    border-radius: 10px;
-    background: rgba(232,121,100,0.12);
-    color: var(--coral);
-  }
-  .tile.t-teal .icn  { background: rgba(93,198,192,0.12); color: var(--teal); }
-  .tile.t-sun .icn   { background: rgba(217,178,116,0.14); color: var(--sun); }
-  .tile.t-plum .icn  { background: rgba(155,90,170,0.18); color: #c69ed3; }
-  .icn svg { width: 20px; height: 20px; }
+section { padding: var(--section-y) 0; }
 
-  /* bundles */
-  .grid-bundles {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 14px;
-  }
-  .bundle {
-    position: relative;
-    border-radius: var(--radius);
-    padding: 24px 22px 22px;
-    border: 1px solid var(--line);
-    background: var(--bg-2);
-    overflow: hidden;
-  }
-  .bundle::before {
-    content: "";
-    position: absolute; inset: 0 0 auto 0; height: 4px;
-    background: var(--bar, var(--coral));
-  }
-  .bundle .name { font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--bar, var(--coral)); }
-  .bundle { padding: 22px 18px 20px; }
-  .bundle h3 { font-size: 17.5px; margin: 8px 0 10px; font-weight: 700; line-height: 1.25; }
-  .bundle p { color: var(--ink-mute); font-size: 13.5px; margin: 0 0 14px; }
-  .bundle ul { margin: 0; padding: 0; list-style: none; font-size: 13.5px; color: var(--ink-mute); }
-  .bundle ul li { padding: 4px 0; border-top: 1px dashed var(--line); }
-  .bundle ul li:first-child { border-top: 0; }
+.surface-white { background: var(--bg); color: var(--fg); }
+.surface-muted { background: var(--bg-muted); color: var(--fg); }
+.surface-dark  { background: var(--bg-dark); color: var(--on-dark); }
+.surface-dark a { color: var(--link-on-dark); }
+.surface-dark a:hover { color: #fff; }
 
-  .bundle.b-plans { --bar: var(--coral); }
-  .bundle.b-docs { --bar: var(--teal); }
-  .bundle.b-fixes { --bar: var(--sun); }
-  .bundle.b-audits { --bar: #c69ed3; }
+/* ── Typography ────────────────────────────────────────────── */
+.hero-h {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 92px);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--s-lg);
+}
+.h1 {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(40px, 5vw, 60px);
+  line-height: 1.1;
+  letter-spacing: -0.012em;
+  margin: 0 0 var(--s-lg);
+  max-width: 22ch;
+}
+.h2 {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(30px, 3.6vw, 45px);
+  line-height: 1.15;
+  margin: 0 0 var(--s-md);
+  max-width: 22ch;
+}
+.h3 {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(22px, 2.4vw, 34px);
+  line-height: 1.2;
+  margin: 0 0 var(--s-sm);
+}
+.h4 {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(18px, 1.7vw, 25px);
+  line-height: 1.3;
+  margin: 0 0 var(--s-sm);
+}
+.h5 {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 19px;
+  line-height: 1.4;
+  margin: 0 0 var(--s-sm);
+}
+.lead {
+  font-size: clamp(18px, 1.5vw, 22px);
+  line-height: 1.5;
+  margin: 0 0 var(--s-lg);
+  max-width: 60ch;
+}
+.body-p { font-size: 17px; line-height: 1.6; color: var(--fg-muted); margin: 0 0 var(--s-md); }
+.surface-dark .body-p { color: var(--on-dark-muted); }
+.caption { font-size: 14px; color: var(--fg-subtle); }
 
-  /* backends */
-  .grid-backends {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-  }
-  .backend {
-    border: 1px solid var(--line);
-    background:
-      radial-gradient(600px 200px at 0% 0%, rgba(232,121,100,0.10), transparent 60%),
-      var(--bg-2);
-    border-radius: var(--radius);
-    padding: 30px 28px;
-  }
-  .backend.is-ga {
-    background:
-      radial-gradient(600px 200px at 100% 0%, rgba(93,198,192,0.12), transparent 60%),
-      var(--bg-2);
-  }
-  .backend h3 { font-size: 22px; margin: 0 0 10px; letter-spacing: -0.01em; }
-  .backend p { color: var(--ink-mute); margin: 0 0 18px; }
-  .backend ul { padding: 0; margin: 0; list-style: none; }
-  .backend ul li { padding: 8px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; }
-  .backend ul li:first-child { border-top: 0; }
-  .check {
-    flex: 0 0 auto;
-    width: 18px; height: 18px; margin-top: 2px;
-    border-radius: 50%;
-    display: grid; place-items: center;
-    background: rgba(93,198,192,0.18); color: var(--teal);
-  }
-  .check svg { width: 11px; height: 11px; }
+.eyebrow {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand);
+  margin: 0 0 var(--s-md);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-sm);
+}
+.eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 32px;
+  height: 3px;
+  background: var(--brand);
+  border-radius: var(--r-full);
+}
 
-  /* get started */
-  .steps {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
-  }
-  .step {
-    border: 1px solid var(--line);
-    background: var(--bg-2);
-    border-radius: var(--radius);
-    padding: 26px 24px;
-  }
-  .step-num {
-    font-family: ui-monospace, monospace;
-    color: var(--sun);
-    font-size: 13px;
-    letter-spacing: 0.16em;
-  }
-  .step h3 { font-size: 18px; margin: 8px 0 12px; }
-  .step p { color: var(--ink-mute); font-size: 14.5px; margin: 0 0 14px; }
-  pre.snippet {
-    margin: 0;
-    background: rgba(0,0,0,0.40);
-    border: 1px solid var(--line-2);
-    border-radius: var(--radius-sm);
-    padding: 14px 16px;
-    font-size: 13px;
-    color: var(--ink);
-    overflow-x: auto;
-    white-space: pre;
-  }
-  pre.snippet .c { color: var(--ink-mute); }
-  pre.snippet .p { color: var(--teal); }
-  pre.snippet .s { color: var(--coral); }
+/* ── Gradient device ───────────────────────────────────────── */
+.gradient-text {
+  background: var(--gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.gradient-bar {
+  height: 6px;
+  background: var(--gradient);
+  width: 100%;
+}
 
-  .pages-note {
-    margin-top: 28px;
-    padding: 18px 20px;
-    border: 1px dashed var(--line-2);
-    border-radius: var(--radius-sm);
-    font-size: 14px;
-    color: var(--ink-mute);
-  }
-  .pages-note strong { color: var(--ink); }
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 24px;
+  border-radius: var(--r-full);
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, border-color 180ms ease;
+  white-space: nowrap;
+}
+.btn-brand { background: var(--brand); color: var(--bg-dark); }
+.btn-brand:hover { background: var(--bg-dark); color: var(--on-dark); }
+.btn-link { background: var(--link); color: var(--on-dark); }
+.btn-link:hover { background: var(--g4); color: var(--on-dark); }
+.btn-dark { background: var(--fg); color: var(--bg); }
+.btn-dark:hover { background: var(--bg-dark); color: var(--bg); }
+.btn-on-dark { background: var(--bg); color: var(--fg); }
+.btn-on-dark:hover { background: var(--bg-muted); color: var(--fg); }
+.btn-ghost-on-dark {
+  background: transparent;
+  color: var(--on-dark);
+  border-color: var(--on-dark-muted);
+}
+.btn-ghost-on-dark:hover { background: rgba(255,255,255,0.08); color: var(--on-dark); }
+.btn .arrow { transition: transform 180ms ease; }
+.btn:hover .arrow { transform: translateX(3px); }
 
-  /* footer */
-  footer {
-    padding: 56px 0 80px;
-    border-top: 1px solid var(--line);
-    color: var(--ink-mute);
-    font-size: 14px;
-  }
-  .foot-row {
-    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 18px;
-  }
-  .foot-links { display: flex; gap: 22px; flex-wrap: wrap; }
-  .foot-links a { text-decoration: none; }
-  .foot-links a:hover { color: var(--ink); }
+/* ── Pills / Labels ────────────────────────────────────────── */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--r-full);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.pill-brand { background: var(--brand); color: var(--bg-dark); }
+.pill-on-dark { background: rgba(255,255,255,0.08); color: var(--on-dark); border: 1px solid var(--border-on-dark); }
+.pill-outline-dark { background: transparent; color: var(--fg); border: 1px solid var(--border-strong); }
+.pill-warning { background: var(--warning); color: var(--bg-dark); }
 
-  /* responsive */
-  @media (max-width: 960px) {
-    .hero-grid { grid-template-columns: 1fr; gap: 36px; }
-    .grid-outcomes { grid-template-columns: repeat(2, 1fr); }
-    .grid-bundles { grid-template-columns: repeat(2, 1fr); }
-    .grid-backends { grid-template-columns: 1fr; }
-    .steps { grid-template-columns: 1fr; }
-    section { padding: 64px 0; }
-    .hero { padding: 48px 0 36px; }
-  }
-  @media (max-width: 560px) {
-    .grid-outcomes { grid-template-columns: 1fr; }
-    .grid-bundles { grid-template-columns: 1fr; }
-    nav.top-nav { display: none; }
-  }
+/* ── Top nav ───────────────────────────────────────────────── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar .row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-md);
+  padding: 14px 0;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+  color: var(--fg);
+}
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-md);
+  background: var(--bg-dark);
+  color: var(--on-dark);
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.brand-mark::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gradient);
+}
+.brand-name {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+.brand-name small {
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--fg-muted);
+  letter-spacing: 0.04em;
+}
+nav.topnav {
+  display: flex;
+  gap: 28px;
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 14px;
+}
+nav.topnav a {
+  color: var(--fg);
+  text-decoration: none;
+}
+nav.topnav a:hover { color: var(--brand); }
+.top-cta { display: flex; align-items: center; gap: 10px; }
 
-  @media (prefers-reduced-motion: reduce) {
-    * { animation: none !important; transition: none !important; }
-    html { scroll-behavior: auto; }
-  }
+/* ── Hero ──────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  padding: clamp(80px, 11vw, 160px) 0 clamp(80px, 11vw, 160px);
+  overflow: hidden;
+}
+.hero .gradient-bar { position: absolute; top: 0; left: 0; right: 0; }
+.hero .grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: clamp(32px, 5vw, 80px);
+  align-items: center;
+}
+.hero-flow {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(42px, 6.5vw, 84px);
+  line-height: 1.04;
+  letter-spacing: -0.018em;
+  margin: 0 0 var(--s-lg);
+}
+.hero-flow .stay  { color: var(--on-dark); display: block; }
+.hero-flow .flow  {
+  background: var(--gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  display: block;
+}
+.hero-lead {
+  font-size: clamp(18px, 1.6vw, 22px);
+  color: var(--on-dark-muted);
+  line-height: 1.5;
+  margin: 0 0 var(--s-xl);
+  max-width: 36ch;
+}
+.hero-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-md);
+  margin-bottom: var(--s-xl);
+}
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-sm);
+  align-items: center;
+}
+
+/* The shell — a stylised PR card on the right side of the hero */
+.shell {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-on-dark);
+  border-radius: var(--r-2xl);
+  padding: clamp(20px, 2.4vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.shell-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  font-family: var(--font-text);
+  color: var(--on-dark-muted);
+  font-size: 13px;
+}
+.shell-status {
+  background: #1f7a3f;
+  color: #fff;
+  padding: 2px 10px;
+  border-radius: var(--r-full);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.shell-title {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(16px, 1.6vw, 20px);
+  line-height: 1.3;
+  color: var(--on-dark);
+  margin: 0;
+}
+.shell-labels { display: flex; gap: 6px; flex-wrap: wrap; }
+.shell-label {
+  background: rgba(248,98,51,0.16);
+  color: var(--brand);
+  border: 1px solid rgba(248,98,51,0.4);
+  border-radius: var(--r-full);
+  padding: 2px 10px;
+  font-family: var(--font-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+.shell-diff {
+  background: rgba(0,0,0,0.35);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.diff-add { color: #6ee7a8; }
+.diff-del { color: #ff7a90; }
+.diff-ctx { color: var(--on-dark-muted); }
+.shell-footer {
+  font-family: var(--font-text);
+  font-size: 12px;
+  color: var(--on-dark-muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--s-xs);
+}
+
+/* ── Install card (also used in CTA section) ───────────────── */
+.install-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-on-dark);
+  border-radius: var(--r-2xl);
+  padding: clamp(20px, 2.6vw, 36px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+.install-card.on-light {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--fg);
+}
+.install-label {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.install-code {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: clamp(15px, 1.6vw, 22px);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--on-dark);
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--border-on-dark);
+  border-radius: var(--r-lg);
+  padding: clamp(14px, 1.8vw, 20px) clamp(16px, 2vw, 24px);
+  overflow-x: auto;
+  cursor: copy;
+  position: relative;
+  transition: background 200ms ease, border-color 200ms ease;
+}
+.install-card.on-light .install-code {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+.install-code::after {
+  content: "click to copy";
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+  opacity: 0.7;
+}
+.install-card.on-light .install-code::after { color: rgba(255,255,255,0.7); }
+.install-code:hover { border-color: rgba(248,98,51,0.6); }
+.install-code.copied { border-color: #6ee7a8; }
+.install-code.copied::after { content: "✓ copied"; color: #6ee7a8; opacity: 1; }
+.install-foot {
+  font-size: 15px;
+  color: var(--on-dark-muted);
+  line-height: 1.45;
+  margin: 0;
+}
+.install-card.on-light .install-foot { color: var(--fg-muted); }
+.install-foot code {
+  background: rgba(248,98,51,0.16);
+  color: var(--brand);
+  border: 1px solid rgba(248,98,51,0.4);
+  border-radius: var(--r-sm);
+  padding: 2px 8px;
+  font-weight: 700;
+}
+
+/* ── Section heads ─────────────────────────────────────────── */
+.section-head {
+  margin-bottom: clamp(40px, 5vw, 72px);
+  max-width: 60ch;
+}
+.section-head .lead { color: var(--fg-muted); margin-top: var(--s-md); }
+.surface-dark .section-head .lead { color: var(--on-dark-muted); }
+
+/* ── Flow / Nutshell stages ────────────────────────────────── */
+.flow {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  gap: var(--s-md);
+  align-items: stretch;
+}
+.flow-stage {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2xl);
+  padding: clamp(20px, 2.4vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+.surface-muted .flow-stage { background: var(--bg); }
+.flow-stage .step-no {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--brand);
+  text-transform: uppercase;
+}
+.flow-stage h4 { margin: 0 0 var(--s-xs); }
+.flow-stage p { margin: 0; color: var(--fg-muted); font-size: 15px; line-height: 1.5; }
+.flow-arrow {
+  color: var(--brand);
+  font-size: 28px;
+  font-weight: 700;
+  align-self: center;
+  line-height: 1;
+}
+
+/* ── Value cards (three muted-canvas cards) ────────────────── */
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-lg);
+}
+.value-card {
+  background: var(--bg-muted);
+  border-radius: var(--r-xl);
+  padding: clamp(24px, 2.6vw, 36px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+.value-card .label {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand);
+  margin-bottom: var(--s-sm);
+}
+.value-card.is-link .label { color: var(--g5); }
+.value-card.is-mag .label  { color: var(--g3); }
+.value-card h3 { margin: 0; }
+.value-card p { margin: var(--s-sm) 0 0; color: var(--fg-muted); }
+
+/* ── Tasks grid ────────────────────────────────────────────── */
+.tasks-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-lg);
+}
+.task-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-on-dark);
+  border-radius: var(--r-2xl);
+  padding: clamp(22px, 2.4vw, 32px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+.task-card .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.task-card .bundle-tag {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-on-dark);
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+}
+.task-card .brand-tag {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: rgba(248,98,51,0.16);
+  color: var(--brand);
+  border: 1px solid rgba(248,98,51,0.4);
+  padding: 3px 10px;
+  border-radius: var(--r-full);
+}
+.task-card h3 {
+  margin: 0;
+  font-size: clamp(20px, 1.8vw, 25px);
+  line-height: 1.25;
+  color: var(--on-dark);
+}
+.task-card p {
+  margin: 0;
+  color: var(--on-dark-muted);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.task-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.task-card li {
+  position: relative;
+  padding-left: 1.2em;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--on-dark);
+}
+.task-card li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--brand);
+  font-weight: 700;
+}
+.task-card code {
+  background: rgba(255,255,255,0.06);
+  color: var(--on-dark);
+  border: 1px solid var(--border-on-dark);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 0.85em;
+}
+
+/* ── Stat cards (live data) ────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-lg);
+}
+.stat-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: clamp(24px, 2.6vw, 36px);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+.stat-card .label {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.stat-card .value {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(48px, 5vw, 72px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+.stat-card .value.is-gradient {
+  background: var(--gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.stat-card p { margin: 0; color: var(--fg-muted); }
+.stat-card a { font-weight: 700; }
+
+/* ── Bridge (CI ↔ NS) ──────────────────────────────────────── */
+.bridge {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: var(--s-lg);
+  align-items: stretch;
+}
+.bridge-side {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2xl);
+  padding: clamp(20px, 2.4vw, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+}
+.bridge-side h4 { margin: 0; }
+.bridge-side .sub {
+  font-family: var(--font-text);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  margin: 0 0 var(--s-md);
+}
+.bridge-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+}
+.bridge-list li {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  padding: 10px 14px;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.bridge-ci li {
+  background: #fff7e8;
+  border: 1px solid #f7d39a;
+}
+.bridge-ci li .tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #a05b00;
+  background: rgba(160,91,0,0.1);
+  border-radius: var(--r-sm);
+  padding: 1px 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.bridge-ns li {
+  background: #ecfaf2;
+  border: 1px solid #b4e8ce;
+}
+.bridge-ns li .tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f7a3f;
+  background: rgba(31,122,63,0.1);
+  border-radius: var(--r-sm);
+  padding: 1px 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.bridge-pipe {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+  padding: 0 var(--s-sm);
+}
+.bridge-pipe::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--brand) 0 6px, transparent 6px 12px);
+}
+.bridge-pipe span {
+  position: relative;
+  font-size: 24px;
+  background: var(--bg-muted);
+  padding: 6px 10px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  line-height: 1;
+}
+
+/* ── Paradigm split ────────────────────────────────────────── */
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-xl);
+}
+.split-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-on-dark);
+  border-radius: var(--r-2xl);
+  padding: clamp(24px, 2.6vw, 40px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+.split-card.is-day {
+  background: var(--bg);
+  border-color: var(--border);
+  color: var(--fg);
+}
+.split-card .head {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--brand);
+  margin: 0;
+}
+.split-card.is-day .head { color: var(--brand); }
+.split-card h3 { margin: 0; color: inherit; }
+.split-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sm);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.split-card ul li {
+  padding-left: 1.4em;
+  position: relative;
+}
+.split-card.is-day ul li::before {
+  content: "☀";
+  position: absolute;
+  left: 0;
+  color: var(--brand);
+}
+.split-card.is-night ul li::before {
+  content: "✦";
+  position: absolute;
+  left: 0;
+  color: var(--on-dark-muted);
+}
+
+/* ── Goal / equation ───────────────────────────────────────── */
+.goal-equation {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: var(--s-md);
+  flex-wrap: wrap;
+  margin: var(--s-2xl) 0 var(--s-xl);
+}
+.goal-factor {
+  background: var(--bg);
+  border-radius: var(--r-xl);
+  padding: clamp(18px, 1.8vw, 28px) clamp(20px, 2.4vw, 32px);
+  text-align: center;
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+}
+.goal-factor .v {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(40px, 4.4vw, 64px);
+  line-height: 1;
+  color: var(--fg);
+  letter-spacing: -0.02em;
+}
+.goal-factor .u {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  line-height: 1.3;
+  max-width: 16ch;
+  margin: 0 auto;
+}
+.goal-op {
+  align-self: center;
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(28px, 3.2vw, 48px);
+  color: var(--brand);
+}
+.goal-result {
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-sm);
+}
+.goal-total {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(64px, 9vw, 140px);
+  line-height: 0.95;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+.goal-total .currency {
+  font-size: 0.42em;
+  color: var(--fg-muted);
+  margin-left: 0.16em;
+  letter-spacing: 0.02em;
+  -webkit-text-fill-color: var(--fg-muted);
+  font-weight: 700;
+}
+.goal-unit {
+  font-size: clamp(15px, 1.6vw, 18px);
+  color: var(--fg-muted);
+  max-width: 50ch;
+  line-height: 1.5;
+}
+.goal-unit strong { color: var(--fg); }
+
+/* ── Setup terminal ────────────────────────────────────────── */
+.terminal {
+  background: #0d0033;
+  border: 1px solid var(--border-on-dark);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  color: #e5d8ff;
+  font-size: 13px;
+  line-height: 1.55;
+  max-width: 760px;
+}
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid var(--border-on-dark);
+}
+.terminal-bar .dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.terminal-bar .dot-r { background: #ff5f57; }
+.terminal-bar .dot-y { background: #febc2e; }
+.terminal-bar .dot-g { background: #28c840; }
+.terminal-bar .title {
+  margin-left: auto;
+  margin-right: auto;
+  font-family: var(--font-text);
+  font-size: 12px;
+  color: var(--on-dark-muted);
+}
+.terminal-body {
+  padding: clamp(16px, 2vw, 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.terminal-body .line { white-space: pre-wrap; word-break: break-word; }
+.terminal-body .blank { height: 8px; }
+.terminal-body .prompt { color: #c8b5ff; }
+.terminal-body .cmd { color: #fff; font-weight: 700; }
+.terminal-body .out { color: var(--on-dark-muted); }
+.terminal-body .ok { color: #6ee7a8; }
+.terminal-body .accent { color: var(--brand); font-weight: 700; }
+.terminal-body .sel { color: #fff; font-weight: 700; }
+.terminal-body .sel::before { content: "❯ "; color: var(--brand); }
+.terminal-body .chk-on::before { content: "◉ "; color: var(--brand); }
+.terminal-body .chk-off { color: var(--on-dark-muted); }
+.terminal-body .chk-off::before { content: "◯ "; color: var(--on-dark-muted); }
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: clamp(32px, 4vw, 64px);
+  align-items: center;
+}
+
+/* ── FAQ ───────────────────────────────────────────────────── */
+.faq-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+  max-width: 880px;
+}
+.faq-item {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  border-radius: var(--r-xl);
+  padding: clamp(20px, 2vw, 28px);
+}
+.surface-muted .faq-item { background: var(--bg); }
+.faq-q {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(20px, 2vw, 25px);
+  line-height: 1.3;
+  margin: 0 0 var(--s-sm);
+  color: var(--fg);
+}
+.faq-a {
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  margin: 0 0 var(--s-sm);
+}
+.faq-a:last-child { margin-bottom: 0; }
+.faq-a strong { color: var(--fg); font-weight: 700; }
+.faq-a code {
+  background: var(--bg-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 1px 6px;
+  font-weight: 700;
+}
+
+/* ── CTA / Final ──────────────────────────────────────────── */
+.cta {
+  position: relative;
+  text-align: center;
+  overflow: hidden;
+}
+.cta .gradient-bar { position: absolute; top: 0; left: 0; right: 0; }
+.cta .gradient-bar.is-bottom { top: auto; bottom: 0; }
+.cta-headline {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: clamp(48px, 7vw, 96px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0 0 var(--s-md);
+}
+.cta-sub {
+  font-size: clamp(18px, 1.6vw, 22px);
+  color: var(--on-dark-muted);
+  max-width: 60ch;
+  margin: 0 auto var(--s-xl);
+  line-height: 1.5;
+}
+.cta .install-card { max-width: 720px; margin: 0 auto var(--s-xl); text-align: left; }
+.lets-go-links {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-md);
+  max-width: 880px;
+  margin: 0 auto;
+}
+.lets-go-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-on-dark);
+  border-radius: var(--r-xl);
+  padding: 16px 20px;
+  color: var(--on-dark);
+  text-decoration: none;
+  transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+  text-align: left;
+}
+.lets-go-link:hover {
+  background: rgba(248,98,51,0.08);
+  border-color: rgba(248,98,51,0.5);
+  color: var(--on-dark);
+  transform: translateY(-2px);
+}
+.lets-go-link .ico {
+  font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.lets-go-link .text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lets-go-link .label {
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.lets-go-link .value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--on-dark);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Footer ───────────────────────────────────────────────── */
+footer.foot {
+  background: var(--bg-dark);
+  color: var(--on-dark);
+  padding: clamp(48px, 6vw, 80px) 0 clamp(40px, 4vw, 56px);
+  border-top: 1px solid var(--border-on-dark);
+}
+.foot-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s-md);
+  font-size: 14px;
+  color: var(--on-dark-muted);
+}
+.foot-row a { color: var(--on-dark-muted); text-decoration: none; }
+.foot-row a:hover { color: var(--on-dark); }
+.foot-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-text);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--on-dark);
+}
+.foot-brand img { height: 22px; width: auto; }
+.foot-links {
+  display: flex;
+  gap: var(--s-lg);
+  flex-wrap: wrap;
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .hero .grid { grid-template-columns: 1fr; }
+  .flow { grid-template-columns: 1fr; }
+  .flow-arrow { display: none; }
+  .value-grid { grid-template-columns: 1fr; }
+  .tasks-grid { grid-template-columns: repeat(2, 1fr); }
+  .stats-grid { grid-template-columns: 1fr; }
+  .bridge { grid-template-columns: 1fr; }
+  .bridge-pipe { transform: rotate(90deg); padding: var(--s-md) 0; }
+  .split { grid-template-columns: 1fr; }
+  .setup-grid { grid-template-columns: 1fr; }
+  .lets-go-links { grid-template-columns: 1fr; }
+  nav.topnav { display: none; }
+}
+@media (max-width: 640px) {
+  .tasks-grid { grid-template-columns: 1fr; }
+  .top-cta .btn { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
 </style>
 </head>
 <body>
 
-<header class="top">
-  <div class="wrap top-row">
-    <div class="brand">
+<!-- ─────────────────────────────────────────────────────────────
+  TOP NAV (white canvas)
+───────────────────────────────────────────────────────────────── -->
+<header class="topbar">
+  <div class="wrap row">
+    <a class="brand" href="/">
       <span class="brand-mark" aria-hidden="true"></span>
-      <span class="brand-name">Night Shift</span>
-    </div>
-    <nav class="top-nav" aria-label="Primary">
-      <a href="#outcomes">What it does</a>
-      <a href="#bundles">Bundles</a>
-      <a href="#backends">Backends</a>
-      <a href="#start">Get started</a>
-    </nav>
-    <a class="ghbtn" href="https://github.com/frontkom/night-shift" aria-label="GitHub repository">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.65.5.5 5.65.5 12.02c0 5.08 3.29 9.39 7.86 10.91.58.1.79-.25.79-.55 0-.27-.01-.99-.02-1.95-3.2.7-3.87-1.54-3.87-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.78 1.2 1.78 1.2 1.03 1.77 2.71 1.26 3.37.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.69 0-1.26.45-2.28 1.18-3.08-.12-.29-.51-1.46.11-3.04 0 0 .98-.31 3.2 1.18a11.1 11.1 0 0 1 5.83 0c2.22-1.49 3.2-1.18 3.2-1.18.62 1.58.23 2.75.11 3.04.74.8 1.18 1.82 1.18 3.08 0 4.42-2.69 5.4-5.25 5.69.41.36.78 1.06.78 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.66.8.55C20.21 21.4 23.5 17.1 23.5 12.02 23.5 5.65 18.35.5 12 .5Z"/></svg>
-      <span>GitHub</span>
+      <span class="brand-name">Night Shift<small>by Frontkom</small></span>
     </a>
+    <nav class="topnav" aria-label="Primary">
+      <a href="#nutshell">In a nutshell</a>
+      <a href="#tasks">Tasks</a>
+      <a href="#demo">Live data</a>
+      <a href="#setup">Setup</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="top-cta">
+      <a class="btn btn-dark" href="#setup">Get started <span class="arrow" aria-hidden="true">→</span></a>
+    </div>
   </div>
 </header>
 
 <main>
 
-<!-- HERO -->
-<section class="hero" aria-labelledby="hero-h">
-  <div class="wrap hero-grid">
+<!-- ─────────────────────────────────────────────────────────────
+  HERO (indigo canvas) — gradient-flow emphasis
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-dark hero" aria-labelledby="hero-h">
+  <div class="gradient-bar" aria-hidden="true"></div>
+  <div class="wrap grid">
     <div>
-      <span class="eyebrow"><span class="dot" aria-hidden="true"></span> By Frontkom</span>
-      <h1 id="hero-h">
-        While you sleep, an AI agent <span class="accent">works</span> across your repositories.
+      <span class="eyebrow" style="color: var(--brand)">Internal · Frontkom · 2026</span>
+      <h1 id="hero-h" class="hero-flow">
+        <span class="stay">While you sleep,</span>
+        <span class="flow">an agent works.</span>
       </h1>
-      <p class="lede">
-        Wake up to fresh PRs — implemented plans, updated docs, new tests, accessibility fixes, audit findings. You decide what you want to keep.
+      <p class="hero-lead">
+        Fresh PRs on your desk every morning — implemented plans, updated docs, new tests, accessibility fixes, audit findings. You decide what you want to keep.
       </p>
-      <div class="cta-row">
-        <a class="btn btn-primary" href="#start">
-          Get started
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-        </a>
-        <a class="btn btn-ghost" href="https://github.com/frontkom/night-shift">View on GitHub</a>
+      <div class="hero-ctas">
+        <a class="btn btn-brand" href="#setup">Get started <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="btn btn-ghost-on-dark" href="https://github.com/frontkom/night-shift">View on GitHub</a>
+      </div>
+      <div class="hero-meta">
+        <span class="pill pill-brand">npx skills add -g frontkom/night-shift</span>
+        <span class="pill pill-on-dark">then: /night-shift</span>
+      </div>
+    </div>
+
+    <aside class="shell" aria-label="Example pull request">
+      <div class="shell-head">
+        <span class="shell-status">PR · OPEN</span>
+        <span>night-shift/plan</span>
+      </div>
+      <h2 class="shell-title">CHECKOUT-PLAN.md · phases 2–4 (3 phases)</h2>
+      <div class="shell-labels">
+        <span class="shell-label">night-shift</span>
+        <span class="shell-label">plan</span>
+      </div>
+      <div class="shell-diff">
+        <span class="diff-add">+ 412 lines · 9 files</span>
+        <span class="diff-del">− 28 lines</span>
+        <span class="diff-ctx">tests: ✓ 248 passing</span>
+        <span class="diff-ctx">auto-fix: enabled</span>
+      </div>
+      <div class="shell-footer">
+        <span>opened at 03:13 AM · branch night-shift/plan-2026-05-21</span>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+  IN A NUTSHELL (muted canvas) — 3-step flow
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-muted" id="nutshell" aria-labelledby="nutshell-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">In a nutshell</span>
+      <h2 id="nutshell-h" class="h1">A nightly AI shift, <span class="gradient-text">one PR per task</span>.</h2>
+      <p class="lead">You pick the repos and the tasks. Night Shift runs each on its own schedule and opens a labelled pull request for every change.</p>
+    </div>
+
+    <div class="flow">
+      <article class="flow-stage">
+        <span class="step-no">01 · Configure</span>
+        <h4 class="h4">Pick repos and tasks once</h4>
+        <p>Run <code>/night-shift</code> in a Claude Code session. A friendly wizard walks you through repos, tasks, and schedule.</p>
+      </article>
+      <span class="flow-arrow" aria-hidden="true">→</span>
+      <article class="flow-stage">
+        <span class="step-no">02 · Run at night</span>
+        <h4 class="h4">Routines fire while you sleep</h4>
+        <p>Claude Routines or GitHub Actions execute the picked tasks on the schedule. Default: weeknights, 23:00 UTC. Quiet weekends.</p>
+      </article>
+      <span class="flow-arrow" aria-hidden="true">→</span>
+      <article class="flow-stage">
+        <span class="step-no">03 · Review at dawn</span>
+        <h4 class="h4">PRs labelled <code>night-shift</code></h4>
+        <p>Each task arrives as its own PR. <code>gh pr list --label night-shift</code> is the audit trail. Nothing auto-merges.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+  WHY IT MATTERS (white canvas) — 3 value cards on muted bg
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-white" id="why" aria-labelledby="why-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Why it matters</span>
+      <h2 id="why-h" class="h1">The boring, important work — <span class="gradient-text">just gets done</span>.</h2>
+    </div>
+
+    <div class="value-grid">
+      <article class="value-card">
+        <div class="label">For devs</div>
+        <h3 class="h3">More time for the hard parts</h3>
+        <p>Less time on chores: docs, tests, accessibility, audits. More time on design and review — the parts that compound.</p>
+      </article>
+      <article class="value-card is-link">
+        <div class="label">For projects</div>
+        <h3 class="h3">Quality compounds nightly</h3>
+        <p>Coverage grows. A11y improves. Vulnerabilities are flagged. Lint baselines shrink — one entry per night.</p>
+      </article>
+      <article class="value-card is-mag">
+        <div class="label">For the team</div>
+        <h3 class="h3">You stay in control</h3>
+        <p>Every change is a PR with a label. Nothing merges without a human. Easy to opt out, easy to opt in.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+  THE TASKS (indigo canvas) — task grid
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-dark" id="tasks" aria-labelledby="tasks-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">What it actually does</span>
+      <h2 id="tasks-h" class="h1">The <span class="gradient-text">tasks</span>.</h2>
+      <p class="lead">One PR per task. Labelled <code>night-shift</code>. Easy to ignore, easy to merge. Bundles group related tasks — turn each off per repo.</p>
+    </div>
+
+    <div class="tasks-grid">
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">plans</span>
+          <span class="bundle-tag">bundle · plans</span>
+        </div>
+        <h3>Drives your plans and labelled issues to PRs</h3>
+        <p>Drop a <code>docs/*-PLAN.md</code>, or tag an issue with <code>night-shift</code> (GitHub or Jira). Night Shift takes it from there.</p>
+        <ul>
+          <li><strong>build-planned-features</strong> — picks pending phases, opens a PR.</li>
+          <li><strong>work-on-issues</strong> — GitHub Issues labelled <code>night-shift</code>.</li>
+          <li><strong>work-on-jira-issues</strong> — same, but pulled from Jira.</li>
+        </ul>
+      </article>
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">docs</span>
+          <span class="bundle-tag">bundle · docs</span>
+        </div>
+        <h3>Four kinds of docs work — every week</h3>
+        <p>Not just a changelog. Four separate tasks that keep your project legible.</p>
+        <ul>
+          <li><strong>update-changelog</strong> — entries for user-facing changes.</li>
+          <li><strong>update-user-guide</strong> — refreshes READMEs and guides.</li>
+          <li><strong>document-decisions</strong> — captures ADRs from history.</li>
+          <li><strong>suggest-improvements</strong> — opinionated ideas to pitch.</li>
+        </ul>
+      </article>
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">tests</span>
+          <span class="bundle-tag">bundle · code-fixes</span>
+        </div>
+        <h3>Adds up to 10 tests per PR — your style</h3>
+        <p>Looks at how you already write tests. Picks the highest-impact coverage gaps. Writes new tests that match your conventions and verifies they pass.</p>
+        <ul>
+          <li>Targets uncovered branches, not just lines.</li>
+          <li>Mirrors your patterns (framework, naming, fixtures).</li>
+          <li>Caps at 10 tests so the PR stays reviewable.</li>
+        </ul>
+      </article>
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">a11y</span>
+          <span class="bundle-tag">bundle · code-fixes</span>
+        </div>
+        <h3>WCAG 2.1 AA audit. Fixed, in one PR</h3>
+        <p>Audits key pages against contrast, keyboard nav, ARIA, labels, focus and headings. Fixes everything — and writes regression tests so it doesn't come back.</p>
+        <ul>
+          <li>Contrast · keyboard · ARIA · labels · focus · headings.</li>
+          <li>Real markup fixes, not <code>TODO: a11y</code> stubs.</li>
+          <li>Adds regression tests against the fixed pages.</li>
+        </ul>
+      </article>
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">i18n</span>
+          <span class="bundle-tag">bundle · code-fixes</span>
+        </div>
+        <h3>Finds every hardcoded string</h3>
+        <p>Whatever i18n framework you use, Night Shift sweeps the codebase, picks sensible keys, and lands them as a single PR.</p>
+        <ul>
+          <li>Works with your existing framework — no migration.</li>
+          <li>Suggests semantic keys (<code>checkout.cta.pay</code>).</li>
+          <li>Marks new translations <code>NEEDS_REVIEW</code>.</li>
+        </ul>
+      </article>
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">audits</span>
+          <span class="bundle-tag">bundle · audits</span>
+        </div>
+        <h3>Five nightly audit sweeps</h3>
+        <p>Each is its own task. Each opens its own focused PR — review or ignore areas independently.</p>
+        <ul>
+          <li><strong>find-security-issues</strong> — OWASP Top 10.</li>
+          <li><strong>find-bugs</strong> — races, edge cases, dead paths.</li>
+          <li><strong>improve-seo</strong> — metadata, OG, structured data.</li>
+          <li><strong>improve-performance</strong> — bundle bloat, slow queries.</li>
+          <li><strong>dep-audit</strong> — pins vulnerable transitive deps.</li>
+        </ul>
+      </article>
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">baseline</span>
+          <span class="bundle-tag">bundle · code-fixes</span>
+        </div>
+        <h3>Shrinks the lint baseline — one entry per night</h3>
+        <p>That PHPStan / ESLint / Psalm / mypy / RuboCop baseline file with thousands of grandfathered suppressions? It shrinks now. Quietly. While you sleep.</p>
+        <ul>
+          <li>Picks one suppressed violation.</li>
+          <li>Fixes the underlying code — not the baseline file.</li>
+          <li>Removes the suppression. Opens a PR.</li>
+        </ul>
+      </article>
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">flake</span>
+          <span class="bundle-tag">bundle · audits</span>
+        </div>
+        <h3>Hunts down flaky tests — one a night</h3>
+        <p>Mines 14 days of CI history. Picks the worst recurring offender whose nondeterminism is obvious from the source. Fixes root cause — quarantine is a last resort.</p>
+        <ul>
+          <li>Missing <code>await</code>, unseeded RNG, leaky state.</li>
+          <li>High bar — most nights produce zero PRs. That's the point.</li>
+          <li>Keeps red CI signals trustworthy.</li>
+        </ul>
+      </article>
+
+      <article class="task-card">
+        <div class="row">
+          <span class="brand-tag">auto-fix</span>
+          <span class="bundle-tag">built-in · on every PR</span>
+        </div>
+        <h3>Red CI? Reviewer comment? It fixes itself</h3>
+        <p>Every Night Shift PR has <code>autofix_on_pr_create</code> on. The routine wakes up, investigates the failure or comment, and pushes a fix.</p>
+        <ul>
+          <li>Red CI → reads the log, tries a fix, pushes.</li>
+          <li>Reviewer leaves a comment → answers in code.</li>
+          <li>You don't babysit nightly PRs.</li>
+        </ul>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+  DEMO / LIVE DATA (white canvas)
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-white" id="demo" aria-labelledby="demo-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Demo · real numbers</span>
+      <h2 id="demo-h" class="h1">It already works. Here's <span class="gradient-text">live data</span>.</h2>
+      <p class="lead">Numbers from <code>frontkom/frisk</code> and <code>perandre/ns</code> — pulled from the public Night Shift dashboard.</p>
+    </div>
+
+    <div class="stats-grid">
+      <article class="stat-card">
+        <div class="label">PRs opened</div>
+        <div class="value is-gradient">178</div>
+        <p>Across 24 nights of running — averaging about 7 PRs per night, peaking at 16.</p>
+      </article>
+      <article class="stat-card">
+        <div class="label">Agent-hours</div>
+        <div class="value is-gradient">~71h</div>
+        <p>Of overnight CI + code-generation time — entirely outside the working day.</p>
+      </article>
+      <article class="stat-card">
+        <div class="label">See it live</div>
+        <div class="value" style="font-size: clamp(20px, 2vw, 28px); line-height: 1.25; letter-spacing: 0;">Dashboard updates every run.</div>
+        <p>
+          <a href="./dashboard/">frontkom.github.io/night-shift/dashboard/</a><br />
+          Or browse PRs by label on <a href="https://github.com/search?q=label%3Anight-shift+org%3Afrontkom&type=pullrequests">GitHub</a>.
+        </p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+  CI ↔ NIGHT SHIFT BRIDGE (muted canvas)
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-muted" id="bridge" aria-labelledby="bridge-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">CI × Night Shift</span>
+      <h2 id="bridge-h" class="h1">CI <span class="gradient-text">finds</span>. Night Shift <span class="gradient-text">fixes</span>.</h2>
+      <p class="lead">Your existing pipeline is already great at detection — failing tests, Lighthouse regressions, audit warnings, lint baselines, a11y scans. Night Shift picks up the findings overnight and opens a PR for each one.</p>
+    </div>
+
+    <div class="bridge">
+      <article class="bridge-side bridge-ci" aria-labelledby="ci-h">
+        <p class="sub">☀ Detects · all day</p>
+        <h4 id="ci-h" class="h4">CI · GitHub Actions</h4>
+        <ul class="bridge-list">
+          <li><span class="tag">tests</span><span>2 tests failing on main</span></li>
+          <li><span class="tag">lighthouse</span><span>Perf score −7 on /pricing</span></li>
+          <li><span class="tag">npm audit</span><span>3 high-sev vulnerabilities</span></li>
+          <li><span class="tag">eslint</span><span>12 new baseline entries</span></li>
+          <li><span class="tag">axe</span><span>4 WCAG AA violations</span></li>
+        </ul>
+      </article>
+      <div class="bridge-pipe" aria-hidden="true"><span>🌙</span></div>
+      <article class="bridge-side bridge-ns" aria-labelledby="ns-h">
+        <p class="sub">🌙 Fixes · overnight</p>
+        <h4 id="ns-h" class="h4">Night Shift</h4>
+        <ul class="bridge-list">
+          <li><span class="tag">PR</span><span>Fix race in checkout.spec.ts</span></li>
+          <li><span class="tag">PR</span><span>Optimize hero image (−320 kB)</span></li>
+          <li><span class="tag">PR</span><span>Bump axios + crypto-js</span></li>
+          <li><span class="tag">PR</span><span>Shrink ESLint baseline (−4)</span></li>
+          <li><span class="tag">PR</span><span>Fix a11y on /signup</span></li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+  PARADIGM — DAY / NIGHT (indigo canvas)
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-dark" id="paradigm" aria-labelledby="paradigm-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Day for humans · night for agents</span>
+      <h2 id="paradigm-h" class="h1">Daytime = <span class="gradient-text">thinking</span>. Night = doing.</h2>
+      <p class="lead">If the night does the chores, the day is freed up for the work that compounds — planning, architecture, review.</p>
+    </div>
+
+    <div class="split">
+      <article class="split-card is-day">
+        <p class="head">☀ Daytime · devs</p>
+        <h3 class="h3">Planning. Innovating. Reviewing.</h3>
+        <ul>
+          <li>Design new features and architectures.</li>
+          <li>Write the plans Night Shift will implement.</li>
+          <li>Review the morning's PRs — keep, steer, or discard.</li>
+          <li>Pair with humans on the hard, ambiguous problems.</li>
+        </ul>
+      </article>
+      <article class="split-card is-night">
+        <p class="head" style="color: var(--on-dark-muted);">🌙 Night-time · agents</p>
+        <h3 class="h3">Tests. Docs. Audits. Chores.</h3>
+        <ul>
+          <li>Implement the next phase of the plan.</li>
+          <li>Fill coverage gaps, fix a11y, move strings to i18n.</li>
+          <li>Run security / bug / SEO / perf / deps audits.</li>
+          <li>Shrink the lint baseline, one entry at a time.</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+  GOAL / EQUATION (muted canvas)
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-muted" id="goal" aria-labelledby="goal-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">The goal · per project</span>
+      <h2 id="goal-h" class="h1">Every repo on the <span class="gradient-text">night shift</span>.</h2>
+      <p class="lead">Five hours of billable agent work, five nights a week, every week — capacity that doesn't fight humans for keyboard time.</p>
+    </div>
+
+    <div class="goal-equation">
+      <div class="goal-factor"><div class="v">5</div><div class="u">Hours per night</div></div>
+      <div class="goal-op" aria-hidden="true">×</div>
+      <div class="goal-factor"><div class="v">5</div><div class="u">Nights a week</div></div>
+      <div class="goal-op" aria-hidden="true">×</div>
+      <div class="goal-factor"><div class="v">4</div><div class="u">Weeks a month</div></div>
+      <div class="goal-op" aria-hidden="true">×</div>
+      <div class="goal-factor"><div class="v">1 500</div><div class="u">NOK per hour</div></div>
+    </div>
+
+    <div class="goal-result">
+      <div class="goal-total"><span class="gradient-text">150 000</span><span class="currency">NOK</span></div>
+      <p class="goal-unit">Extra <strong>billable agent-hours per project per month</strong>. Scale that across ~15 active Frontkom projects and it's <strong>≈ 2.25 MNOK every month</strong>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─────────────────────────────────────────────────────────────
+  SETUP / TERMINAL (white canvas)
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-white" id="setup" aria-labelledby="setup-h">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Set-up</span>
+      <h2 id="setup-h" class="h1">One command. <span class="gradient-text">A friendly wizard.</span></h2>
+      <p class="lead">Install once. Type <code>/night-shift</code>. The wizard picks repos, picks tasks per repo, confirms the schedule.</p>
+    </div>
+
+    <div class="setup-grid">
+      <div class="terminal" role="img" aria-label="Demo of the /night-shift wizard">
+        <div class="terminal-bar" aria-hidden="true">
+          <span class="dot dot-r"></span>
+          <span class="dot dot-y"></span>
+          <span class="dot dot-g"></span>
+          <span class="title">claude code · ~/Sites/site-foo</span>
+        </div>
+        <div class="terminal-body">
+          <div class="line"><span class="prompt">claude ❯</span> <span class="cmd">/night-shift</span></div>
+          <div class="line blank"></div>
+          <div class="line"><span class="accent">━━━ Night Shift · setup wizard ━━━</span></div>
+          <div class="line"><span class="out">Hi! Let's schedule some AI work for tonight.</span></div>
+          <div class="line blank"></div>
+          <div class="line"><span class="out">Which backend?</span></div>
+          <div class="line"><span class="sel">Claude Routine — runs on your account</span></div>
+          <div class="line"><span class="chk-off">GitHub Actions — runs on org runners</span></div>
+          <div class="line"><span class="ok">✓ Claude Routine</span></div>
+          <div class="line blank"></div>
+          <div class="line"><span class="out">Which repos should join the night shift?</span></div>
+          <div class="line"><span class="chk-on"><span class="sel">frontkom/site-foo</span></span></div>
+          <div class="line"><span class="chk-on">frontkom/api-bar</span></div>
+          <div class="line"><span class="chk-off">frontkom/legacy-baz</span></div>
+          <div class="line"><span class="ok">✓ 2 repos added</span></div>
+          <div class="line blank"></div>
+          <div class="line"><span class="out">Tasks for </span><span class="accent">frontkom/site-foo</span><span class="out">:</span></div>
+          <div class="line"><span class="chk-on">plans</span><span class="out"> · implement next phase</span></div>
+          <div class="line"><span class="chk-on">docs</span><span class="out"> · changelog · ADRs</span></div>
+          <div class="line"><span class="chk-on">tests</span><span class="out"> · coverage gaps</span></div>
+          <div class="line"><span class="chk-on">a11y</span><span class="out"> · WCAG AA fixes</span></div>
+          <div class="line"><span class="chk-on">audits</span><span class="out"> · security · bugs · SEO · perf</span></div>
+          <div class="line"><span class="ok">✓ 7 tasks selected</span></div>
+          <div class="line blank"></div>
+          <div class="line"><span class="out">Schedule: </span><span class="accent">weeknights · 23:00 UTC</span></div>
+          <div class="line"><span class="ok">✓ Routine created · first run tonight at 23:00.</span></div>
+          <div class="line blank"></div>
+          <div class="line"><span class="out">Sleep well. We'll have PRs waiting for you. 🌙</span></div>
+        </div>
       </div>
 
-      <div class="install" role="group" aria-label="Install command">
-        <code><span class="prompt">$</span> npx skills add -g frontkom/night-shift</code>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="opacity:.6"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <div class="install-card on-light">
+        <div class="install-label">Install · copy &amp; paste</div>
+        <pre class="install-code" id="install-snippet"><code>npx skills add -g frontkom/night-shift</code></pre>
+        <p class="install-foot">Then in any Claude Code session, type <code>/night-shift</code> — and follow the wizard.</p>
+
+        <hr style="border: none; border-top: 1px solid var(--border); margin: var(--s-md) 0;" />
+
+        <div style="display: flex; flex-direction: column; gap: var(--s-md);">
+          <div>
+            <div class="install-label" style="color: var(--fg-muted)">Source</div>
+            <div style="font-family: var(--font-mono); font-size: 14px;">github.com/frontkom/night-shift</div>
+          </div>
+          <div>
+            <div class="install-label" style="color: var(--fg-muted)">Backends</div>
+            <div style="font-family: var(--font-mono); font-size: 14px;">Claude Routine · GitHub Actions</div>
+          </div>
+          <div>
+            <div class="install-label" style="color: var(--fg-muted)">No CLI?</div>
+            <div style="font-size: 14px; color: var(--fg-muted);">Fetch the skill directly:</div>
+            <code style="display: block; font-size: 12px; margin-top: 6px; padding: 8px 10px; background: var(--bg-muted); border: 1px solid var(--border); border-radius: var(--r-sm); white-space: pre-wrap; word-break: break-all;">curl -fsSL https://raw.githubusercontent.com/frontkom/night-shift/main/skills/night-shift/SKILL.md -o ~/.claude/skills/night-shift/SKILL.md</code>
+          </div>
+        </div>
       </div>
-      <div class="install-hint">Then type <code>/night-shift</code> in any Claude Code session.</div>
-    </div>
-
-    <figure class="hero-art" aria-hidden="true">
-      <img src="./night-shift.png" alt="" loading="eager" decoding="async" />
-      <span class="hero-stamp">night-shift &middot; 03:13 AM</span>
-    </figure>
-  </div>
-</section>
-
-<!-- OUTCOMES -->
-<section id="outcomes" aria-labelledby="outcomes-h">
-  <div class="wrap">
-    <p class="kicker">In your repo tomorrow morning</p>
-    <h2 id="outcomes-h">Six things that weren't there last night.</h2>
-    <p class="section-lede">Every Night Shift run leaves a labelled PR per task — <code>night-shift</code> — so <code>gh pr list --label night-shift</code> is the audit trail. The bundle is obvious from the PR title (<code>night-shift/plan:</code>, <code>night-shift/bug:</code>, etc.).</p>
-
-    <div class="grid-outcomes">
-      <article class="tile">
-        <div class="icn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h12M4 18h8"/><path d="M19 16l2 2-2 2"/></svg></div>
-        <h3>Implemented plans</h3>
-        <p>Picks the next phase from a <code>docs/*-PLAN.md</code> file and opens a PR for it.</p>
-      </article>
-      <article class="tile t-teal">
-        <div class="icn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M9 13h6M9 17h4"/></svg></div>
-        <h3>Updated docs</h3>
-        <p>Changelog entries, user guide pages, decision records — kept in sync with what landed.</p>
-      </article>
-      <article class="tile t-sun">
-        <div class="icn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg></div>
-        <h3>New test coverage</h3>
-        <p>Fills coverage gaps following the patterns your existing tests already use.</p>
-      </article>
-      <article class="tile t-plum">
-        <div class="icn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 11h.01M15 11h.01M8 16c1 1.2 2.5 2 4 2s3-.8 4-2"/></svg></div>
-        <h3>Accessibility fixed</h3>
-        <p>WCAG AA violations on key pages — caught and patched before users hit them.</p>
-      </article>
-      <article class="tile">
-        <div class="icn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h7M5 12h11M5 16h6"/><path d="M17 4l4 4-4 4"/><path d="M21 8H10"/></svg></div>
-        <h3>Translated UI</h3>
-        <p>Hardcoded strings extracted into your i18n system so locales stay complete.</p>
-      </article>
-      <article class="tile t-teal">
-        <div class="icn" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg></div>
-        <h3>Audit PRs</h3>
-        <p>Security, bugs, SEO, and performance — one PR per area, scoped to what's worth fixing.</p>
-      </article>
     </div>
   </div>
 </section>
 
-<!-- BUNDLES -->
-<section id="bundles" aria-labelledby="bundles-h">
+<!-- ─────────────────────────────────────────────────────────────
+  FAQ (muted canvas)
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-muted" id="faq" aria-labelledby="faq-h">
   <div class="wrap">
-    <p class="kicker">The bundles</p>
-    <h2 id="bundles-h">Five shifts. One source of truth.</h2>
-    <p class="section-lede"><code>manifest.yml</code> is the single source of truth for what tasks exist, what they do, and what bundle they belong to. Edit one file to add, rename, or reorder.</p>
-
-    <div class="grid-bundles">
-      <article class="bundle b-plans">
-        <span class="name">plans</span>
-        <h3>Build the next phase</h3>
-        <p>Implements the next phase of a planning document.</p>
-        <ul>
-          <li>build-planned-features</li>
-          <li>work-on-issues</li>
-          <li>work-on-jira-issues</li>
-        </ul>
-      </article>
-      <article class="bundle b-docs">
-        <span class="name">docs</span>
-        <h3>Keep the truth current</h3>
-        <p>Updates changelog, user guide, decision records, and improvement suggestions.</p>
-        <ul>
-          <li>update-changelog</li>
-          <li>update-user-guide</li>
-          <li>document-decisions</li>
-          <li>suggest-improvements</li>
-        </ul>
-      </article>
-      <article class="bundle b-fixes">
-        <span class="name">code-fixes</span>
-        <h3>Quietly fill the gaps</h3>
-        <p>Adds tests, fixes accessibility, completes translations.</p>
-        <ul>
-          <li>add-tests</li>
-          <li>improve-accessibility</li>
-          <li>translate-ui</li>
-        </ul>
-      </article>
-      <article class="bundle b-audits">
-        <span class="name">audits</span>
-        <h3>Find what's wrong</h3>
-        <p>Surfaces security, bug, SEO, and performance issues — each as its own PR.</p>
-        <ul>
-          <li>find-security-issues</li>
-          <li>find-bugs</li>
-          <li>improve-seo</li>
-          <li>improve-performance</li>
-        </ul>
-      </article>
+    <div class="section-head">
+      <span class="eyebrow">FAQ</span>
+      <h2 id="faq-h" class="h1">The honest <span class="gradient-text">questions</span>.</h2>
     </div>
-    <p class="section-lede" style="margin-top: 24px;">Each routine also has Claude's <strong>auto-fix on PR create</strong> behavior turned on — when CI fails or a reviewer comments on a Night Shift PR, Claude wakes up, investigates, and pushes a fix. No separate triage routine needed.</p>
-  </div>
-</section>
 
-<!-- BACKENDS -->
-<section id="backends" aria-labelledby="backends-h">
-  <div class="wrap">
-    <p class="kicker">Two ways to run it</p>
-    <h2 id="backends-h">Pick the backend that matches how you work.</h2>
-    <p class="section-lede">Same tasks, same task picker, same PR output. Choose during setup — switch later by re-running <code>/night-shift</code>.</p>
-
-    <div class="grid-backends">
-      <article class="backend">
-        <h3>Claude Routine</h3>
-        <p>Runs on your Claude account via Claude Code routines. Perfect for personal projects and small teams.</p>
-        <ul>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Included with your Claude subscription — no API key needed</li>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Four routines: build, code-fixes, audits, docs — each with auto-fix on its own PRs</li>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Default schedule fires on weeknights only — quiet weekends</li>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Atlassian Rovo for optional Jira pickup</li>
-        </ul>
+    <div class="faq-list">
+      <article class="faq-item">
+        <h3 class="faq-q">Why run it at night?</h3>
+        <p class="faq-a"><strong>Avoid multitasking hell.</strong> Agents and humans competing for the same files is chaos — give them different shifts and they cooperate instead of collide.</p>
+        <p class="faq-a"><strong>Don't occupy CI time.</strong> Overnight is the quietest CI window. Daytime CI stays fast for humans pushing real work.</p>
+        <p class="faq-a"><strong>And the real question:</strong> why should there be a single hour in the day where AI <em>isn't</em> working for us?</p>
       </article>
-      <article class="backend is-ga">
-        <h3>GitHub Actions</h3>
-        <p>Runs on GitHub-hosted runners via a reusable workflow. Built for orgs and shared repos.</p>
-        <ul>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Scales across an org without consuming Claude account quota</li>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>One <code>ANTHROPIC_API_KEY</code> org secret — set once</li>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Caller workflow installed per repo by the setup command</li>
-          <li><span class="check" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>Same task picker, same PR labels, same audit trail</li>
-        </ul>
+
+      <article class="faq-item">
+        <h3 class="faq-q">Does it work with my stack?</h3>
+        <p class="faq-a"><strong>Yes — it works for all of them.</strong> Night Shift reads your repo the way a new developer would and follows the patterns it finds.</p>
+        <p class="faq-a"><strong>But now we need your help.</strong> Pick one task in the <code>night-shift</code> repo that would make <em>your</em> life easier — a framework-specific test convention, a translation quirk, a stack idiom — and ship a PR.</p>
+        <p class="faq-a"><strong>Heads up:</strong> new versions don't auto-update existing routines. Your routines stay frozen on whatever version you installed — re-install to pick up improvements.</p>
+      </article>
+
+      <article class="faq-item">
+        <h3 class="faq-q">Aren't automated AI commits risky?</h3>
+        <p class="faq-a"><strong>Nothing auto-merges.</strong> Every change lands as a labelled pull request that a human has to review. If a PR is bad, you close it — same as any other PR. CI runs on every Night Shift PR, and your branch protection rules still apply. The agent doesn't bypass anything. Risk surface = your normal review pipeline.</p>
+      </article>
+
+      <article class="faq-item">
+        <h3 class="faq-q">What if a task isn't relevant for my project?</h3>
+        <p class="faq-a"><strong>Turn it off per repo.</strong> The setup wizard runs a per-repo task picker — you choose which tasks fire for each project, and you can re-run <code>/night-shift</code> any time to change the selection.</p>
+        <p class="faq-a">No plan file? The plans task quietly skips. No baseline? Same. Night Shift is opinionated, not pushy.</p>
+      </article>
+
+      <article class="faq-item">
+        <h3 class="faq-q">Where do I start?</h3>
+        <p class="faq-a"><strong>If you maintain a repo:</strong> pick <strong>one</strong> repo and add Night Shift <em>today</em>. That means you'll have a batch of PRs waiting for you on Monday morning.</p>
+        <p class="faq-a">By the end of <strong>next week</strong>, we want every active Frontkom repo on the night shift.</p>
+        <p class="faq-a" style="font-size: 18px; color: var(--fg);"><strong><span class="gradient-text">Nothing happens if you don't do it.</span></strong></p>
       </article>
     </div>
   </div>
 </section>
 
-<!-- GET STARTED -->
-<section id="start" aria-labelledby="start-h">
+<!-- ─────────────────────────────────────────────────────────────
+  CTA / FINAL (indigo canvas) — Let's go!
+───────────────────────────────────────────────────────────────── -->
+<section class="surface-dark cta" id="lets-go" aria-labelledby="lets-go-h">
+  <div class="gradient-bar" aria-hidden="true"></div>
   <div class="wrap">
-    <p class="kicker">Get started</p>
-    <h2 id="start-h">Three steps. Five minutes.</h2>
-    <p class="section-lede">Claude walks you through the setup interactively — picking repos, choosing tasks, confirming before anything is created.</p>
+    <span class="eyebrow">Final · do the thing</span>
+    <h2 id="lets-go-h" class="cta-headline"><span class="gradient-text">Let's go!</span></h2>
+    <p class="cta-sub">Pick one repo. Install. Run <code>/night-shift</code>. You'll have a batch of PRs waiting tomorrow morning.</p>
 
-    <div class="steps">
-      <article class="step">
-        <span class="step-num">01 / Install</span>
-        <h3>Add the skill</h3>
-        <p>One command in your shell — not in Claude.</p>
-<pre class="snippet"><span class="p">$</span> npx skills add -g <span class="s">frontkom/night-shift</span></pre>
-        <p class="step-note"><code>-g</code> installs globally so the skill works in every session, not just inside one project.</p>
-      </article>
-      <article class="step">
-        <span class="step-num">02 / Open</span>
-        <h3>Type the command</h3>
-        <p>In any Claude Code session:</p>
-<pre class="snippet"><span class="p">/</span>night-shift</pre>
-      </article>
-      <article class="step">
-        <span class="step-num">03 / Sleep</span>
-        <h3>Walk through setup</h3>
-        <p>Pick repos, pick tasks per repo, confirm the schedule. Claude creates the routines or the workflow files for you.</p>
-<pre class="snippet"><span class="c"># default: weeknights, 23:00 UTC</span>
-<span class="c"># pause anytime: .nightshift-skip</span></pre>
-      </article>
+    <div class="install-card">
+      <div class="install-label">Install · in your shell</div>
+      <pre class="install-code" id="install-snippet-2"><code>npx skills add -g frontkom/night-shift</code></pre>
+      <p class="install-foot">Then in any Claude Code session, type <code>/night-shift</code>.</p>
     </div>
 
-    <p class="pages-note">
-      <strong>No CLI?</strong> Fetch the skill directly: <code>curl -fsSL https://raw.githubusercontent.com/frontkom/night-shift/main/skills/night-shift/SKILL.md -o ~/.claude/skills/night-shift/SKILL.md</code>
-    </p>
+    <div class="lets-go-links">
+      <a class="lets-go-link" href="https://github.com/frontkom/night-shift">
+        <span class="ico" aria-hidden="true">🐙</span>
+        <span class="text">
+          <span class="label">GitHub</span>
+          <span class="value">github.com/frontkom/night-shift</span>
+        </span>
+      </a>
+      <a class="lets-go-link" href="./dashboard/">
+        <span class="ico" aria-hidden="true">📊</span>
+        <span class="text">
+          <span class="label">Dashboard</span>
+          <span class="value">perandre.github.io/ns/dashboard</span>
+        </span>
+      </a>
+      <a class="lets-go-link" href="mailto:perandre@frontkom.com">
+        <span class="ico" aria-hidden="true">✉️</span>
+        <span class="text">
+          <span class="label">Maintainer</span>
+          <span class="value">Per André · perandre@frontkom.com</span>
+        </span>
+      </a>
+    </div>
   </div>
+  <div class="gradient-bar is-bottom" aria-hidden="true"></div>
 </section>
 
 </main>
 
-<footer>
+<footer class="foot">
   <div class="wrap foot-row">
-    <div>
-      Built by <a href="https://frontkom.com">Frontkom</a> · Open source on <a href="https://github.com/frontkom/night-shift">GitHub</a>
+    <div class="foot-brand">
+      <img src="./assets/logos/logo-frontkom-on-dark.svg" alt="Frontkom" />
+      <span>· Night Shift is open source</span>
     </div>
     <nav class="foot-links" aria-label="Footer">
       <a href="./dashboard/">Dashboard</a>
       <a href="https://github.com/frontkom/night-shift#readme">README</a>
       <a href="https://github.com/frontkom/night-shift/blob/main/HOW-TO.md">HOW-TO</a>
-      <a href="https://github.com/frontkom/night-shift/blob/main/skills/night-shift/SKILL.md">SKILL</a>
+      <a href="https://github.com/frontkom/night-shift/blob/main/skills/night-shift/SKILL.md">SKILL.md</a>
       <a href="https://github.com/frontkom/night-shift/blob/main/manifest.yml">manifest.yml</a>
     </nav>
   </div>
 </footer>
+
+<script>
+  // Click-to-copy on install snippets
+  document.querySelectorAll('.install-code').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const text = el.textContent.trim();
+      try {
+        await navigator.clipboard.writeText(text);
+        el.classList.add('copied');
+        setTimeout(() => el.classList.remove('copied'), 1500);
+      } catch { /* viewer can select & copy manually */ }
+    });
+  });
+</script>
 
 </body>
 </html>
