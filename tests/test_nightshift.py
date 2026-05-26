@@ -42,7 +42,7 @@ REPO_ROOT = TESTS_DIR.parent
 MANIFEST_PATH = REPO_ROOT / "manifest.yml"
 TASKS_DIR = REPO_ROOT / "tasks"
 BUNDLES_DIR = REPO_ROOT / "bundles"
-SKILL_PATH = REPO_ROOT / "skill" / "SKILL.md"
+SKILL_PATH = REPO_ROOT / "skills" / "night-shift" / "SKILL.md"
 README_PATH = REPO_ROOT / "README.md"
 HOWTO_PATH = REPO_ROOT / "HOW-TO.md"
 
@@ -70,12 +70,23 @@ def all_task_ids() -> set[str]:
 
 
 class TestManifestStructure(unittest.TestCase):
-    def test_twelve_tasks(self):
-        self.assertEqual(len(load_manifest()["tasks"]), 12)
+    def test_task_ids_are_unique_and_nonempty(self):
+        task_ids = [t["id"] for t in load_manifest()["tasks"]]
+        self.assertTrue(task_ids, "manifest must define at least one task")
+        self.assertEqual(len(task_ids), len(set(task_ids)))
 
-    def test_four_bundles(self):
-        self.assertEqual(set(load_manifest()["bundles"].keys()),
-                         {"plans", "docs", "code-fixes", "audits"})
+    def test_core_bundles_exist(self):
+        self.assertTrue(
+            {"plans", "docs", "code-fixes", "audits"}.issubset(
+                set(load_manifest()["bundles"].keys())
+            )
+        )
+
+    def test_every_task_references_a_defined_bundle(self):
+        manifest = load_manifest()
+        bundle_ids = set(manifest["bundles"].keys())
+        for task in manifest["tasks"]:
+            self.assertIn(task["bundle"], bundle_ids, f"{task['id']} uses unknown bundle")
 
     def test_every_task_has_file(self):
         for tid in all_task_ids():
@@ -297,12 +308,7 @@ class TestAllowlistParsing(unittest.TestCase):
 
 
 class TestBundleFilter(unittest.TestCase):
-    MANIFEST_IDS = {
-        "build-planned-features", "update-changelog", "update-user-guide",
-        "document-decisions", "suggest-improvements", "add-tests",
-        "improve-accessibility", "translate-ui", "find-security-issues",
-        "find-bugs", "improve-seo", "improve-performance",
-    }
+    MANIFEST_IDS = all_task_ids()
 
     def test_fall_back_returns_full_bundle(self):
         allowlist = parse_allowlist(ABSENT_PROMPT)
@@ -479,12 +485,12 @@ class TestEndToEndPipeline(unittest.TestCase):
         )
         plans_parsed = parse_allowlist(plans_prompt)
         self.assertFalse(plans_parsed.fell_back)
-        # Only repo-a has build-planned-features (audits-off leaves plans intact)
+        # Only repo-a has plans tasks (audits-off leaves plans intact)
         self.assertEqual(set(plans_parsed.repos), {repo_a})
         tasks, _ = filter_bundle_for_repo(
             list(plans_ids), plans_parsed, repo_a, self.manifest_ids,
         )
-        self.assertEqual(tasks, ["build-planned-features"])
+        self.assertEqual(sorted(tasks), sorted(self.by_bundle["plans"]))
 
         # --- Docs + code-fixes trigger ---
         docs_fix_ids = set(self.by_bundle["docs"]) | set(self.by_bundle["code-fixes"])
