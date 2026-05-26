@@ -33,12 +33,7 @@ In any Claude Code session, type:
 
 Claude will walk you through setup interactively — pick repos, choose tasks, confirm before anything is created.
 
-Night Shift supports two backends:
-
-| Backend | How it runs | Requirements |
-|---|---|---|
-| **Claude Routine** | Claude Code routines (runs on your account) | Claude subscription — no API key needed |
-| **GitHub Actions** | GitHub-hosted runners via a reusable workflow | `ANTHROPIC_API_KEY` in org/repo secrets + `gh` CLI |
+Night Shift runs on Claude Code routines — scheduled remote agents on your Claude account. No API key, no extra infrastructure; your Claude subscription covers it.
 
 During setup, `/night-shift` runs a **per-repo task picker** — for each repo you add, you choose which of the tasks should run nightly. Defaults are all-on. To change a repo's selection later, re-run `/night-shift` and pick **Change tasks for a repo**.
 
@@ -69,19 +64,6 @@ Every Night Shift run leaves a labelled PR per task (`night-shift`), so `gh pr l
 `manifest.yml` is the single source of truth for what tasks exist, what they do, what bundle they belong to, and what order they run in. Edit one file to add, rename, reorder, or move tasks.
 
 The `shopify` bundle is opt-in for Shopify projects only. To enable: add `bundles: [shopify]` (alongside any other bundles) in the project's `CLAUDE.md` Night Shift Config block. The tasks expect the project to be running on `claude-shopify-boilerplate` conventions (specifically `scripts/tasks/diff_vendor_update.py`, `scripts/tasks/audit_migration_risk.py`, and a `.vendor-baseline` file at repo root).
-
-## GitHub Actions
-
-To use the GitHub Actions backend, an org admin needs to add `ANTHROPIC_API_KEY` as an **organization secret**:
-
-1. Go to your org's **Settings → Secrets and variables → Actions**
-2. Click **New organization secret**
-3. Name: `ANTHROPIC_API_KEY`, Value: your Anthropic API key
-4. Repository access: select the repos Night Shift will manage (or "All repositories")
-
-This is a one-time setup. Once the secret exists, any repo member can run `/night-shift`, choose **GitHub Actions**, and the skill will create PRs with the workflow file — no local clone needed.
-
-You also need the [GitHub CLI](https://cli.github.com) (`gh`) installed and authenticated on your machine for the setup process.
 
 ## Jira integration (optional)
 
