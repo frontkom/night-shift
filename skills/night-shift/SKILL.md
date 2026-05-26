@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-05-26a
+version: 2026-05-26b
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-05-26a -->
+<!-- NIGHT_SHIFT_VERSION: 2026-05-26b -->
 
 ## Version check (run this first, every invocation)
 
@@ -62,11 +62,13 @@ Then:
 
   > Night Shift is already set up:
   >
-  > | Job | Schedule | Repos |
-  > |---|---|---|
-  > | build | `<local time>` | `<repo list>` |
-  > | maintain | `<local time>` | `<repo list>` |
-  > | audit | `<local time>` | `<repo list>` |
+  > | Job | State | Schedule | Repos |
+  > |---|---|---|---|
+  > | build | `enabled` | `<local time>` | `<repo list>` |
+  > | maintain | `enabled` | `<local time>` | `<repo list>` |
+  > | audit | `disabled` | `<local time>` | `<repo list>` |
+  >
+  > Warning: if any Night Shift routine is `disabled`, config edits do **not** make it runnable again. I can still update its config, but it will not run until you re-enable it in Claude Code desktop or at https://claude.ai/code/routines. If it was auto-disabled after missed auth or connector approvals, fix that first, then re-enable and save.
   >
   > What would you like to do?
   > - **Add a repo** (runs the task picker for the new repo)
@@ -78,6 +80,17 @@ Then:
   > - **Nothing** — just wanted to check
 
   Dispatch to the matching runbook section. Never silently re-create routines that already exist. For "Delete everything and start over", delete all routines, then restart from **Step 1**.
+
+---
+
+## Disabled routine guardrail
+
+Any time the skill reads an existing routine via `RemoteTrigger` `list` or `get` (setup discovery, status, add repo, remove repo, change tasks, change schedule, pause, delete, or any other post-setup edit), inspect the routine's `enabled` flag.
+
+- If `enabled: false`, warn immediately before making any config edit:
+  > Warning: this Night Shift routine is disabled. I can update its config, but it still will not run until you re-enable it in Claude Code desktop or at https://claude.ai/code/routines. If it was auto-disabled after missed auth or connector approvals, fix that first, then re-enable and save.
+- Do **not** silently set `enabled: true` during an update. Preserve the current enabled/disabled state unless the user explicitly asks to re-enable the routine.
+- Treat the warning as informational, not blocking. The user asked for a warning, not a forced stop.
 
 ---
 
@@ -427,12 +440,12 @@ All post-setup operations (add repo, remove repo, change tasks) must **read the 
 
 Steps, for each of the four routines in turn:
 
-1. Read the routine's current `prompt` via `RemoteTrigger` (`action: "get"`).
+1. Read the routine via `RemoteTrigger` (`action: "get"`) and capture its current `prompt`, `enabled`, and `sources[]`. If `enabled: false`, show the disabled-routine warning before continuing.
 2. Locate the `<night-shift-config>` / `</night-shift-config>` delimiters. If absent, treat the current state as "all tasks allowed for all repos" and synthesise a full map from the current `sources[]`.
 3. Parse the YAML, apply the change (add key, remove key, replace value), re-serialise.
 4. Splice the new YAML back between the delimiters, preserving everything else in the prompt.
 5. Update `sources[]` to match the union of `repos:` keys.
-6. Write back via `RemoteTrigger` (`action: "update"`). **Send the full `job_config.ccr` block** — `environment_id`, `events` (with the modified prompt), and the **full** `session_context` (every key from the GET response). `update` replaces `ccr` wholesale; a slim body silently drops whatever you omitted. See the gotcha note under Step 4's API body section.
+6. Write back via `RemoteTrigger` (`action: "update"`), preserving the current `enabled` state exactly unless the user explicitly asked to re-enable the routine. **Send the full `job_config.ccr` block** — `environment_id`, `events` (with the modified prompt), and the **full** `session_context` (every key from the GET response). `update` replaces `ccr` wholesale; a slim body silently drops whatever you omitted. See the gotcha note under Step 4's API body section.
 
 If merging produces an empty `repos:` map for a routine, **delete that routine** (not just update it). If a merge would re-populate a routine that was previously deleted, **re-create it** using the Step 4 template from the Setup runbook.
 
@@ -462,13 +475,15 @@ If merging produces an empty `repos:` map for a routine, **delete that routine**
 
 ## Status
 
-List the user's current routines via the `RemoteTrigger` tool (`action: "list"`). Filter to names starting with `night-shift-`. Show name, cron (converted to local time), and the repos in `sources[]`.
+List the user's current routines via the `RemoteTrigger` tool (`action: "list"`). Filter to names starting with `night-shift-`. Show name, state (`enabled` / `disabled`), cron (converted to local time), and the repos in `sources[]`. If any routine is disabled, add an explicit warning that config edits do not re-enable it and tell the user to re-enable it in Claude Code desktop or at https://claude.ai/code/routines after fixing the auth/connector issue that disabled it.
 
 > **Night Shift status:**
 >
-> | Job | Schedule | Repos |
-> |---|---|---|
-> | build | ... | ... |
+> | Job | State | Schedule | Repos |
+> |---|---|---|---|
+> | build | enabled | ... | ... |
+>
+> Warning: disabled routines will not run even if their Night Shift config was updated. Re-enable them in Claude Code desktop or at https://claude.ai/code/routines after fixing the auth/connector problem.
 
 ## Notes for Claude
 
