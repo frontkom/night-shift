@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-05-28b
+version: 2026-05-28c
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-05-28b -->
+<!-- NIGHT_SHIFT_VERSION: 2026-05-28c -->
 
 ## Version check (run this first, every invocation)
 
@@ -230,6 +230,12 @@ Use the `RemoteTrigger` tool with `action: "create"`. **Do not** include `https:
    - Delete the bootstrap routine if the user wants (or repurpose it).
 
 This only happens once — the `environment_id` is stable per account. Cache it for all routines in this session.
+
+**If a repo (or a whole org) doesn't appear in the routine's repo picker.** This is the most common first-run snag, and it's an access problem, not a Night Shift bug: routines can only target repos the **Claude GitHub app** has been granted. Raise it proactively the moment a repo the user listed in Step 1 is missing from the picker (or from the bootstrap "pick any repo" step above) — don't wait for them to get stuck. Walk them through, in order:
+
+1. Run `claude` and execute `/web-setup` — this links the GitHub account and usually makes the missing repos appear.
+2. If they still don't show, open https://github.com/apps/claude → **Configure** → choose the **organization** → under **Repository access**, add the desired repo(s).
+3. For org-owned repos this issues an **access request to the org admins**; the repos only appear once an admin approves. Tell the user to expect that approval step and to ping their admin if they don't administer the org themselves.
 
 **Exact API body structure.** The RemoteTrigger API nests settings inside `job_config.ccr`. `mcp_connections` is a sibling of `job_config` (top-level), not nested. Here is a complete example for one routine — follow this structure exactly:
 

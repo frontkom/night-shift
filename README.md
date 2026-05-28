@@ -37,6 +37,8 @@ Night Shift runs on Claude Code routines — scheduled remote agents on your Cla
 
 During setup, `/night-shift` runs a **per-repo task picker** — for each repo you add, you choose which of the tasks should run nightly. Defaults are all-on. To change a repo's selection later, re-run `/night-shift` and pick **Change tasks for a repo**.
 
+> **Repo not showing up in the routine's repo list?** The Claude GitHub app just hasn't been granted access to it yet. Run `claude` and execute `/web-setup`. If it still doesn't appear, go to [github.com/apps/claude](https://github.com/apps/claude) → **Configure** → pick the organization → add the repo(s). For org repos this sends an approval request to your org admins; the repo shows up once they approve.
+
 
 ## What you'll find in your repo tomorrow morning
 
