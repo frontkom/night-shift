@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-05-28c
+version: 2026-05-28d
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-05-28c -->
+<!-- NIGHT_SHIFT_VERSION: 2026-05-28d -->
 
 ## Version check (run this first, every invocation)
 
@@ -148,16 +148,11 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    - `jira_project_key` — required, e.g. `FGPW`. The Jira project whose tagged issues should become PRs in this repo.
    - `jira_label` — optional, default `night-shift`. The label to filter on.
 
-   Store these on `selection[repo].jira = { project: <KEY>, label: <LABEL> }` for use in Step 5's summary.
+   Store these on `selection[repo].jira = { project: <KEY>, label: <LABEL> }`. In Step 4 this gets baked into the build routine's `<night-shift-config>` block as a `jira:` entry for this repo — **the user does not need to touch their repo at all**. (Putting `Jira project key:` in the repo's `CLAUDE.md` still works as an override/fallback, but it is no longer required; relying on that manual paste is what historically left opted-in repos silently never running Jira.)
 
-   Then tell the user (do **not** push to their repo for them — they paste it into their CLAUDE.md):
+   Then tell the user:
 
-   > Add the following to **`<repo>/CLAUDE.md`** under `## Night Shift Config` before the next routine run:
-   >
-   > ```
-   > - Jira project key: <KEY>
-   > - Jira label: <LABEL>   # optional, omit to default to night-shift
-   > ```
+   > Got it — I'll store the Jira project key (`<KEY>`, label `<LABEL>`) directly in the routine config, so there's nothing to add to your repo.
    >
    > I'll walk you through the Atlassian Rovo connector setup before I create the routines (it's a one-time per-account flow — connect Rovo, flip tool permissions to "Always allow", and a possible one-click bootstrap if no routine has Rovo attached yet). Until that's all in place the task self-skips silently — no failure noise.
 
@@ -217,6 +212,8 @@ A routine is created only if at least one repo's selection has a non-empty inter
 3. Append the `<night-shift-config>` block at the end.
 
 **Inline the allowlist.** Each routine's prompt gets a `<night-shift-config>` block appended at the end. For each routine, list only the tasks from its bundle that each repo selected. **Never put a task id in a routine's YAML that doesn't belong to that routine's bundles** — the wrapper ignores mismatched ids, but keeping the YAML clean makes the routines dashboard easier to read.
+
+**Inline the Jira keys (build routine only).** For every repo whose selection includes `work-on-jira-issues`, append a `jira:` sub-block to the **build** routine's `<night-shift-config>` (see `bundles/_multi-runner.md` → "Optional `jira:` sub-block"), keyed by the same `https://github.com/owner/repo` URL, carrying `project_key: <KEY>` and — only when the user gave a non-default label — `label: <LABEL>`, both taken from `selection[repo].jira`. This is what puts the Jira project key **in the config** instead of requiring a `CLAUDE.md` edit in the target repo. Only the build routine runs `work-on-jira-issues`, so no other routine gets a `jira:` block. On add-repo / change-tasks rewrites, parse and preserve any existing `jira:` entries the same way the `repos:` block is merged.
 
 Use the `RemoteTrigger` tool with `action: "create"`. **Do not** include `https://github.com/frontkom/night-shift` in sources — that repo is public and writing run logs to it would leak private project information.
 
@@ -429,7 +426,7 @@ The five tools the task uses — `Search with JQL`, `Get issue`, `Get transition
 
 ### Per-repo project key
 
-Each repo that opted in still needs `Jira project key:` (and optionally `Jira label:`) in its `CLAUDE.md` `## Night Shift Config`. The picker's Jira follow-up step printed the snippet — the user pastes it into the repo themselves.
+The per-repo Jira project key is captured by the picker's Jira follow-up (Step 2.4) and baked into the build routine's `<night-shift-config>` `jira:` sub-block at create time — **no edit to the target repo is required**. The wrapper resolves the key from the config block first, then falls back to `Jira project key:` in the repo's `CLAUDE.md` `## Night Shift Config`. So a `CLAUDE.md` entry still works as an override/fallback (and is the only source for standalone, non-routine runs of the task), but it is no longer the primary path — which removes the old failure where an opted-in repo silently never ran Jira because the snippet was never pasted.
 
 ## Test-once runbook (no scheduling)
 

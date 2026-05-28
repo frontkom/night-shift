@@ -193,13 +193,15 @@ Record one summary row per issue with `App = —`, `Plan = work-on-issues #<n>`.
 
 ## work-on-jira-issues dispatch (scope: repo, one subagent per tagged Jira issue)
 
-**Dispatched BEFORE the plan-file fan-out** for this repo, immediately after the `work-on-issues` fan-out (or after skipping it when not allowlisted). Check if `work-on-jira-issues` is in the repo's allowlist. If so, **discover tagged Jira issues at the wrapper level** by calling the Atlassian Rovo MCP `Search with JQL` tool. The wrapper has the connector attached; the subagents don't need it for their narrowed prompts. Use the JQL from CLAUDE.md (`Jira project key:` is required, `Jira label:` defaults to `night-shift`):
+**Dispatched BEFORE the plan-file fan-out** for this repo, immediately after the `work-on-issues` fan-out (or after skipping it when not allowlisted). Check if `work-on-jira-issues` is in the repo's allowlist. If so, **resolve the repo's Jira project key + label**, then **discover tagged Jira issues at the wrapper level** by calling the Atlassian Rovo MCP `Search with JQL` tool. The wrapper has the connector attached; the subagents don't need it for their narrowed prompts.
+
+**Resolve the key/label in this order** (see `bundles/_multi-runner.md` → "Optional `jira:` sub-block"): the config block's `jira:` entry for this repo (`project_key`, optional `label`) → the repo's `CLAUDE.md` `Jira project key:` / `Jira label:` → if neither yields a key, skip the Jira dispatch for this repo silently. `label` defaults to `night-shift`. Then build the JQL:
 
 ```
 project = <KEY> AND labels = "<LABEL>" AND statusCategory != Done ORDER BY created ASC
 ```
 
-If `CLAUDE.md` lacks `Jira project key:`, skip the entire Jira dispatch silently. If the Rovo connector is not attached at the wrapper level, skip silently. If the JQL search returns zero issues, print `Discovered tagged Jira issues: none.` and continue.
+If neither the config block nor `CLAUDE.md` yields a project key, skip the entire Jira dispatch silently. If the Rovo connector is not attached at the wrapper level, skip silently. If the JQL search returns zero issues, print `Discovered tagged Jira issues: none.` and continue.
 
 Otherwise, print one discovery line: `Discovered tagged Jira issues: FGPW-12, FGPW-15 (2 total).` There is **no count cap** — every tagged Jira issue gets its own subagent.
 

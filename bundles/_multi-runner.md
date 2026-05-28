@@ -21,6 +21,25 @@ repos:
 - An empty list `[]` means "no tasks for this repo in this bundle"; the wrapper records `not-selected` in the summary and dispatches nothing for that repo.
 - A repo absent from `repos:` defaults to **all tasks allowed** (same as no config block at all). This keeps single-repo ad-hoc invocations working.
 
+### Optional `jira:` sub-block (per-repo Jira project key)
+
+`work-on-jira-issues` needs a Jira project key. Historically that key lived only in each target repo's `CLAUDE.md` (`Jira project key:`), which meant a repo could opt into the task at setup yet silently never run because nobody pasted the key. The key can now travel **inside the config block** instead, so it is captured once at setup and needs no edit in the target repo:
+
+```
+<night-shift-config>
+repos:
+  https://github.com/owner/repo-a: [build-planned-features, work-on-jira-issues]
+jira:
+  https://github.com/owner/repo-a:
+    project_key: FGPW
+    label: night-shift        # optional, defaults to night-shift
+</night-shift-config>
+```
+
+- The `jira:` block is **optional** and keyed by the same full `https://github.com/owner/repo` URL as `repos:`. The `repos:` shape is unchanged — `jira:` is purely additive, so old config blocks keep parsing.
+- `project_key` is required for an entry to be usable; `label` defaults to `night-shift`.
+- **Resolution precedence** (the `work-on-jira-issues` dispatch resolves the key/label in this order): config-block `jira:` entry → the repo's `CLAUDE.md` `Jira project key:` / `Jira label:` → if neither yields a key, skip the Jira dispatch for that repo silently. This keeps existing `CLAUDE.md`-based setups and ad-hoc standalone runs working unchanged.
+
 **Parsing rules** — the wrapper is itself an LLM subagent, so robustness matters:
 
 1. Scan your own invocation prompt for the literal strings `<night-shift-config>` and `</night-shift-config>`. Extract everything between.

@@ -81,19 +81,11 @@ Each developer who wants to use Jira with Night Shift does this checklist on the
 
    The five tools the task actually calls — `Search with JQL`, `Get issue`, `Get transitions`, `Transition issue`, and the comment-adding tool — straddle Interactive and Read-only, so flipping all three groups is the simplest "set it and forget it" choice. (Write/delete is needed if the comment tool lives there.)
 
-**3. Run `/night-shift` in Claude Code.** When the task picker asks, tick `work-on-jira-issues` for each repo where you want this active. The skill prompts for the Jira project key per repo and prints the snippet to paste into that repo's `CLAUDE.md`.
+**3. Run `/night-shift` in Claude Code.** When the task picker asks, tick `work-on-jira-issues` for each repo where you want this active. The skill prompts for the Jira project key per repo and **stores it directly in the routine config** — there is nothing to paste into your repo.
 
-**4. Add the Jira project key to each opted-in repo.** Under `## Night Shift Config` in `CLAUDE.md`:
+   *Optional override:* if you'd rather keep the key in the repo, add it under `## Night Shift Config` in `CLAUDE.md` (`- Jira project key: FGPW`, optional `- Jira label: night-shift`). The routine config takes precedence; `CLAUDE.md` is the fallback, and the only source for standalone (non-routine) runs of the task.
 
-   ```
-   ## Night Shift Config
-   - Jira project key: FGPW
-   - Jira label: night-shift   # optional; omit to default to night-shift
-   ```
-
-   Commit + merge.
-
-**5. Label issues.** Tag any open Jira issue with `night-shift`. The next nightly build picks up the three oldest, opens one GitHub PR per issue, comments back with the PR link, and best-effort transitions each issue to **In Progress**.
+**4. Label issues.** Tag any open Jira issue with `night-shift`. The next nightly build picks up the tagged issues, opens one GitHub PR per issue, comments back with the PR link, and best-effort transitions each issue to **In Progress**.
 
 The task self-skips silently when the project key is missing or the Rovo connector isn't attached to the routine, so partial setup is safe — you can opt a repo in via the picker first and finish the OAuth flow later without seeing failure noise.
 

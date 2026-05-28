@@ -23,10 +23,10 @@ If none of the Rovo MCP tools are callable in this session (connector not attach
 
 ## Read project config first
 
-Read `CLAUDE.md` for the **Night Shift Config** section: test command, build command, default branch, push protocol. Also read these Jira-specific keys:
+Read `CLAUDE.md` for the **Night Shift Config** section: test command, build command, default branch, push protocol. Also resolve the Jira project key + label:
 
-- `Jira project key:` — e.g. `FGPW`. **Required.** If missing, exit silently — this repo has not opted in to a Jira project.
-- `Jira label:` — optional, defaults to `night-shift`.
+- **Project key** — e.g. `FGPW`. In **dispatched mode** the wrapper has already resolved the key (from the config block's `jira:` sub-block or `CLAUDE.md`) and handed you a specific `ISSUE_KEY`, so you do not need to read it. In **standalone mode**, read `Jira project key:` from `CLAUDE.md`; if it is missing there, exit silently — this repo has not opted in to a Jira project. (The config block lives in the routine prompt, which standalone runs don't have, so `CLAUDE.md` is the standalone source of truth.)
+- **Label** — `Jira label:` in `CLAUDE.md`, optional, defaults to `night-shift`.
 
 If the dispatcher passed `allowed_tasks` and `work-on-jira-issues` is not in it, exit silently.
 
