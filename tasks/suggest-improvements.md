@@ -5,6 +5,21 @@ Analyze the codebase for improvement ideas to pitch to the client. This is a **d
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: doc language, push protocol. If the dispatcher passed `allowed_tasks` and `suggest-improvements` is not in it, exit silently.
 
+## Pre-flight: don't stack PRs
+
+Before doing any analysis, check whether an open Night Shift suggestions PR already exists for this repo:
+
+```bash
+gh pr list --search "night-shift/suggestions in:title" --state open
+```
+
+If one exists, **exit silently** — do not stack a second suggestions PR on top. The existing PR will be picked up in the next morning's triage; queueing another one just adds noise. Resume normal behaviour once the open PR is merged or closed.
+
+## Language
+
+- **PR title, body, and commit messages are written in English** so anyone in the company can review them, regardless of which project they touched.
+- **Suggestion content written into `docs/SUGGESTIONS.md`** stays in the project's configured `Doc language:` — that file is editor- and stakeholder-facing.
+
 ## High bar — default is silent
 Only write a suggestion if you are confident it would clearly help the project. A mediocre suggestion wastes the client's reading time and dilutes the list. One strong suggestion beats three weak ones. **Zero new suggestions is a correct outcome on most nights** — do not pad to hit a number.
 
