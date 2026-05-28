@@ -2,6 +2,36 @@
 
 Find coverage gaps and add both **unit tests** and **e2e tests** following the project's existing patterns. **One PR with up to 10 new tests total.**
 
+## Anti-patterns — do NOT do these
+
+**Never replicate source logic inside the test file.** Tests must import and exercise the real exports. The "replicate-then-test" pattern — copying a helper function, lookup map, or class-name table from the source file into the test file and asserting against the in-test copy — passes lint and inflates coverage stats but provides **zero regression defense**: the source can change and the tests still pass because they're checking the in-test copy.
+
+Concretely:
+
+```ts
+// ❌ FALSE COVERAGE — declares a copy of source logic, then tests the copy
+function toKebabCase(str: string): string {
+  return str.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
+}
+describe('toKebabCase', () => { expect(toKebabCase('HeartCrack')).toBe('heart-crack') })
+
+// ❌ FALSE COVERAGE — replicates the component's internal Record, tests the copy
+const colorStyles: Record<CardGridColor, string> = {
+  white: '', 'light-gray': 'bg-muted', dark: 'bg-brand-dark text-brand-light',
+}
+describe('CardGrid', () => { expect(colorStyles['dark']).toContain('bg-brand-dark') })
+```
+
+When the internal logic isn't exported, either:
+
+- (a) **Refactor it to be exported**, then import and test the export.
+- (b) **Render the component** with React Testing Library / Vitest's render helper and assert against rendered output / DOM attributes / class strings.
+- (c) **Skip this gap** — better to add fewer real tests than ten false-coverage ones.
+
+Trigger to remember this: when a `describe(...)` block in a freshly-written test file does NOT contain any `import` from a sibling source file, it's almost certainly replicate-then-test.
+
+Reference incident: 213 false-coverage tests across merkur-frontend PRs #244 + #252 and ds-frontend PRs #198 + #231 in May 2026 used this pattern at scale before being caught in bundle review.
+
 ## Read project config first
 Read `CLAUDE.md` for **Night Shift Config**: test command, build command, default branch, push protocol. If the dispatcher passed `allowed_tasks` and `add-tests` is not in it, exit silently.
 
