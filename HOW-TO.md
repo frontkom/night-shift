@@ -10,6 +10,8 @@ During setup, for each repo in your list, the skill opens a real keyboard-naviga
 
 The selection lives inside the routine prompts as a `<night-shift-config>` YAML block, not in any per-repo file. To change a repo's selection after setup, run `/night-shift` and pick **Change tasks for a repo**.
 
+If Claude auto-disables a routine, changing Night Shift config does **not** re-enable it. Open Claude Code desktop or https://claude.ai/code/routines, fix the auth/connector issue if needed, then re-enable the routine and save.
+
 ### Pause Night Shift on a project
 In the project repo, do either of these:
 - `touch .nightshift-skip` at the repo root
