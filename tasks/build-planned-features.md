@@ -38,9 +38,10 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
      - `*-PLAN.md` (suffix), `PLAN-*.md` (prefix), `*.plan.md` (dotted), and any `.md` file inside a `plans/` subdirectory.
    - Pick the first plan with a pending unit (phase / item / step / milestone). See step 3 for what counts as a unit.
 
-2. Read the plan file carefully. Identify all phases. A phase is "implemented" if it is explicitly marked as done/completed/implemented in the plan file, **or** if its referenced files / migrations / exports already exist with the described shape. Build the ordered list of pending phases.
-   - **Skip plans that are fully implemented.** If every phase is marked as done or implemented, exit silently.
-   - **Skip plans marked as deferred, blocked, or on hold.**
+2. Read the plan file carefully. **The wrapper no longer pre-reads plans — this read is yours to do, and the done-vs-pending call is yours to make.** Identify all phases. A phase is "implemented" if it is explicitly marked as done/completed/implemented in the plan file, **or** if its referenced files / migrations / exports already exist with the described shape. Build the ordered list of pending phases.
+   - **Skip plans that are fully implemented.** If every phase is marked done — or its referenced files / migrations / exports already exist — there is nothing to do. When dispatched by the wrapper, return `silent | PR: — | not-applicable: fully implemented` and stop; running standalone, exit silently.
+   - **Skip plans marked as deferred, blocked, or on hold — but verify the blocker is still real first.** A "Blocked on X" note written on an earlier day is **stale** if X (a table, migration, export, merged PR) now exists on the default branch; in that case the plan is actionable, not blocked, so proceed. Only skip when the blocker genuinely still holds. When you do skip, return `silent | PR: — | not-applicable: <blocked|deferred|on-hold>` if dispatched, else exit silently.
+   - **Skip empty plans / plans with no parseable pending unit** the same way — return `silent | PR: — | not-applicable: empty` if dispatched, else exit silently.
 
 3. Implement pending phases.
 
@@ -159,7 +160,7 @@ gh pr merge "$PR_URL" --auto --squash 2>/dev/null || gh pr merge "$PR_URL" --aut
 
 ## Idempotency
 - One PR per plan per run. Implement as many pending phases as reasonably fit (see "How far to go in one run" at the top). Different plans run in different subagents and each get their own PR on the same night — that is the intended behaviour.
-- If the supplied `PLAN_FILE` has no pending units, exit silently.
+- If the supplied `PLAN_FILE` has no pending units (fully implemented, blocked, deferred, or empty), open no PR — return the `not-applicable: <reason>` one-liner when dispatched by the wrapper, else exit silently. See step 2; verify a "Blocked" note isn't stale before trusting it.
 - If a PR for the same plan (+ app, when scoped) is already open — covering any phase range — exit silently. Do not stack a second open PR for the same plan.
 - Always update the plan file to mark every phase you completed — this is what prevents re-running the same work next night.
 - When the phases you implement include the **last** pending one, also `git rm` the plan file in the same PR — unless the plan opts out via `night-shift: keep`. The completed-plan deletion is part of the unit-completion contract, not a separate cleanup step.

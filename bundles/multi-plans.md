@@ -29,10 +29,10 @@ List sibling directories at the top of your working tree. For each candidate, co
 1. **Per-repo prelude** (Step 1 below — dirty/opt-out/labels/CLAUDE.md parse).
 2. **`work-on-issues` fan-out** if allowlisted (see "work-on-issues dispatch" section). One subagent per discovered tagged issue.
 3. **`work-on-jira-issues` fan-out** if allowlisted (see "work-on-jira-issues dispatch" section). One subagent per discovered tagged Jira issue.
-4. **Plan-file fan-out** (Step 2 below — one subagent per surviving plan file by default; plans marked `night-shift: parallel-phases` further fan out to one subagent per pending phase).
+4. **Plan-file fan-out** (Step 2 below — one subagent per discovered plan file by default; plans marked `night-shift: parallel-phases` further fan out to one subagent per pending phase).
 5. **PR body sweep** (after every dispatch above completes for this repo).
 
-This order matters: the plan fan-out can dispatch 10+ subagents and burn most of the wrapper's budget. If issues + jira ran *after* plans (the historical order), a budget-exhausted wrapper would silently never reach them — causing the symptom of "tagged issues sitting open for nights with no PR and no skip-comment." Issues and Jira typically discover a small number of items per repo, so running them first costs a small, predictable amount of context and guarantees they fire.
+This order matters. Issues and Jira each discover a small, bounded number of items and dispatch cheaply, so running them first guarantees they fire before the larger plan fan-out consumes dispatch budget. (The plan fan-out itself **no longer reads plan bodies at the wrapper level** — see Step 1 — so it can no longer starve issues by bloating the orchestrator; issues-first is now a cheap ordering guarantee rather than a rescue from a context bomb.)
 
 **No PR cap.** The wrapper does not throttle the number of PRs opened per morning. Throughput is the explicit goal; review is bounded by the per-issue / per-phase scoping (each subagent owns one narrow unit of work), not by a count ceiling.
 
@@ -61,15 +61,15 @@ For each discovered target repo, in directory-name order:
      ```
      De-duplicate the union. **A new plan file appearing in the repo must show up as a discovered plan on the very next run** — no manual registration step. If a plan with one of these names is silently ignored, that is a discovery bug, not a "the plan was deferred" outcome.
    - **Print the discovered plan list at the start of the run** (before dispatching any subagents) so the human can see what the wrapper found vs. what they expected. Format: one line listing every discovered plan name, comma-separated. Example: `Discovered plans: MONOREPO-TEST-PLAN, PLAN-JOURNAL, PLAN-BATCH-TRANSACTIONS, ... (13 total)`. This is the single best signal that discovery is working.
-   - **Pre-filter plans before dispatching subagents.** For each discovered plan file, do a cheap read at the wrapper level (no subagent yet) and **skip** the plan if any of the following is true:
-     - The plan's title or front matter marks it **Deferred**, **Blocked**, **On hold**, or **Archived**.
-     - **Every** phase / item / step / milestone in the plan is already marked done. Look for any of: `**Status: Implemented`, `**Status: Done`, `[x]`, `~~…~~` strikethrough, `✅`, or a bold `Status:` line whose value is `Implemented`/`Done`/`Complete`. If you cannot find any pending unit, the plan is fully implemented.
-     - The plan file is empty or has no parseable units.
-   - Plans skipped by the pre-filter get **one** wrapper-level row in the summary table (`Status: not-applicable`) — they do **not** spin up a subagent. This keeps the silent rate low and avoids spending a subagent budget on plans known to have nothing to do.
-   - Each **surviving** plan file becomes its own work-item `{repo, app_path, scoped_config, plan_file, phase_index}`. **Every** surviving plan must be dispatched — no plan-count cap. If a repo has 20 pending plans, the wrapper dispatches 20 subagents (each in its own context window, so the cost scales linearly without contention).
-   - **Parallel-phase fan-out (opt-in).** For each surviving plan file, look for a `night-shift: parallel-phases` marker in the file's frontmatter, an HTML comment, or a top-of-file metadata block. When present, the plan author is asserting that its pending phases are mutually independent — each can branch off the default branch and land its own PR without depending on any other pending phase's changes. In that case, expand the plan into one work-item *per pending phase*: each carries the same `{repo, app_path, scoped_config, plan_file}` plus an explicit `phase_index` (1-based, in plan order). When the marker is absent (the default), emit one work-item with `phase_index = —` and the subagent handles phases sequentially as today.
+   - **Do not read plan bodies at the wrapper level.** The orchestrator's context window is the scarce resource in this run — reading every plan file here (some plans run many hundreds of lines) is exactly what bloats the orchestrator and starves the plan fan-out, leaving plans undispatched. Discovery uses **filenames only** (the `find` above); the done-vs-pending judgment is delegated to each plan's subagent, which reads its one plan in a fresh, disposable context and can also inspect actual repo/migration state — a far more reliable call than a wrapper-level skim, and immune to stale `Blocked:` markers that a skim would trust.
+   - **Each discovered plan file becomes its own work-item** `{repo, app_path, scoped_config, plan_file, phase_index}`. **Every** discovered plan is dispatched — no wrapper-level rejection, no plan-count cap. If a repo has 20 plans, the wrapper dispatches 20 subagents (each in its own context window, so cost scales linearly without contending for the orchestrator's budget). A subagent that finds its plan fully implemented / blocked / deferred / empty returns `not-applicable` and opens no PR — that determination happens *inside the subagent*, never in the wrapper.
+   - **Parallel-phase fan-out (opt-in).** Detect the marker cheaply, without reading bodies into your reasoning context — run a single filename-only grep over the discovered plans:
+     ```
+     grep -l 'night-shift: parallel-phases' <discovered plan files> 2>/dev/null
+     ```
+     For each plan the grep returns (opt-in, rare), and **only** those, read that one file to enumerate its pending phases, then expand it into one work-item *per pending phase* — each carries the same `{repo, app_path, scoped_config, plan_file}` plus an explicit `phase_index` (1-based, in plan order). Every plan the grep does **not** return (the default) emits a single work-item with `phase_index = —`, and its subagent handles phases sequentially. Reading the handful of opt-in plans is bounded and acceptable; reading all of them is the bug this design removes.
    - The `parallel-phases` opt-in is a quality contract: phases that share schema migrations, depend on each other's exports, or sequentially mutate the same file are **not** independent and the marker must be omitted. There is no automatic independence detection — the plan author makes the call.
-   - If an app-scope has zero plan files at all (after discovery), emit one work-item with `plan_file = —` so it can report `silent` in the summary. If there were plan files but the pre-filter rejected all of them, do **not** emit an empty work-item — the per-plan `not-applicable` rows already cover that case.
+   - If an app-scope has zero plan files at all (after discovery), emit one work-item with `plan_file = —` so it can report `silent` in the summary.
    - Capture the absolute repo path. `cd` back to the parent.
 2. For each work-item from this repo, dispatch a `Task` subagent with this prompt (substitute `{REPO_PATH}`, `{APP_PATH}` — literal `—` when repo-wide, `{SCOPED_CONFIG}` as inline JSON / YAML, `{PLAN_FILE}` — literal `—` when no plans, `{PHASE_INDEX}` — literal `—` for sequential plans, integer for `parallel-phases` plans):
 
@@ -89,6 +89,14 @@ For each discovered target repo, in directory-name order:
    and execute it against THIS ONE PLAN FILE ONLY. Do not scan for other plans; the
    dispatcher has already fanned out one subagent per plan (and, when the plan is
    marked `night-shift: parallel-phases`, one subagent per pending phase).
+
+   First read the plan (the wrapper did NOT pre-read it). If it is already fully
+   implemented, or marked blocked / deferred / on hold / archived, or empty / has
+   no parseable pending unit, do NOT open a PR — return
+   `silent | PR: — | not-applicable: <reason>` and stop. Check actual repo state,
+   not just the prose: a phase whose tables / migrations / exports already exist is
+   implemented even if the plan still says "pending", and a "Blocked on X" note is
+   stale (so the plan IS actionable) if X now exists on the default branch.
 
    - If PHASE_INDEX is "—": implement as many pending phases of PLAN_FILE as
      reasonably fit in one PR, bundled. See the task file's "How far to go in
@@ -148,7 +156,7 @@ After all work-items for this repo (the `work-on-issues` and `work-on-jira-issue
   done )
 ```
 
-Pre-filtered plans (skipped before dispatch — fully implemented, deferred, blocked, etc.) appear in the summary table as `Status: not-applicable` rows; no subagent is dispatched.
+A subagent that reports `silent | … | not-applicable: <reason>` is recorded as `Status: not-applicable` in the summary table — the plan was fully implemented, blocked, deferred, or empty, as determined *by the subagent* (which read the plan and the repo), not by a wrapper-level skim. Other `silent` results are recorded as `Status: silent`. The wrapper never reads plan bodies, so there are no wrapper-level not-applicable rows.
 
 ## work-on-issues dispatch (scope: repo, one subagent per tagged issue)
 
