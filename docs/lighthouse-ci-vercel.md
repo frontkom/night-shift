@@ -143,6 +143,7 @@ That's it.
 | 3 | Default config audits PWA → drags overall score on a non-PWA site | Don't use `lighthouse:no-pwa` preset on day one — start with category-level `warn` only, add the preset after baseline |
 | 4 | Default audits only `/` → misses listing pages where the perf budget lives | `urls` array of explicit key pages |
 | 5 | Auth/draft-mode pages can't be audited without cookies | Public pages only in the urls list |
+| 6 | `deployment_status` workflows always run from the **default-branch** copy of the workflow file — so the workflow does **not** run on the PR that introduces it | Merge `lighthouseci.yml` to `main`/`develop` first; only then do preview deploys trigger it. Don't be surprised by no LHCI run on the introducing PR — it's expected, not a misconfiguration |
 
 ## Tightening after the pilot week
 
