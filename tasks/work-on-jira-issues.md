@@ -70,11 +70,22 @@ Then move to the next issue. **Do not** open a PR. **Do not** post a freestandin
 
 If you are not confident the work is fully done (only part of the acceptance criteria is in place, or you can't find a clean pointer), do **not** transition. Fall through to "Evaluate complexity" and treat it like a normal issue.
 
-### Evaluate complexity
+### Evaluate scope
 
-Read the issue's `summary` and `description`. **Skip if too complex:** if the fix requires changes across more than ~5 files or involves major architectural changes, comment on the issue explaining why, then move on:
+Read the issue's `summary` and `description` carefully and form a **concrete implementation plan**: which files to touch, which APIs to extend, which tests to add. Then implement it.
 
-> Body: `Night Shift reviewed this issue but skipped it — the scope appears to require changes across many files or involves architectural changes that need human guidance. Leaving for manual implementation.`
+**Multi-file refactors and architectural changes are exactly what Night Shift is for.** Daytime is for small fixes; nights are for the deep work that needs hours of focused compute. A 30-file refactor, a cross-cutting type rewrite, a server-action security pass, splitting a 4,000-line monolith — all in scope. File count, line count, and architectural depth are **not** reasons to skip. The per-Jira-key subagent has its own context window, so an ambitious refactor on this key does not squeeze any sibling subagent's budget.
+
+The only legitimate reasons to skip without opening a PR:
+- The Jira issue **needs a human business or product decision** that hasn't been made yet (e.g. "decide whether feature X should be a/b tested first", "pick between two competing API shapes").
+- It **requires external access** Night Shift doesn't have (manual cloud DB migration, third-party vendor key, manual deploy, infra-team coordination).
+- The summary + description are **so vague** that you cannot form a concrete plan even after reading the referenced code and any linked context.
+
+For those, leave a comment via the Rovo **Add comment** tool naming the specific blocker so the human can act, then move on:
+
+> Body: `Night Shift reviewed this issue but did not open a PR: <one-sentence specific reason — what decision is missing, what external access is needed, or what about the spec is too vague>. Add a comment with the missing information to retry on the next run.`
+
+If you can form a concrete plan, **just do it**. Do not punt to humans because "the scope is large" — that is exactly the work Night Shift was built to absorb.
 
 ### Check for existing PRs
 
@@ -229,7 +240,7 @@ git checkout <default-branch>
 - If the Rovo MCP connector is not attached to this routine, exit silently.
 - If the JQL search returns zero issues, exit silently.
 - If a GitHub PR for the same Jira key is already open, skip that issue.
-- If all issues are too complex or already have open PRs, exit silently.
+- If every discovered key either has an open PR, was transitioned-to-Done by the already-done check, or hit a genuine blocker (missing decision / external access / vague spec), exit silently.
 
 ## Result line
 
@@ -240,7 +251,7 @@ Return one line to the dispatcher in this format:
 ```
 
 Examples:
-- `ok | PRs: https://github.com/owner/repo/pull/42, https://github.com/owner/repo/pull/43 | 2 jira issues, 1 too complex`
+- `ok | PRs: https://github.com/owner/repo/pull/42, https://github.com/owner/repo/pull/43 | 2 jira issues, 1 blocked on decision`
 - `silent | PRs: — | no jira issues labelled night-shift`
 - `silent | PRs: — | no Jira project key in CLAUDE.md`
 - `silent | PRs: — | rovo connector not available`

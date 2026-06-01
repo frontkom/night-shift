@@ -83,13 +83,7 @@ Open a PR **only** when:
    - "Largest measured savings" (LCP delta, KB saved, ms saved) beats smaller
    - Concrete `details.items[]` entry pointing at a specific file beats diffuse audits
 
-4. **Verify the fix is small.** Open the file(s) the audit points at. If the fix is:
-   - One client-import → server-import migration → ✓ proceed
-   - One image swap from JPG → AVIF / WebP → ✓ proceed
-   - One font-loading directive → ✓ proceed
-   - One `next/script` strategy swap → ✓ proceed
-   - One dynamic import for a heavy client component → ✓ proceed
-   - A multi-file refactor, framework upgrade, or architectural change → **exit silently** (this is the human's call, not Night Shift's)
+4. **Plan the fix.** Open the file(s) the audit points at and form a concrete fix plan. Easy mechanical changes — `next/script` strategy, font-display swap, JPG→AVIF, client→server import — are obviously in scope. Larger changes — multi-file refactor, framework upgrade, an architectural reshape needed to drop a 5MB client bundle — are **also in scope**: those are exactly the kind of overnight work Night Shift exists to absorb. Do not punt because the fix is big. The only legitimate skip is when the LHCI finding is **not actionable from code** (e.g. it points at a third-party tag the team has decided to keep, or at a CDN config the repo can't touch); in that case exit silently with a one-line note in the result.
 
 5. **Apply the fix.** Edit the file(s) minimally. Don't reformat unrelated lines. Don't introduce new dependencies unless the audit explicitly requires one (e.g. `sharp` for image conversion in a Next.js project that doesn't already have it).
 

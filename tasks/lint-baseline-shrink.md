@@ -49,14 +49,14 @@ If the smallest entry's fix would require a refactor, a behavioral change, or gu
 
    If none of these canonical files are present, exit silently — there is no baseline to shrink.
 
-3. **Pick the smallest-fix entry.** Read the baseline file. For each entry, the "smallest fix" heuristic is:
-   - Single file (not a regex / glob across many files).
-   - A single rule code (not a bundle of unrelated suppressions).
-   - The underlying violation is one of these well-understood shapes: missing type annotation, unused import/variable, missing strict null check, dead code, simple naming-convention nit, or a missing `final`/`readonly` modifier.
+3. **Pick a high-leverage entry.** Read the baseline file and pick one entry (or one tightly-related cluster of entries — e.g. every instance of the same rule code in a single subsystem) to drain in this PR. Heuristics that *help* pick well:
+   - A single rule code is cleaner to land than a mixed bag.
+   - Well-understood violation shapes (missing type annotation, unused import/variable, missing strict null check, dead code, naming-convention nit, missing `final`/`readonly`) tend to land cleanly.
+   - Entries marked "TODO investigate" or with no clear acceptance criterion are usually a sign the suppression hides a real design question — surface that as an issue rather than guessing.
 
-   Skip entries that involve: cross-file refactors, behavioral changes, complex generic-type wrangling, "TODO investigate" comments, or anything that looks like it was suppressed *because* a fix is non-trivial.
+   **Multi-file fixes are fine.** A 30-file sweep that drains every `no-explicit-any` across `apps/web` is a valid one-PR shrink — that's exactly the overnight grunt work Night Shift is built for. Do not refuse an entry because it touches many files or because the underlying violation needs a behavioural change; refuse only if the underlying fix is genuinely ambiguous (the suppression hides a design decision nobody has made).
 
-   If no entry meets the heuristic, exit silently.
+   If no entry is actionable, exit silently.
 
 4. **Fix the underlying issue.** Make the smallest change that resolves the violation as the tool reports it. Do not "while-you're-there" cleanups; do not touch unrelated lines.
 

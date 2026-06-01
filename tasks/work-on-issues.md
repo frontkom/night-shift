@@ -64,11 +64,22 @@ Then move to the next issue. **Do not** open a PR. **Do not** post a freestandin
 
 If you are not confident the work is fully done (only part of the acceptance criteria is in place, or you can't find a clean pointer), do **not** close. Fall through to "Evaluate complexity" and treat it like a normal issue.
 
-### Evaluate complexity
-Read the issue body to understand what's needed. **Skip if too complex:** if the issue appears to require changes across more than ~5 files or involves major architectural changes, comment on the issue explaining why it was skipped and move to the next issue:
+### Evaluate scope
+Read the issue body carefully and form a **concrete implementation plan**: which files to touch, which APIs to extend, which tests to add. Then implement it.
+
+**Multi-file refactors and architectural changes are exactly what Night Shift is for.** Daytime is for small fixes; nights are for the deep work that needs hours of focused compute. A 30-file refactor, a cross-cutting type rewrite, a server-action security pass, splitting a 4,000-line monolith — all in scope. File count, line count, and architectural depth are **not** reasons to skip. The per-issue subagent has its own context window, so an ambitious refactor on this issue does not squeeze any sibling subagent's budget.
+
+The only legitimate reasons to skip without opening a PR:
+- The issue **needs a human business or product decision** that hasn't been made yet (e.g. "decide whether feature X should be a/b tested first", "pick between two competing API shapes").
+- It **requires external access** Night Shift doesn't have (manual cloud DB migration, third-party vendor key, manual deploy, infra-team coordination).
+- The issue body is **so vague** that you cannot form a concrete plan even after reading the referenced code and any linked context.
+
+For those, leave a comment naming the specific blocker so the human can act, then move on:
 ```
-gh issue comment <number> --body "Night Shift reviewed this issue but skipped it — the scope appears to require changes across many files or involves architectural changes that need human guidance. Leaving for manual implementation."
+gh issue comment <number> --body "Night Shift reviewed this issue but did not open a PR: <one-sentence specific reason — what decision is missing, what external access is needed, or what about the spec is too vague>. Add a comment with the missing information to retry on the next run."
 ```
+
+If you can form a concrete plan, **just do it**. Do not punt to humans because "the scope is large" — that is exactly the work Night Shift was built to absorb.
 
 ### Check for existing PRs
 Check for an existing open PR for this issue to avoid duplicates:
@@ -175,4 +186,4 @@ git checkout <default-branch>
 ## Idempotency
 - If no issues are labeled `night-shift`, exit silently.
 - If a PR for the same issue is already open, skip that issue.
-- If all issues are too complex or already have open PRs, exit silently.
+- If every discovered issue either has an open PR, was closed-as-completed by step 2, or hit a genuine blocker (missing decision / external access / vague spec), exit silently.

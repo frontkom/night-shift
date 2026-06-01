@@ -11,10 +11,10 @@ This task runs in two modes, selected by whether the dispatcher passed you a `PH
 - Every phase of the plan is done (you're completing the plan — include the plan deletion in this PR).
 - The next phase fails tests, build, or reveals a blocker (stop, keep the passing phases, note the blocker).
 - The next phase cannot be started without feedback from review of earlier phases (e.g. its design depends on a decision the previous phase surfaced).
-- The diff is growing large enough that reviewability is degrading. Rough heuristic: stop before a single PR touches more than ~15 files or ~600 added lines, unless the phases are trivially repetitive.
+- The next phase belongs to a structurally separate slice of the plan — it changes a different subsystem, lands a different migration, or has reviewers in a different domain. PRs that *cohere* are good; PRs that smush two unrelated slices together aren't.
 - You are approaching the limits of your own context window and want to leave headroom for test runs and PR assembly.
 
-Use your judgement — the goal is the fewest PRs that still review cleanly. A two-phase plan should usually land as one PR; a ten-phase plan will likely land as two or three.
+Use your judgement — the goal is the fewest PRs that still review cleanly. **Do not artificially cap PR size by file count or line count.** A coherent multi-file refactor (50 files of touch-every-call-site rename, a 25-file server-action security pass, a deep TypeScript narrowing sweep) should land as one PR — that's the whole point of running ambitious overnight work. A two-phase plan should usually land as one PR; a ten-phase plan whose phases all build on each other often should too. Night Shift is built to absorb work that humans can't sit and write in one afternoon — go big when the phases cohere.
 
 **`night-shift: parallel-phases` — when to mark a plan.** Plan authors add the marker (anywhere in the file — frontmatter, an HTML comment like `<!-- night-shift: parallel-phases -->`, or a metadata bullet) when **every** pending phase can branch off the default branch independently of every other pending phase. Translation files, repetitive scaffolding, doc updates, and many lint-baseline-style sweeps qualify. Schema migrations, refactors where phase N depends on phase N-1's exports, and most feature builds do **not** qualify — omit the marker for those and the wrapper falls back to sequential mode. There is no automatic independence detection; the marker is a contract from the plan author to the wrapper.
 
