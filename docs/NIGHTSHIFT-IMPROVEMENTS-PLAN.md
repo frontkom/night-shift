@@ -21,8 +21,9 @@ The phases below close those gaps in priority order. Phases 1–3 are this week'
 
 - Audit roadmap: synthesized from 104 subagents in workflow `wf_00b36c1f-768` on 2026-06-02.
 - Live evidence: https://github.com/frontkom/frisk/pulls (PRs #1141–#1146).
-- Canonical landing surface (verified 404 at audit time): https://frontkom.github.io/night-shift/.
-- Mirror landing surface (verified 200, personal account): https://perandre.github.io/ns/.
+- **Today's live landing surface** (verified 200, personal account, served via the `git push mirror main` step in `AGENTS.md:5`): https://perandre.github.io/ns/. The mirror is **not** an inactive backup — it is the page anyone visiting the project sees right now. `AGENTS.md:5` documents this contract explicitly.
+- Canonical landing surface (verified 404 at audit time, the URL the OG image and the in-page dashboard CTA both hardcode): https://frontkom.github.io/night-shift/.
+- Cross-cutting nuance: `index.html` line 12 sets `<meta property="og:image" content="https://frontkom.github.io/night-shift/night-shift.png" />`. Even when someone shares the **mirror** URL, the social card preview fetches the OG image from the canonical URL — which 404s. So the OG card is broken on both surfaces today. `index.html:1481` has the same problem for the in-page dashboard CTA (`./dashboard/` rendered as `frontkom.github.io/night-shift/dashboard/`).
 - **Existing dashboard** (private repo, gated production URL): `frontkom/ns-dashboard` → https://ns-dashboard.frontkom.no. Next.js 16 (App Router, Cache Components), no database, hourly cron refresh, pure GitHub-API inference. Consumes the `_Routine started: <ISO>_` beacon as ground truth — the beacon plumbing in `bundles/_multi-runner.md` has a live consumer.
 
 ## Correction to the audit's `perandre/ns-dashboard` claim
@@ -32,32 +33,50 @@ The audit synthesis claimed `perandre/ns-dashboard` returns 404. That URL does n
 1. The beacon plumbing (`bundles/_multi-runner.md` lines ~80–93, ~150–180) is **load-bearing** today, not orphaned. Keep the beacon. Stop citing `perandre/ns-dashboard` in the multi-runner — replace any reference with the real `frontkom/ns-dashboard` URL.
 2. Phase 5 was originally framed as "build a local snapshot dashboard on GitHub Pages." That is duplicative. The dashboard exists and is good. Phase 5 is now framed as **extend the existing dashboard with PM- and client-facing surfaces** — public summary endpoint, per-client views, impact (not just hours).
 
-## Phase 1 — Stop the credibility leak: canonical Pages + em-dash hydration
+## Phase 1 — Stop the credibility leak: fix broken OG/CTA on today's live mirror, then bring canonical Pages online
 
-**Goal:** `frontkom.github.io/night-shift/` returns 200, OG image renders, landing-page stats show honest em-dashes instead of fabricated `178` / `~71h`.
+**Goal:** Every URL on the landing page resolves (OG image, dashboard CTA) regardless of whether the visitor reaches the mirror or the canonical surface. Landing-page stats show honest em-dashes instead of fabricated `178` / `~71h`. Once canonical Pages is enabled, sales and external sharing migrate to it; the mirror stays for one full burn-in before retirement.
 
-**Why now:** Every external link to the agency story (LinkedIn posts, sales decks, RFPs, the README install instructions) lands on a 404. The mirror at `perandre.github.io/ns/` works but lives on a personal account — wrong artifact for an agency story. The hardcoded `178 PRs / ~71h` stats next to a dead `./dashboard/` link compound the credibility problem.
+**Why now:** The mirror at `perandre.github.io/ns/` is today's live production page (verified 200), but it is *also* broken in a non-obvious way: the OG image (`index.html:12`) and the dashboard CTA (`index.html:1481`) both hardcode `frontkom.github.io/night-shift/...` URLs, which 404 even when the rest of the page is served from the mirror. Anyone sharing the project on LinkedIn / Slack / a sales deck — including the mirror URL — gets a broken card preview, and anyone clicking "Dashboard" on the rendered page hits a 404. The credibility leak isn't a single 404 on the canonical URL; it's that **every off-page hop from the rendered HTML fails today**. This phase fixes both the on-page leaks and stands up the canonical URL.
 
-**Steps:**
+**Steps (split into two safe-to-ship batches):**
 
-1. Edit `index.html` lines 1469 and 1474. Replace `<div class="value is-gradient">178</div>` with `<div class="value is-gradient" data-stat="prs-opened">—</div>` and the `~71h` value with `data-stat="agent-hours">—</div>`. Em-dashes hydrate from `ns-dashboard.frontkom.no`'s new public summary endpoint (Phase 5 step 1, ship as a small standalone PR before the rest of Phase 5).
-2. Replace the dead `./dashboard/` link target with `https://ns-dashboard.frontkom.no` if/when public-friendly access lands (Phase 5). For now, point to a "Dashboard (internal)" surface or hide the CTA until Phase 5 step 1 lands.
-3. Create `.github/workflows/pages.yml` with three jobs: `build` (no-op for a static site), `deploy` (uses `actions/deploy-pages@v4` with `actions/upload-pages-artifact@v3`), `smoke` (curls `/` and `/night-shift.png` with 5× retry @ 6s backoff for CDN propagation).
-4. File a GitHub Issue on `frontkom/night-shift` titled `Enable GitHub Pages on frontkom/night-shift (org-admin)` and assign to whoever holds frontkom org-admin. The workflow is inert until **Settings → Pages → Source** is flipped to `GitHub Actions`.
-5. After canonical Pages is green for one full week, retire the `git push mirror main` step from `AGENTS.md`. Mirror is the rollback path during burn-in.
+**Batch A — fix what's broken on today's live mirror (safe, ship first):**
+
+1. Edit `index.html` line 1469 and 1474. Replace `<div class="value is-gradient">178</div>` with `<div class="value is-gradient" data-stat="prs-opened">—</div>` and the `~71h` value with `data-stat="agent-hours">—</div>`. Em-dashes hydrate later from `ns-dashboard.frontkom.no`'s public summary endpoint (Phase 5 step 1).
+2. Edit `index.html` line 12: change `<meta property="og:image" content="https://frontkom.github.io/night-shift/night-shift.png" />` to point at a URL that resolves today. **Option A (preferred):** flip it to `https://perandre.github.io/ns/night-shift.png` for the burn-in period, document the temporary state in `AGENTS.md`, plan to flip it back to canonical in Batch B. **Option B:** leave it canonical and accept the broken preview until Batch B lands. The choice depends on how soon canonical Pages will be enabled — if org-admin response is days, choose A; if hours, B is fine.
+3. Edit `index.html` line 1481: the `./dashboard/` link currently renders text as `frontkom.github.io/night-shift/dashboard/` (404 on canonical, also 404 if served from the mirror). Either point it at `https://ns-dashboard.frontkom.no` (gated by SSO today, but at least it resolves), or temporarily hide the CTA until Phase 5 step 1 lands a public summary route. Lean toward pointing at the gated dashboard — a visitor hitting a login is a better signal than a 404.
+4. Push to both `origin` and `mirror` per current `AGENTS.md:5` protocol. The mirror picks up the fix automatically.
+
+**Batch B — bring canonical Pages online (depends on org-admin):**
+
+5. Create `.github/workflows/pages.yml` with three jobs: `build` (no-op for a static site), `deploy` (uses `actions/deploy-pages@v4` with `actions/upload-pages-artifact@v3`), `smoke` (curls `/` and `/night-shift.png` with 5× retry @ 6s backoff for CDN propagation).
+6. File a GitHub Issue on `frontkom/night-shift` titled `Enable GitHub Pages on frontkom/night-shift (org-admin)` and assign to whoever holds frontkom org-admin. The workflow is inert until **Settings → Pages → Source** is flipped to `GitHub Actions`.
+7. Once canonical returns 200 and the smoke job is green, **flip the OG image URL back to canonical** (`index.html:12`) and revert the Batch A step 2 temporary URL. This is the moment the canonical URL becomes the authoritative agency-story link.
+8. After canonical Pages has been green AND the OG image / dashboard CTA have been verified end-to-end (Twitter/LinkedIn card validator + a real click-through) for **at least one full calendar week** with no regressions, retire the `git push mirror main` step from `AGENTS.md`. Until then, the mirror push protocol stays — it is not a rollback fantasy, it is currently the only thing keeping the site alive.
 
 **Acceptance criteria:**
 
-- [ ] `curl -sS -o /dev/null -w '%{http_code}\n' https://frontkom.github.io/night-shift/` returns `200`.
-- [ ] OG image renders in the Twitter/LinkedIn card validators (open-graph image URL resolves).
+Batch A:
 - [ ] `grep -n '178\|~71h' index.html` returns no results.
-- [ ] `pages.yml` runs on push to `main`; smoke job passes.
-- [ ] Pages-enablement issue is filed and assigned.
-- [ ] The `./dashboard/` link is either pointed at `ns-dashboard.frontkom.no` (after Phase 5 step 1 lands a public summary route) or temporarily removed.
+- [ ] `index.html:12` OG image URL resolves (`curl -sS -o /dev/null -w '%{http_code}\n' "$(grep -oE 'og:image[^>]+content="[^"]+"' index.html | grep -oE 'https://[^"]+')"` returns `200`).
+- [ ] `index.html:1481` dashboard CTA resolves (any non-404 status, including 401 from `ns-dashboard.frontkom.no`'s SSO gate).
+- [ ] Both fixes are visible on `perandre.github.io/ns/` within minutes of the mirror push.
+
+Batch B:
+- [ ] `curl -sS -o /dev/null -w '%{http_code}\n' https://frontkom.github.io/night-shift/` returns `200`.
+- [ ] OG card preview renders correctly in both the Twitter card validator and the LinkedIn post inspector when given the canonical URL.
+- [ ] `pages.yml` runs on push to `main`; smoke job passes for `/` and `/night-shift.png`.
+- [ ] Pages-enablement issue is filed, assigned, and closed.
+- [ ] OG image URL on `index.html:12` is flipped back to canonical after Batch B step 7.
+
+Mirror retirement (only after Batch B is fully green):
+- [ ] One calendar week of uninterrupted canonical 200s, no OG regressions, no CTA regressions.
+- [ ] `AGENTS.md:5` push protocol updated to `git push origin main` only; mirror reference removed in the same PR that retires the second push.
 
 **Open questions:**
 
-- Will org admin enable Pages on a `frontkom/*` repo? Confirm before sinking the implementation work.
+- Will org admin enable Pages on a `frontkom/*` repo? Confirm before sinking Batch B work. If the answer is "no" or "weeks", Batch A is the entire phase and the mirror becomes the long-term canonical surface — in which case rename Phase 1 and update `README.md` to publish `perandre.github.io/ns/` as the canonical URL, awkward owner notwithstanding.
 - Is the marketing copy on `index.html:1587` ("2.25 MNOK/month") something Frontkom is comfortable shipping under the canonical URL, or does it need a revision pass first?
 - Should the landing-page card show data from `ns-dashboard.frontkom.no`'s `/api/public-summary` (Phase 5 step 1) or settle for static em-dashes until per-client surfaces ship? The Phase 5 step 1 unblocks both Phase 1 hydration and the dashboard CTA.
 
@@ -287,7 +306,8 @@ The audit surfaced ~25 ideas the adversarial critique killed. Notable rejections
 
 ## Risks and caveats (apply to the plan as a whole)
 
-- Pages enablement on `frontkom/night-shift` depends on a Frontkom org-admin click. If org policy forbids, Phase 1 collapses and the mirror push protocol stays in `AGENTS.md`.
+- Pages enablement on `frontkom/night-shift` depends on a Frontkom org-admin click. If org policy forbids, Phase 1 Batch B collapses and the mirror at `perandre.github.io/ns/` becomes the long-term canonical surface — in which case Phase 1's Batch A is the entire phase, `AGENTS.md:5` stays as-is, and `README.md` should publish the mirror as the authoritative URL.
+- The mirror push protocol in `AGENTS.md:5` is **load-bearing for the live page today**, not just a rollback path. Do not retire the second push until canonical has been green for a full calendar week AND the OG card + dashboard CTA have been verified externally (Twitter/LinkedIn validator + manual click-through). Retiring the mirror push prematurely takes the site dead between commit and CDN propagation.
 - `fix-from-sentry` needs Sentry → GitHub Issues installed on target client repos. Open a parallel ticket to install it on the top 5 retainers before Phase 3 ships.
 - Every phase that adds a new YAML field to `<night-shift-config>` must survive parse-merge-rewrite (`SKILL.md:277`). Phases 1, 2, 3, 6 deliberately add zero new fields. Phase 4 adds an opt-in digest configuration; design that field carefully.
 - The mirror push protocol stays in `AGENTS.md` for one-week burn-in after Phase 1 lands. Mirror is the rollback path.
@@ -296,14 +316,17 @@ The audit surfaced ~25 ideas the adversarial critique killed. Notable rejections
 
 ## First concrete action
 
-Run this from the repo root to verify the credibility leak in 30 seconds, then start Phase 1:
+Run this from the repo root to verify the full credibility leak in 30 seconds, then start Phase 1 Batch A:
 
 ```sh
-curl -sS -o /dev/null -w 'canonical: %{http_code}\n' https://frontkom.github.io/night-shift/ \
-  && curl -sS -o /dev/null -w 'mirror: %{http_code}\n' https://perandre.github.io/ns/ \
-  && grep -n '178\|~71h' index.html
+curl -sS -o /dev/null -w 'canonical-root: %{http_code}\n' https://frontkom.github.io/night-shift/ \
+  && curl -sS -o /dev/null -w 'mirror-root  : %{http_code}\n' https://perandre.github.io/ns/ \
+  && curl -sS -o /dev/null -w 'og-image     : %{http_code}\n' https://frontkom.github.io/night-shift/night-shift.png \
+  && grep -nE '178|~71h|og:image|"./dashboard/"' index.html
 ```
 
-You will see `canonical=404`, `mirror=200`, and the hardcoded values at lines 1469 and 1474.
+You will see `canonical-root=404`, `mirror-root=200`, `og-image=404`, and the four hardcoded references (stats on lines 1469/1474, OG image on 12, dashboard CTA on 1481).
 
-File the GitHub Issue on `frontkom/night-shift` titled `Enable GitHub Pages on frontkom/night-shift (org-admin)` and assign to whoever holds Frontkom org-admin. That issue gates everything downstream. While waiting on admin, open `index.html` and start the em-dash hydration edit — safe to ship the credibility-emergency commit before Pages goes live.
+Batch A is safe to ship today on the existing mirror push protocol — no org-admin gate. Open `index.html` and: em-dash the stats, point OG image at `perandre.github.io/ns/night-shift.png` for the burn-in, point the dashboard CTA at `https://ns-dashboard.frontkom.no` (gated, but resolves). Push to both `origin` and `mirror` per `AGENTS.md:5`. The mirror picks up the fix within minutes.
+
+In parallel, file the GitHub Issue `Enable GitHub Pages on frontkom/night-shift (org-admin)` and assign to whoever holds Frontkom org-admin — Batch B unblocks when that ships.
