@@ -13,6 +13,7 @@ The frisk night was instructive. Six PRs landed and the quality is high — ever
 - No `night-shift/plan:` PR. The repo has plan files but the build routine evidently found nothing pending, or the picker did not include `build-planned-features` for this repo. Either way, the highest-leverage bundle produced zero output last night.
 - No measured-impact PR class. Every code-touching PR (#1142 a11y, #1143 bug, #1141 tests) is heuristic — sourced from reading code, not from a measurement signal. The bodies cannot say "47 users hit this error, now fixed." PMs cannot defend them as billable retainer line items.
 - Five PR bodies cite Vercel preview-deploy bypass and `--no-verify` because of a pre-existing failing test on `main`. Reviewer trust takes a hit every time the body footer mentions hook-skipping.
+- The PM-facing artifact already exists — `ns-dashboard.frontkom.no` — but is gated behind Vercel SSO + HTTP Basic Auth (`frontkom/ns-dashboard:middleware.ts`) and shows **hours worked**, not **what was shipped**. PMs cannot share a URL with a client; clients cannot see the impact. The dashboard is internal proof-of-work, not external proof-of-value.
 
 The phases below close those gaps in priority order. Phases 1–3 are this week's slate; 4–6 are the next 2–4 weeks; 7–9 are long-horizon bets that depend on the earlier phases landing.
 
@@ -20,8 +21,16 @@ The phases below close those gaps in priority order. Phases 1–3 are this week'
 
 - Audit roadmap: synthesized from 104 subagents in workflow `wf_00b36c1f-768` on 2026-06-02.
 - Live evidence: https://github.com/frontkom/frisk/pulls (PRs #1141–#1146).
-- Canonical surface (verified 404 at audit time): https://frontkom.github.io/night-shift/.
-- Mirror surface (verified 200, personal account): https://perandre.github.io/ns/.
+- Canonical landing surface (verified 404 at audit time): https://frontkom.github.io/night-shift/.
+- Mirror landing surface (verified 200, personal account): https://perandre.github.io/ns/.
+- **Existing dashboard** (private repo, gated production URL): `frontkom/ns-dashboard` → https://ns-dashboard.frontkom.no. Next.js 16 (App Router, Cache Components), no database, hourly cron refresh, pure GitHub-API inference. Consumes the `_Routine started: <ISO>_` beacon as ground truth — the beacon plumbing in `bundles/_multi-runner.md` has a live consumer.
+
+## Correction to the audit's `perandre/ns-dashboard` claim
+
+The audit synthesis claimed `perandre/ns-dashboard` returns 404. That URL does not exist — the dashboard lives at `frontkom/ns-dashboard` (private repo) and is live at `https://ns-dashboard.frontkom.no`. The audit was looking under the wrong owner. This changes two things:
+
+1. The beacon plumbing (`bundles/_multi-runner.md` lines ~80–93, ~150–180) is **load-bearing** today, not orphaned. Keep the beacon. Stop citing `perandre/ns-dashboard` in the multi-runner — replace any reference with the real `frontkom/ns-dashboard` URL.
+2. Phase 5 was originally framed as "build a local snapshot dashboard on GitHub Pages." That is duplicative. The dashboard exists and is good. Phase 5 is now framed as **extend the existing dashboard with PM- and client-facing surfaces** — public summary endpoint, per-client views, impact (not just hours).
 
 ## Phase 1 — Stop the credibility leak: canonical Pages + em-dash hydration
 
@@ -31,10 +40,11 @@ The phases below close those gaps in priority order. Phases 1–3 are this week'
 
 **Steps:**
 
-1. Edit `index.html` lines 1469 and 1474. Replace `<div class="value is-gradient">178</div>` with `<div class="value is-gradient" data-stat="prs-opened">—</div>` and the `~71h` value with `data-stat="agent-hours">—</div>`. Remove or comment the dead `./dashboard/` link until Phase 5 lands.
-2. Create `.github/workflows/pages.yml` with three jobs: `build` (no-op for a static site), `deploy` (uses `actions/deploy-pages@v4` with `actions/upload-pages-artifact@v3`), `smoke` (curls `/` and `/night-shift.png` with 5× retry @ 6s backoff for CDN propagation).
-3. File a GitHub Issue on `frontkom/night-shift` titled `Enable GitHub Pages on frontkom/night-shift (org-admin)` and assign to whoever holds frontkom org-admin. The workflow is inert until **Settings → Pages → Source** is flipped to `GitHub Actions`.
-4. After canonical Pages is green for one full week, retire the `git push mirror main` step from `AGENTS.md`. Mirror is the rollback path during burn-in.
+1. Edit `index.html` lines 1469 and 1474. Replace `<div class="value is-gradient">178</div>` with `<div class="value is-gradient" data-stat="prs-opened">—</div>` and the `~71h` value with `data-stat="agent-hours">—</div>`. Em-dashes hydrate from `ns-dashboard.frontkom.no`'s new public summary endpoint (Phase 5 step 1, ship as a small standalone PR before the rest of Phase 5).
+2. Replace the dead `./dashboard/` link target with `https://ns-dashboard.frontkom.no` if/when public-friendly access lands (Phase 5). For now, point to a "Dashboard (internal)" surface or hide the CTA until Phase 5 step 1 lands.
+3. Create `.github/workflows/pages.yml` with three jobs: `build` (no-op for a static site), `deploy` (uses `actions/deploy-pages@v4` with `actions/upload-pages-artifact@v3`), `smoke` (curls `/` and `/night-shift.png` with 5× retry @ 6s backoff for CDN propagation).
+4. File a GitHub Issue on `frontkom/night-shift` titled `Enable GitHub Pages on frontkom/night-shift (org-admin)` and assign to whoever holds frontkom org-admin. The workflow is inert until **Settings → Pages → Source** is flipped to `GitHub Actions`.
+5. After canonical Pages is green for one full week, retire the `git push mirror main` step from `AGENTS.md`. Mirror is the rollback path during burn-in.
 
 **Acceptance criteria:**
 
@@ -43,11 +53,13 @@ The phases below close those gaps in priority order. Phases 1–3 are this week'
 - [ ] `grep -n '178\|~71h' index.html` returns no results.
 - [ ] `pages.yml` runs on push to `main`; smoke job passes.
 - [ ] Pages-enablement issue is filed and assigned.
+- [ ] The `./dashboard/` link is either pointed at `ns-dashboard.frontkom.no` (after Phase 5 step 1 lands a public summary route) or temporarily removed.
 
 **Open questions:**
 
 - Will org admin enable Pages on a `frontkom/*` repo? Confirm before sinking the implementation work.
 - Is the marketing copy on `index.html:1587` ("2.25 MNOK/month") something Frontkom is comfortable shipping under the canonical URL, or does it need a revision pass first?
+- Should the landing-page card show data from `ns-dashboard.frontkom.no`'s `/api/public-summary` (Phase 5 step 1) or settle for static em-dashes until per-client surfaces ship? The Phase 5 step 1 unblocks both Phase 1 hydration and the dashboard CTA.
 
 ## Phase 2 — Manifest-driven picker + VALID_SLUGS gap fix
 
@@ -131,32 +143,37 @@ The phases below close those gaps in priority order. Phases 1–3 are this week'
 - Slack vs Teams vs both? Frontkom uses Slack — start there.
 - Should the digest also include yesterday's *merged* NS PRs (the work that landed) or only newly-opened ones? PM emails care about merged.
 
-## Phase 5 — Local snapshot dashboard
+## Phase 5 — Extend `ns-dashboard` with PM-facing + client-facing surfaces
 
-**Goal:** Replace the dead `./dashboard/` link on the landing page with a real surface. Public URL PMs share in monthly retainer reviews.
+**Goal:** Convert `ns-dashboard.frontkom.no` from internal proof-of-work (hours/night) into the client-facing artifact a Frontkom PM pastes into a monthly status email.
 
-**Why now:** Phase 1 makes the canonical Pages URL alive. Phase 3 + Phase 4 produce enough real data to populate widgets honestly. Building the dashboard before those phases land means rendering against three repos and one frisk-style night.
+**Why now:** The dashboard exists. The build is clean (Next.js 16, App Router, Cache Components, hourly cron, beacon-driven). What's missing is the **product layer**: it shows duration, not impact; it's gated by SSO + HTTP Basic Auth, so PMs can't share a link with a client; there's no per-client filter or summary view. Phase 3 + 4 produce richer data (`fix-from-sentry` PRs with measured impact, digest aggregation); Phase 5 surfaces it.
+
+**Repo:** `frontkom/ns-dashboard` (private, https://github.com/frontkom/ns-dashboard). Production URL: `https://ns-dashboard.frontkom.no`. Local checkout: `~/Sites/ns-dashboard/`.
 
 **Steps:**
 
-1. Add a `snapshot` GitHub Action that runs daily at 06:00 UTC. Queries `gh pr list --label night-shift --state all --limit 1000 --json …` across configured repos (configured via `.github/snapshot-repos.yml`). Parses the `_Routine started:` beacon the multi-runner already stamps.
-2. Write `dashboard/snapshot.json` with the parsed data. Commit to a `snapshot` branch (kept fresh, never merged to `main` — avoids history noise).
-3. Build `dashboard/index.html` as a vanilla-JS page that fetches `snapshot.json` and renders four widgets: tonight's PRs, last-7-nights bar chart, per-task merged-vs-closed, per-repo activity.
-4. **No fabricated economics.** `agent_hours_estimate` is real wall-clock from beacon to merge, not a per-task `estimated_minutes_saved` field. Defer the NOK-equivalent card to Phase 9.
-5. Re-enable the dashboard link on `index.html` and replace the em-dash hydration in Phase 1 with real values pulled from `snapshot.json`.
+1. **Public summary endpoint** (`app/api/public-summary/route.ts`). Returns aggregated, non-sensitive totals: PRs opened last 24h / last 7d / month-to-date, agent-hours from beacon, top 3 task slugs by merged count. No PR titles, no repo names — just the headline numbers. Bypasses the SSO/HTTP-Basic middleware (allowlist the route in `middleware.ts`). This unblocks Phase 1's em-dash hydration AND the `frontkom.github.io/night-shift/` "Dashboard" CTA.
+2. **Per-client view** (`app/client/[slug]/page.tsx`). Each entry in a new `lib/clients.ts` registry maps `slug → { name, repos: [...], token: <random> }`. Route gated by `?t=<token>` query param (no SSO needed — token is the credential). Shows: PRs merged last 30d for this client's repos, grouped by task slug; per-PR Plain summary block (the first paragraph of `## Plain summary` already enforced by `_multi-runner.md` for code PRs); merged-vs-closed ratio; Sentry-impacted user count rolled up across `fix-from-sentry` PRs (Phase 3).
+3. **PM index** (`app/pm/page.tsx`). Internal-only (keeps SSO/HTTP-Basic gating). Lists all configured clients with per-client send-this-week shortcuts: a copy-to-clipboard widget that produces the exact paragraph a PM pastes into a status email, plus the per-client share URL with token embedded.
+4. **Aggregate impact** — extend `lib/aggregate.ts` to read `Closes #<n>` references and Sentry-fingerprint comments from PR bodies (added by Phase 3), so client views can surface "47 users hit this error, fixed" not just "1 PR merged."
+5. **Plain summary extraction** — extend `lib/github.ts` to fetch PR bodies (currently only fetches commits) and parse the `## Plain summary` block. Cache aggressively (the body of a merged PR rarely changes; key by PR number + last-modified).
+6. **Drop the beacon-citation typo in `bundles/_multi-runner.md`** — replace any remaining reference to `perandre/ns-dashboard` (the audit's wrong owner) with `frontkom/ns-dashboard`. The beacon documentation should also cite the live consumer.
 
 **Acceptance criteria:**
 
-- [ ] `https://frontkom.github.io/night-shift/dashboard/` returns 200.
-- [ ] The dashboard renders without JS errors on Chrome, Firefox, Safari (no framework, no build step beyond `actions/upload-pages-artifact`).
-- [ ] Widgets reflect real data from `gh pr list` queries, not hardcoded values.
-- [ ] The landing page `data-stat` em-dashes hydrate from `snapshot.json`.
-- [ ] No `estimated_minutes_saved` or NOK-equivalent fields appear on the dashboard (deferred to Phase 9).
+- [ ] `curl -sS https://ns-dashboard.frontkom.no/api/public-summary` returns a JSON document with `prs_24h`, `prs_7d`, `prs_30d`, `agent_hours_30d`, `top_slugs` — no auth required.
+- [ ] A configured client view at `https://ns-dashboard.frontkom.no/client/<slug>?t=<token>` returns 200 from a logged-out browser; bad token returns 401.
+- [ ] Each per-PR row on the client view shows the first paragraph under `## Plain summary`, not a generic placeholder.
+- [ ] `fix-from-sentry` PRs (once Phase 3 lands) surface their impact metric (`N users hit this error`) on the client view's per-PR row.
+- [ ] PM index has a copy-to-clipboard widget that produces a pasteable status-email paragraph per client.
+- [ ] No reference to `perandre/ns-dashboard` remains in `bundles/_multi-runner.md` or elsewhere in the night-shift repo.
 
 **Open questions:**
 
-- Should `dashboard/snapshot.json` be public (anyone can scrape it) or gated? Public makes the data shareable; gated requires an auth proxy.
-- Which repos populate the dashboard? Configure via `.github/snapshot-repos.yml`. Default to the canonical demo + perandre's repos for the initial run.
+- Should `/api/public-summary` show per-repo breakdown (`frisk: 24h prs`) or only org-wide totals? Per-repo leaks repo names to anyone; org-wide is safer. Lean org-wide for the public endpoint.
+- Token rotation for `client/[slug]?t=…` — manual via `lib/clients.ts` PR, or a tiny `/api/rotate-client-token` admin endpoint? Manual for v1.
+- Per-client report PDF (Phase 9) renders against this client view — design Phase 5 routes with PDF rendering in mind (printable layout, no fixed-position elements).
 
 ## Phase 6 — Self-review as real GitHub review event
 
@@ -241,14 +258,14 @@ The phases below close those gaps in priority order. Phases 1–3 are this week'
 
 **Steps:**
 
-1. Add a `report` mode to `tasks/update-changelog.md` (or write a new `tasks/monthly-client-report.md`) that walks the previous month's NS PRs for a single client repo.
-2. Generate a PDF report with: PRs shipped, measured impact (`287 users impacted` aggregated from Sentry-fed PRs), CVEs closed (from `dep-audit`), estimated dev-hours saved (real wall-clock from the beacon, NOT fabricated `estimated_minutes_saved`), per-task merge rate.
-3. Run on the first Monday of every month at 09:00 UTC per opted-in client. POST to `NIGHT_SHIFT_REPORT_WEBHOOK`. Optionally email to the PM list configured per repo.
-4. Brand the report (Frontkom logo, brand colours, signature block). Use `puppeteer` or similar for HTML → PDF.
+1. Add a `report` route in `frontkom/ns-dashboard` (`app/client/[slug]/report/[month]/page.tsx`) that renders the per-client view in printable layout (no fixed-position elements, brand-styled, signature block). Reuses Phase 5's aggregation helpers — no new data plumbing.
+2. Wire `puppeteer` (or Vercel's native `@vercel/og` for a single-page render, then printers) → PDF generation behind an admin-only endpoint (`/api/render-report?slug=...&month=...`).
+3. Schedule a cron in `ns-dashboard`'s `vercel.json` for the first Monday of every month at 09:00 UTC. The cron walks `lib/clients.ts`, renders one PDF per opted-in client, POSTs to `NIGHT_SHIFT_REPORT_WEBHOOK`, optionally emails to the PM list.
+4. Brand the report (Frontkom logo, brand colours, signature block). Optional client co-branding as an enterprise-tier feature.
 
 **Acceptance criteria:**
 
-- [ ] After 60 days of `fix-from-sentry` running on 5 client repos, attempt to generate one client's monthly report from `gh` + `snapshot.json` alone.
+- [ ] After 60 days of `fix-from-sentry` running on 5 client repos, generate one client's monthly report end-to-end from `ns-dashboard.frontkom.no`'s data alone.
 - [ ] If the report is readable by a non-technical client stakeholder without manual rewriting, the productized version is shippable.
 - [ ] Measure: % of generated reports the PM ships verbatim vs has to rewrite. Target: ≥75% verbatim within 90 days.
 
@@ -263,7 +280,7 @@ The audit surfaced ~25 ideas the adversarial critique killed. Notable rejections
 
 - **Sentry MCP-connector variant of `fix-from-sentry`** (L effort). Phase 3 collapses to XS via the GitHub-Issues-label path. The MCP variant requires parse-merge-rewrite for `mcp_connections`, a new long-lived auth surface, and adds routine-update risk. Defer until/unless Sentry MCP stabilizes and the XS variant proves the demand.
 - **Standardize structured silent-reasons across 22 task files**. Real diagnosis (silent is overloaded across 7 failure modes) but no downstream reader consumes the codes today. Schema tax for a hypothetical consumer. Revisit if/when the dashboard (Phase 5) needs to surface silent-reason distributions.
-- **Local static dashboard as Week-1 work**. Right idea, wrong sequencing — needs canonical Pages alive (Phase 1) AND real data (Phase 3) to be honest.
+- **Building a new dashboard on GitHub Pages**. The original audit framing. Duplicative — `ns-dashboard.frontkom.no` exists and is good. Phase 5 extends it instead.
 - **Adversarial second-pass reviewer subagent before PR opens**. Higher cost (extra subagent dispatch per PR), unclear evidence the same-model-different-prompt setup catches what one-pass misses. Phase 6 (real GitHub review event) gets most of the credibility win.
 - **Auto-retire / auto-recommend tasks based on fleet-wide merge rate**. Requires fleet-wide telemetry that does not exist yet (Phase 5 is the precondition). Premature.
 - **GitHub Actions backend ("second backend" the skill copy promises)**. Skill copy drift, not a real product gap. Either ship a reusable workflow or revise the skill copy to be honest about the single-backend reality.
@@ -274,7 +291,7 @@ The audit surfaced ~25 ideas the adversarial critique killed. Notable rejections
 - `fix-from-sentry` needs Sentry → GitHub Issues installed on target client repos. Open a parallel ticket to install it on the top 5 retainers before Phase 3 ships.
 - Every phase that adds a new YAML field to `<night-shift-config>` must survive parse-merge-rewrite (`SKILL.md:277`). Phases 1, 2, 3, 6 deliberately add zero new fields. Phase 4 adds an opt-in digest configuration; design that field carefully.
 - The mirror push protocol stays in `AGENTS.md` for one-week burn-in after Phase 1 lands. Mirror is the rollback path.
-- The routine-start beacon (`bundles/_multi-runner.md` lines ~80–93) is doing real work for no real consumer today (`perandre/ns-dashboard` is 404). Do not delete the beacon plumbing — Phase 5 consumes the same signal. Stop citing `perandre/ns-dashboard` in the multi-runner doc.
+- The routine-start beacon (`bundles/_multi-runner.md` lines ~80–93) **has a live consumer** at `ns-dashboard.frontkom.no` (the audit cited the wrong owner — `perandre/ns-dashboard` does not exist; the real repo is `frontkom/ns-dashboard`). The dashboard uses the beacon as duration ground-truth (see `~/Sites/ns-dashboard/README.md` "How it measures duration"). Do not delete the beacon plumbing. Phase 5 step 6 updates the citation in the multi-runner doc.
 - `add-tests`'s "213 false-coverage tests" incident (referenced in `tasks/add-tests.md`) is the canonical reminder that scope drift in code-fixing tasks is a real failure mode. Phase 6 (self-review as real review event) is the right place to address recurrence. If it recurs before Phase 6 ships, hotfix `add-tests.md` heuristics.
 
 ## First concrete action
