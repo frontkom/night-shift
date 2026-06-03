@@ -215,28 +215,31 @@ Allowed task: work-on-issues
 
 ### Step A — discover tagged issues and stratify by severity
 
-**Do not** attempt the set-difference math (`NONE = ALL minus (HIGH ∪ MED ∪ LOW)`) in bash by hand — when the issues-dispatcher tried this on 2026-06-03 it silently degraded to "just walk the simplest list" and processed issues in numerical order, leaving every `severity:high` issue unworked. Run this Python helper instead — it does the set math deterministically and writes the priority-ordered list of issue numbers to `/tmp/ns-issues-ordered.txt`, one per line:
+**Do not** attempt the set-difference math (`NONE = ALL minus (HIGH ∪ MED ∪ LOW)`) inline as bash variables — when the issues-dispatcher tried this on 2026-06-03 it silently degraded to "just walk the simplest list" and processed issues in numerical order, leaving every `severity:high` issue unworked. Run the block below verbatim. It uses only `gh`, `sort`, `comm`, `cat` (no Python, no awk, no jq trickery), and writes the priority-ordered list of issue numbers to `/tmp/ns-issues-ordered.txt` one per line:
 
 ```bash
-python3 -c "
-import json, subprocess
-def gh(label):
-    raw = subprocess.check_output(['gh','issue','list','--label',label,'--state','open','--limit','1000','--json','number'], text=True)
-    return [n['number'] for n in json.loads(raw)]
-H = gh('night-shift,severity:high')
-M = gh('night-shift,severity:medium')
-L = gh('night-shift,severity:low')
-A = gh('night-shift')
-seen = set(H) | set(M) | set(L)
-N = [n for n in A if n not in seen]
-for n in H + M + N + L:
-    print(n)
-" > /tmp/ns-issues-ordered.txt
+mkdir -p /tmp/ns-prio
+LIM='--state open --limit 1000 --json number --jq .[].number'
+
+# Per-stratum lists, numerically sorted (so #99 stays before #100 within a stratum)
+gh issue list --label "night-shift,severity:high"   $LIM | sort -un > /tmp/ns-prio/high
+gh issue list --label "night-shift,severity:medium" $LIM | sort -un > /tmp/ns-prio/med
+gh issue list --label "night-shift,severity:low"    $LIM | sort -un > /tmp/ns-prio/low
+gh issue list --label "night-shift"                 $LIM | sort -un > /tmp/ns-prio/all
+
+# NONE = ALL minus (HIGH ∪ MED ∪ LOW). `comm` requires lexically-sorted input, so
+# we make a separate lexical pass and then re-sort the result numerically.
+sort -u /tmp/ns-prio/high /tmp/ns-prio/med /tmp/ns-prio/low > /tmp/ns-prio/classified-lex
+sort -u /tmp/ns-prio/all                                    > /tmp/ns-prio/all-lex
+comm -23 /tmp/ns-prio/all-lex /tmp/ns-prio/classified-lex | sort -un > /tmp/ns-prio/none
+
+# Final priority-ordered list: HIGH → MED → NONE → LOW
+cat /tmp/ns-prio/high /tmp/ns-prio/med /tmp/ns-prio/none /tmp/ns-prio/low > /tmp/ns-issues-ordered.txt
 ```
 
-The 4 separate `gh` calls each get their own list (so a repo without severity labels just has empty H/M/L, and everything lands in N — gracefully degrading to a flat ordered-by-issue-number list). The `--limit 1000` in each call defends against `gh`'s 30-default truncating large backlogs.
+The 4 separate `gh` calls each get their own list (so a repo without severity labels just has empty `high`/`med`/`low`, and everything lands in `none` — gracefully degrading to a flat ordered-by-issue-number list). The `--limit 1000` in each call defends against `gh`'s 30-default truncating large backlogs.
 
-**Priority order:** `HIGH → MED → NONE → LOW`. The Python writer already lays the file out in that order; you walk the file top-to-bottom. High first because those are the issues human reviewers most want fixed by morning; LOW last because they are noise candidates that shouldn't crowd out higher-severity work if the night's budget runs short.
+**Priority order:** `HIGH → MED → NONE → LOW`. The block above already lays the file out in that order via the final `cat`; you walk the file top-to-bottom. High first because those are the issues human reviewers most want fixed by morning; LOW last because they are noise candidates that shouldn't crowd out higher-severity work if the night's budget runs short.
 
 Then capture stratum counts for the discovery line:
 
