@@ -118,10 +118,21 @@ For each plan the grep returns (opt-in, rare), and only those, read that one fil
 
 The `parallel-phases` opt-in is a quality contract: phases that share schema migrations, depend on each other's exports, or sequentially mutate the same file are NOT independent and the marker must be omitted. There is no automatic independence detection.
 
-### Step D — fan out one Task per work-item
-If an app-scope has zero plan files, emit one work-item with `plan_file = —` so it can report `silent` in your return.
+### Step D — fan out one Task per work-item, in BATCHES of 5
 
-For each work-item, dispatch a Task subagent with this prompt (substitute fields):
+If you have zero work-items, emit one work-item with `plan_file = —` so it can report `silent` in your return, then proceed to Step E.
+
+**You MUST process every work-item.** The previous design said "fan out in parallel" and relied on you to fire all N Task calls in one turn — that is unreliable for N > ~5, because after the first batch of tool-use results returns you tend to wrap up and emit END too early. Instead:
+
+1. Total work-items = N. Sort them in plan-file discovery order.
+2. Walk them in **batches of 5**. For each batch K of `⌈N/5⌉`:
+   - **In a single message**, issue exactly one Task tool use per work-item in this batch (so 5 Task tool uses per batch, or fewer in the final batch).
+   - Wait for all dispatched grandchildren in the batch to return their one-line results.
+   - Print **one** progress line: `Batch K/⌈N/5⌉ complete (X of N plan work-items processed)`.
+   - Continue to the **next batch**. Do not stop.
+3. The success criterion of this step is: the number of one-line results you have collected equals N. If you emit the END block (Step E) before that, you have **under-fanned-out** — a known dispatcher bug. Push through every batch even if individual grandchildren fail.
+
+Per-work-item Task prompt (substitute fields):
 
 ```
 Your working directory is {REPO_PATH}. cd into it now.
@@ -174,7 +185,7 @@ Return EXACTLY ONE LINE to me in this format:
     <ok|silent|failed> | PR: <url or —> | <plan-slug> — <terse note, max 60 chars>
 ```
 
-Issue these Task calls **in parallel** where possible — a single message with multiple Task tool uses runs them concurrently, and that's exactly what we want here. The concurrency cap is whatever the harness imposes; just fire them all and let it queue.
+Within a batch, the Task tool uses issued in one message run concurrently — that's exactly the desired behavior per batch. The concurrency cap is whatever the harness imposes; the per-batch cap of 5 stays well under it for the plans bundle.
 
 ### Step E — return to your caller
 Print and return the following block (and nothing else — no narration, no summary table; the wrapper will assemble that from your block):
@@ -202,18 +213,39 @@ Repo: {REPO_PATH}    # cd into this directory now and stay there for the whole r
 
 Allowed task: work-on-issues
 
-### Step A — discover tagged issues
-Run:
+### Step A — discover tagged issues and stratify by severity
+
+Run these to collect issue numbers per severity stratum (each `jq` returns one number per line):
+
+```bash
+HIGH=$(gh issue list --label "night-shift,severity:high"   --state open --limit 1000 --json number --jq 'sort_by(.number) | .[].number')
+MED=$(gh issue list  --label "night-shift,severity:medium" --state open --limit 1000 --json number --jq 'sort_by(.number) | .[].number')
+LOW=$(gh issue list  --label "night-shift,severity:low"    --state open --limit 1000 --json number --jq 'sort_by(.number) | .[].number')
+ALL=$(gh issue list  --label "night-shift"                 --state open --limit 1000 --json number --jq 'sort_by(.number) | .[].number')
 ```
-gh issue list --label "night-shift" --state open --json number,title --jq 'sort_by(.number) | .[] | .number'
-```
 
-Print one discovery line up front: `Discovered tagged issues: #N1, #N2, ... (N total)`. If the list is empty, print `Discovered tagged issues: none.`, return the END block immediately with no work-items, and stop.
+Compute `NONE = ALL minus (HIGH ∪ MED ∪ LOW)` — these are NS issues with no severity label. Repos that don't use severity labels at all will have everything land in `NONE` and the dispatcher degrades gracefully to a single ordered list. The `--limit 1000` defends against `gh`'s 30-default silently truncating large backlogs.
 
-There is **no count cap** — every tagged issue gets its own subagent. A repo with 117 open issues spawns 117 grandchildren. That is the whole point of the dispatcher-subagent design: your fresh context has the room to do this; the wrapper's didn't.
+**Priority order:** `HIGH → MED → NONE → LOW`. High first because those are the issues human reviewers most want fixed by morning; LOW last because they are noise candidates that shouldn't crowd out higher-severity work if the night's budget runs short.
 
-### Step B — fan out one Task per issue
-For each discovered issue, dispatch a Task subagent (substitute `{ISSUE_NUMBER}`):
+Print one discovery line: `Discovered tagged issues by severity: high=<|HIGH|>, medium=<|MED|>, none=<|NONE|>, low=<|LOW|> (total=N)`. If `total = 0`, print `Discovered tagged issues: none.`, return the END block, and stop.
+
+There is **no count cap** — every tagged issue gets its own subagent. A repo with 117 open issues spawns 117 grandchildren across `⌈117/10⌉ = 12` batches.
+
+### Step B — fan out one Task per issue, in BATCHES of 10, in severity order
+
+Build the ordered work list: `ORDERED = HIGH ++ MEDIUM ++ NONE ++ LOW`. Total = N.
+
+**You MUST process every issue.** The previous design said "fan out in parallel" and relied on you to fire all N Task calls in one turn — that is unreliable for N > ~10, because after the first batch of tool-use results returns you tend to wrap up and emit END too early. Last night's frontkom/frisk build hit exactly this: ~7 of 103 issues touched, 96 left without a dispatch attempt. Instead:
+
+1. Walk `ORDERED` in **batches of 10**. For each batch K of `⌈N/10⌉`:
+   - **In a single message**, issue exactly one Task tool use per issue in this batch (so 10 Task tool uses per batch, or fewer in the final batch).
+   - Wait for all dispatched grandchildren in the batch to return their one-line results.
+   - Print **one** progress line: `Batch K/⌈N/10⌉ complete (X of N processed): high=h, medium=m, none=n, low=l in batch`.
+   - Continue to the **next batch**. Do not stop.
+2. The success criterion of this step is: the number of one-line results you have collected equals N. If you emit the END block (Step C) before that, you have **under-fanned-out** — a known dispatcher bug. Push through every batch even if individual grandchildren in earlier batches errored.
+
+Per-issue Task prompt (substitute `{ISSUE_NUMBER}`):
 
 ```
 Your working directory is {REPO_PATH}. cd into it now.
@@ -239,7 +271,7 @@ Return EXACTLY ONE LINE to me in this format:
     <ok|silent|failed> | PR: <url or —> | #{ISSUE_NUMBER} — <terse note, max 60 chars>
 ```
 
-Issue Task calls in parallel where possible (single message with multiple tool uses). The harness queues anything past its concurrency cap.
+Within a batch, the 10 Task tool uses issued in one message run concurrently — that's the desired behavior per batch. The harness queues anything past its concurrency cap; the per-batch cap of 10 stays well under it.
 
 ### Step C — return to your caller
 Print and return:
@@ -282,17 +314,29 @@ If `{JIRA_PROJECT_KEY}` is "—", read the CLAUDE.md config above for a `Jira pr
 Use the Atlassian Rovo MCP connector that this routine has attached. Call **Search with JQL** with:
 
 ```
-project = <KEY> AND labels = "<LABEL>" AND statusCategory != Done ORDER BY created ASC
+project = <KEY> AND labels = "<LABEL>" AND statusCategory != Done ORDER BY priority DESC, created ASC
 ```
+
+Sorting by `priority DESC` puts Jira issues with `Highest` / `High` first and `Lowest` last — mirroring the severity-prioritization the GitHub-issues dispatcher applies. The `created ASC` tiebreaker keeps the order stable across runs. Jira priorities are a built-in field; the JQL works whether or not the team has actively set priorities (unset issues fall to the middle of the order).
 
 If the Rovo connector is not callable in this session (connector not attached, OAuth lapsed, etc.), print `Discovered tagged Jira issues: skipped (rovo not available)`, return the END block with no work-items, and stop.
 
 Print one discovery line up front: `Discovered tagged Jira issues: KEY-12, KEY-15, ... (N total)`. If the JQL returns zero issues, print `Discovered tagged Jira issues: none.`, return the END block with no work-items, and stop.
 
-There is **no count cap** — every tagged Jira issue gets its own subagent.
+There is **no count cap** — every tagged Jira issue gets its own subagent, processed in `priority DESC` order from the JQL.
 
-### Step C — fan out one Task per Jira key
-For each discovered key, dispatch a Task subagent (substitute `{ISSUE_KEY}`):
+### Step C — fan out one Task per Jira key, in BATCHES of 10
+
+**You MUST process every Jira key.** Same under-fan-out caveat as the GitHub-issues dispatcher: the previous "fire all in one turn" instruction is unreliable for backlogs > 10. Walk the JQL-returned keys in **batches of 10**, in the priority order the JQL already gave you. For each batch K of `⌈N/10⌉`:
+
+1. **In a single message**, issue exactly one Task tool use per Jira key in this batch.
+2. Wait for all dispatched grandchildren to return.
+3. Print **one** progress line: `Batch K/⌈N/10⌉ complete (X of N Jira keys processed)`.
+4. Continue to the next batch.
+
+The success criterion is: number of one-line results = N. If you emit END before then, you have under-fanned-out.
+
+Per-Jira-key Task prompt (substitute `{ISSUE_KEY}`):
 
 ```
 Your working directory is {REPO_PATH}. cd into it now.
@@ -322,7 +366,7 @@ Return EXACTLY ONE LINE to me in this format:
     <ok|silent|failed> | PR: <url or —> | {ISSUE_KEY} — <terse note, max 60 chars>
 ```
 
-Issue Task calls in parallel where possible.
+Within a batch, the Task tool uses issued in one message run concurrently. Harness queues anything past its concurrency cap.
 
 ### Step D — return to your caller
 Print and return:
