@@ -215,35 +215,61 @@ Allowed task: work-on-issues
 
 ### Step A — discover tagged issues and stratify by severity
 
-Run these to collect issue numbers per severity stratum (each `jq` returns one number per line):
+**Do not** attempt the set-difference math (`NONE = ALL minus (HIGH ∪ MED ∪ LOW)`) in bash by hand — when the issues-dispatcher tried this on 2026-06-03 it silently degraded to "just walk the simplest list" and processed issues in numerical order, leaving every `severity:high` issue unworked. Run this Python helper instead — it does the set math deterministically and writes the priority-ordered list of issue numbers to `/tmp/ns-issues-ordered.txt`, one per line:
 
 ```bash
-HIGH=$(gh issue list --label "night-shift,severity:high"   --state open --limit 1000 --json number --jq 'sort_by(.number) | .[].number')
-MED=$(gh issue list  --label "night-shift,severity:medium" --state open --limit 1000 --json number --jq 'sort_by(.number) | .[].number')
-LOW=$(gh issue list  --label "night-shift,severity:low"    --state open --limit 1000 --json number --jq 'sort_by(.number) | .[].number')
-ALL=$(gh issue list  --label "night-shift"                 --state open --limit 1000 --json number --jq 'sort_by(.number) | .[].number')
+python3 -c "
+import json, subprocess
+def gh(label):
+    raw = subprocess.check_output(['gh','issue','list','--label',label,'--state','open','--limit','1000','--json','number'], text=True)
+    return [n['number'] for n in json.loads(raw)]
+H = gh('night-shift,severity:high')
+M = gh('night-shift,severity:medium')
+L = gh('night-shift,severity:low')
+A = gh('night-shift')
+seen = set(H) | set(M) | set(L)
+N = [n for n in A if n not in seen]
+for n in H + M + N + L:
+    print(n)
+" > /tmp/ns-issues-ordered.txt
 ```
 
-Compute `NONE = ALL minus (HIGH ∪ MED ∪ LOW)` — these are NS issues with no severity label. Repos that don't use severity labels at all will have everything land in `NONE` and the dispatcher degrades gracefully to a single ordered list. The `--limit 1000` defends against `gh`'s 30-default silently truncating large backlogs.
+The 4 separate `gh` calls each get their own list (so a repo without severity labels just has empty H/M/L, and everything lands in N — gracefully degrading to a flat ordered-by-issue-number list). The `--limit 1000` in each call defends against `gh`'s 30-default truncating large backlogs.
 
-**Priority order:** `HIGH → MED → NONE → LOW`. High first because those are the issues human reviewers most want fixed by morning; LOW last because they are noise candidates that shouldn't crowd out higher-severity work if the night's budget runs short.
+**Priority order:** `HIGH → MED → NONE → LOW`. The Python writer already lays the file out in that order; you walk the file top-to-bottom. High first because those are the issues human reviewers most want fixed by morning; LOW last because they are noise candidates that shouldn't crowd out higher-severity work if the night's budget runs short.
 
-Print one discovery line: `Discovered tagged issues by severity: high=<|HIGH|>, medium=<|MED|>, none=<|NONE|>, low=<|LOW|> (total=N)`. If `total = 0`, print `Discovered tagged issues: none.`, return the END block, and stop.
+Then capture stratum counts for the discovery line:
+
+```bash
+HCT=$(wc -l <<<"$(gh issue list --label 'night-shift,severity:high'   --state open --limit 1000 --json number --jq '.[].number')")
+MCT=$(wc -l <<<"$(gh issue list --label 'night-shift,severity:medium' --state open --limit 1000 --json number --jq '.[].number')")
+LCT=$(wc -l <<<"$(gh issue list --label 'night-shift,severity:low'    --state open --limit 1000 --json number --jq '.[].number')")
+TOTAL=$(wc -l < /tmp/ns-issues-ordered.txt)
+NCT=$(( TOTAL - HCT - MCT - LCT ))
+```
+
+Print one discovery line: `Discovered tagged issues by severity: high=$HCT, medium=$MCT, none=$NCT, low=$LCT (total=$TOTAL)`. If `TOTAL = 0`, print `Discovered tagged issues: none.`, return the END block, and stop.
 
 There is **no count cap** — every tagged issue gets its own subagent. A repo with 117 open issues spawns 117 grandchildren across `⌈117/10⌉ = 12` batches.
 
 ### Step B — fan out one Task per issue, in BATCHES of 10, in severity order
 
-Build the ordered work list: `ORDERED = HIGH ++ MEDIUM ++ NONE ++ LOW`. Total = N.
+The ordered work list is `/tmp/ns-issues-ordered.txt`, top-to-bottom. Total = `TOTAL`. **Do not** rebuild the list in bash variables; walk the file directly.
 
 **You MUST process every issue.** The previous design said "fan out in parallel" and relied on you to fire all N Task calls in one turn — that is unreliable for N > ~10, because after the first batch of tool-use results returns you tend to wrap up and emit END too early. Last night's frontkom/frisk build hit exactly this: ~7 of 103 issues touched, 96 left without a dispatch attempt. Instead:
 
-1. Walk `ORDERED` in **batches of 10**. For each batch K of `⌈N/10⌉`:
+1. Read the ordered numbers into a bash array (in priority order, top of file first):
+   ```bash
+   mapfile -t ORDERED < /tmp/ns-issues-ordered.txt
+   TOTAL=${#ORDERED[@]}
+   ```
+2. Walk `ORDERED` in **batches of 10**. For each batch K of `⌈TOTAL/10⌉`:
+   - Slice the next 10 issue numbers: `BATCH=("${ORDERED[@]:(K-1)*10:10}")` (the last batch may be shorter).
    - **In a single message**, issue exactly one Task tool use per issue in this batch (so 10 Task tool uses per batch, or fewer in the final batch).
    - Wait for all dispatched grandchildren in the batch to return their one-line results.
-   - Print **one** progress line: `Batch K/⌈N/10⌉ complete (X of N processed): high=h, medium=m, none=n, low=l in batch`.
+   - Print **one** progress line: `Batch K/⌈TOTAL/10⌉ complete (X of TOTAL processed)`.
    - Continue to the **next batch**. Do not stop.
-2. The success criterion of this step is: the number of one-line results you have collected equals N. If you emit the END block (Step C) before that, you have **under-fanned-out** — a known dispatcher bug. Push through every batch even if individual grandchildren in earlier batches errored.
+3. The success criterion of this step is: the number of one-line results you have collected equals TOTAL. If you emit the END block (Step C) before that, you have **under-fanned-out** — a known dispatcher bug. Push through every batch even if individual grandchildren in earlier batches errored.
 
 Per-issue Task prompt (substitute `{ISSUE_NUMBER}`):
 
