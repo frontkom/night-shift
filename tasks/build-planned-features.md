@@ -91,6 +91,9 @@ When no `app_path` is provided (single-app repo), the plans directory defaults t
 
    If a later phase fails after earlier phases in this run already passed, **keep the earlier phases**. Revert only the failing phase's changes (`git checkout -- <files>` or reset the staged portion), add a `## Night Shift Notes` entry to the plan file explaining the blocker on phase N+K, and proceed to open the PR covering phases 1…N+K-1 normally. This gets the passing work reviewed promptly and surfaces the blocker to the human.
 
+## Commit identity — never override
+Commit as the routine's default identity (`Claude <noreply@anthropic.com>`). Do **not** run `git config user.name` / `git config user.email`, set `GIT_AUTHOR_*` / `GIT_COMMITTER_*` env vars, or pass `git -c user.email=… -c user.name=… commit`. Never invent an identity from repo branding — invented author emails that don't link to a GitHub account cause Vercel to fail every preview deploy on the PR with *"No GitHub account was found matching the commit author email address."* Full forbidden-patterns list and backstory: `bundles/_multi-runner.md` → "Commit identity — never override".
+
 ## Open the PR
 On success (drop the `<app_path> — ` prefix from commit + PR title when unscoped). The wrapper has already created the standard labels for this repo — just attach them. End the body with the Night Shift footer:
 ```

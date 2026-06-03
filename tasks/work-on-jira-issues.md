@@ -105,6 +105,9 @@ git checkout -b night-shift/jira-<issue-key-lowercase>-<short-slug>-YYYY-MM-DD
 
 `<short-slug>` is a 3–5 word kebab-case summary of the issue summary. Example: `night-shift/jira-fgpw-1234-fix-button-overlap-2026-04-28`.
 
+### Commit identity — never override
+Commit as the routine's default identity (`Claude <noreply@anthropic.com>`). Do **not** run `git config user.name` / `git config user.email`, set `GIT_AUTHOR_*` / `GIT_COMMITTER_*` env vars, or pass `git -c user.email=… -c user.name=… commit`. Never invent an identity from repo branding — invented author emails that don't link to a GitHub account cause Vercel to fail every preview deploy on the PR with *"No GitHub account was found matching the commit author email address."* Full forbidden-patterns list and backstory: `bundles/_multi-runner.md` → "Commit identity — never override".
+
 ### Implement the fix/feature
 
 - Read the issue summary + description carefully and implement exactly what is described.
