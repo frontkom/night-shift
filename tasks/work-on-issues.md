@@ -94,6 +94,9 @@ git checkout -b night-shift/issue-<number>-<short-slug>-YYYY-MM-DD
 ```
 `<short-slug>` is a 3–5 word kebab-case summary of the issue title.
 
+### Commit identity — never override
+Commit as the routine's default identity (`Claude <noreply@anthropic.com>`). Do **not** run `git config user.name` / `git config user.email`, set `GIT_AUTHOR_*` / `GIT_COMMITTER_*` env vars, or pass `git -c user.email=… -c user.name=… commit`. Never invent an identity from repo branding (e.g. `Night Shift <night-shift@frontkom.com>` or `Night Shift <perandre@frontkom.com>`) — invented author emails that don't link to a GitHub account cause Vercel to fail every preview deploy on the PR with *"No GitHub account was found matching the commit author email address."* 19 of 21 PRs on the 2026-06-03 manual run hit this. Full forbidden-patterns list and backstory: `bundles/_multi-runner.md` → "Commit identity — never override".
+
 ### Implement the fix/feature
 - Read the issue body carefully and implement exactly what is described.
 - Do not invent scope beyond what the issue asks for.
