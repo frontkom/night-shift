@@ -2,11 +2,16 @@
 
 You are running the Night Shift **Plans** bundle across **all target repositories** cloned into this session.
 
-**Before doing anything else**, print a single status line so the user sees immediate output:
+**Before doing anything else**, write the routine sentinels (start time + version) and print a single status line so the user sees immediate output:
 
+```bash
+date -u +%FT%TZ > /tmp/night-shift-routine-started
+NS_VERSION="__NS_VERSION__"
+case "$NS_VERSION" in __NS_VERSION__) ;; *) printf '%s' "$NS_VERSION" > /tmp/night-shift-routine-version ;; esac
+echo "Night Shift plans bundle starting (multi-repo)..."
 ```
-Night Shift plans bundle starting (multi-repo)...
-```
+
+`__NS_VERSION__` is substituted at routine-create / update time by the `night-shift` skill with the live `NIGHT_SHIFT_VERSION` (see `skills/night-shift/SKILL.md` Step 4). When the placeholder is left intact (direct-task invocation, manual replay, pre-version-stamping install), the version sentinel is silently skipped — every downstream lookup is keyed on the file existing, so legacy runs gracefully degrade to "version unknown".
 
 ## Parse the per-repo allowlist first
 
@@ -425,6 +430,19 @@ After all three category dispatchers have returned for this repo, run the **labe
         | select((.labels | map(.name)) | index("night-shift") | not)
         | .number' \
     | xargs -I{} -r gh pr edit {} --add-label night-shift )
+```
+
+**Version label sweep** — tag every PR opened by *this* run with `ns-v:<version>` so the dashboard can identify which routine version produced it (and which installs are stale). Only runs when the routine carries a substituted `__NS_VERSION__` (the sentinel file `/tmp/night-shift-routine-version` exists). The `createdAt` filter is what keeps older PRs from being mis-labeled with this run's version.
+
+```bash
+if [ -s /tmp/night-shift-routine-version ]; then
+  V=$(cat /tmp/night-shift-routine-version)
+  START=$(cat /tmp/night-shift-routine-started 2>/dev/null || echo "1970-01-01T00:00:00Z")
+  ( cd "$REPO_PATH" && \
+    gh label create "ns-v:$V" --color "5e5c66" --description "Night Shift version that opened this PR" 2>/dev/null || true
+    gh pr list --label night-shift --state open --limit 1000 --json number,createdAt --jq ".[] | select(.createdAt >= \"$START\") | .number" \
+      | xargs -I{} -r gh pr edit {} --add-label "ns-v:$V" )
+fi
 ```
 
 **PR body sweep** — repairs bodies that contain literal `\n` sequences (subagent skipped the post-create body fix):

@@ -79,17 +79,23 @@ A directory is a repo if `git rev-parse --show-toplevel` succeeds.
 
 The wrapper is the only process that knows when the routine actually started — long before any subagent finishes exploring, drafting, testing, and finally committing. To make that start visible to downstream consumers (notably the [ns-dashboard](https://github.com/perandre/ns-dashboard), which otherwise can only see commit timestamps and undercounts pre-commit thinking), the wrapper stamps every Night Shift PR with the routine's start ISO.
 
-Right at the top of the wrapper invocation — **before** any repo is `cd`-ed into, before any subagent is dispatched — write the sentinel once:
+Right at the top of the wrapper invocation — **before** any repo is `cd`-ed into, before any subagent is dispatched — write the two sentinels once:
 
 ```bash
 date -u +%FT%TZ > /tmp/night-shift-routine-started
+NS_VERSION="__NS_VERSION__"
+case "$NS_VERSION" in __NS_VERSION__) ;; *) printf '%s' "$NS_VERSION" > /tmp/night-shift-routine-version ;; esac
 ```
+
+The first sentinel (`/tmp/night-shift-routine-started`) is the routine's start ISO, used by every task's PR body footer (`_Routine started: <iso>_`) and by the dashboard to compute "time AI worked" per repo per night.
+
+The second sentinel (`/tmp/night-shift-routine-version`) is the **install-time version** of the Night Shift skill that wrote this routine. The literal token `__NS_VERSION__` is substituted by the `night-shift` skill's Step 4 (or the post-setup parse-merge-rewrite that touches the wrapper) with the live `NIGHT_SHIFT_VERSION` from `SKILL.md`. The `case` guard means: when the wrapper runs WITHOUT the substitution having happened (legacy install pre-version-stamping, direct task invocation, manual replay), the version sentinel file simply does not get written — and the **version label sweep** (see below) gracefully skips. Pre-existing PRs from legacy routines end up with no `ns-v:` label, which the dashboard renders as "unknown" — the desired signal for "this install is too old to identify itself".
 
 Every Task subagent in the routine shares this filesystem (same reason the PR-creation throttle uses `/tmp/night-shift-pr-last-created`), so a single write covers the whole fan-out across every repo, app, and task in the run.
 
-Each task reads the sentinel when building its PR body and inserts a `_Routine started: <iso>_` line as documented under "Body footer" below. The wrapper's PR body sweep also backfills the line for any PR that landed without it — see the sweep block.
+Each task reads the routine-started sentinel when building its PR body and inserts a `_Routine started: <iso>_` line as documented under "Body footer" below. The wrapper's PR body sweep also backfills the line for any PR that landed without it — see the sweep block.
 
-If the sentinel file is missing for any reason (direct task invocation outside a wrapper, manual replay, etc.), tasks **silently skip** the line. Never crash the run because the beacon is absent.
+If either sentinel file is missing for any reason, tasks and sweeps **silently skip** the dependent step. Never crash the run because a beacon is absent.
 
 ## The loop — one isolated subagent per work-item
 
@@ -141,6 +147,23 @@ Why title-pattern, not label: by definition the only way a PR can be missing the
 Why `--limit 1000`: `gh pr list` defaults to 30 results, which silently dropped PRs in busy repos and let the sweep miss recently-opened Night Shift PRs. The cap is well above any realistic open-PR count for a single repo.
 
 Each `multi-*.md` wrapper inlines this exact block in its per-repo loop, **immediately before** the body sweep below.
+
+## Version label sweep (wrapper-level, runs right after the label sweep)
+
+Tag every PR opened by *this* run with `ns-v:<version>` so the [ns-dashboard](https://github.com/frontkom/ns-dashboard) can identify which routine version produced it (and surface stale installs). Skipped silently when `/tmp/night-shift-routine-version` doesn't exist — that's how legacy routines and direct-invocation runs gracefully degrade.
+
+```bash
+if [ -s /tmp/night-shift-routine-version ]; then
+  V=$(cat /tmp/night-shift-routine-version)
+  START=$(cat /tmp/night-shift-routine-started 2>/dev/null || echo "1970-01-01T00:00:00Z")
+  ( cd "$REPO_PATH" && \
+    gh label create "ns-v:$V" --color "5e5c66" --description "Night Shift version that opened this PR" 2>/dev/null || true
+    gh pr list --label night-shift --state open --limit 1000 --json number,createdAt --jq ".[] | select(.createdAt >= \"$START\") | .number" \
+      | xargs -I{} -r gh pr edit {} --add-label "ns-v:$V" )
+fi
+```
+
+Why the `createdAt >= $START` filter: every Night Shift PR from prior runs is still open on most repos. Without the filter, this sweep would relabel *all* open `night-shift` PRs with the *current* run's version — destroying the per-PR version provenance that's the whole point. The filter scopes the labeling to PRs born during this routine's start-to-now window. A run that opens zero PRs labels zero PRs.
 
 ## PR body sweep (wrapper-level safety net)
 

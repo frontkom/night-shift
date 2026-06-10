@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-06-10a
+version: 2026-06-10b
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-06-10a -->
+<!-- NIGHT_SHIFT_VERSION: 2026-06-10b -->
 
 ## Version check (run this first, every invocation)
 
@@ -208,8 +208,11 @@ A routine is created only if at least one repo's selection has a non-empty inter
 **Inline the wrapper prompt.** Remote agents sometimes refuse "Fetch URL and execute" instructions, treating them as prompt injection. To avoid this, **fetch each wrapper prompt yourself during setup and inline its contents as the routine prompt**. For each routine:
 
 1. Fetch the wrapper file from GitHub using WebFetch (URLs below).
-2. Use the fetched content as the routine's prompt text.
-3. Append the `<night-shift-config>` block at the end.
+2. **Substitute `__NS_VERSION__` with this skill's live `NIGHT_SHIFT_VERSION`** (the value on line 9's `version:` field — see the `<!-- NIGHT_SHIFT_VERSION: ... -->` comment on line 14 for the canonical reference). Every routine's wrapper has the literal token `__NS_VERSION__` inside the "Before doing anything else" bash block; replace every occurrence with the dateletter (e.g. `2026-06-10a`). The substituted version is what the wrapper writes to `/tmp/night-shift-routine-version` at runtime, which downstream populates the `ns-v:<version>` label on every PR opened by that routine — the dashboard reads it back to surface "this install is stale" signals.
+3. Use the substituted content as the routine's prompt text.
+4. Append the `<night-shift-config>` block at the end.
+
+**Apply the same substitution on parse-merge-rewrite.** Every post-setup operation that touches a routine's wrapper (add repo, remove repo, change tasks, model swap) must re-fetch the latest wrapper from raw.githubusercontent and re-substitute `__NS_VERSION__` with the **current** `NIGHT_SHIFT_VERSION`. This is what propagates skill updates into running installs whenever the user re-runs `/night-shift`. Routines whose wrappers were inlined before version-stamping landed (the literal `__NS_VERSION__` was never present in their old wrapper) will pick up the substitution on the next re-fetch.
 
 **Inline the allowlist.** Each routine's prompt gets a `<night-shift-config>` block appended at the end. For each routine, list only the tasks from its bundle that each repo selected. **Never put a task id in a routine's YAML that doesn't belong to that routine's bundles** — the wrapper ignores mismatched ids, but keeping the YAML clean makes the routines dashboard easier to read.
 
