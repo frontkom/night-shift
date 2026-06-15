@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-06-15a
+version: 2026-06-15b
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-06-15a -->
+<!-- NIGHT_SHIFT_VERSION: 2026-06-15b -->
 
 ## Version check (run this first, every invocation)
 
@@ -116,11 +116,25 @@ For each repo in the list, in the order the user gave them, run the picker loop 
 
 **Picker defaults:** all tasks recommended per repo.
 
-**Picker loop** (one `AskUserQuestion` call per repo, 3 questions per call):
+**Picker loop** (one `AskUserQuestion` call per repo, up to 4 dynamically-built questions per call).
 
-1. Fetch `manifest.yml` once and cache it for the session.
+**Derive the picker from `manifest.yml`. Do NOT hardcode task ids in this skill.** The same rule that Step 4 follows for routine task derivation applies here — when a new task is added to `manifest.yml` it must flow into the wizard automatically. The historical bug this fixes: when `lint-baseline-shrink`, `dep-audit`, `find-flaky-tests`, and `act-on-lhci-artifact` were added to the manifest, the (then-hardcoded) picker silently missed them — fresh installs couldn't enable those tasks at all.
 
-2. Call `AskUserQuestion` with **3 questions**, all `multiSelect: true`. Mention the repo URL and progress (`repo N of M`) in the first question. Each option's `label` is the task id (e.g. `find-bugs`) and `description` is the human title from `manifest.yml`. Phrase questions to make clear all tasks are recommended.
+1. Fetch `manifest.yml` once and cache it for the session. Group the tasks by `bundle:` field.
+
+2. Build the picker questions from the manifest, in this order:
+
+   a. **Skip the `shopify` bundle** in the auto-picker. It is opt-in via `CLAUDE.md` `bundles: [shopify]` (per the manifest's own bundle description) and surfacing it to every user would mis-frame the default.
+
+   b. **Combine the `plans` and `docs` bundles into Question 1.** Options are every task with `bundle: plans` from the manifest (in manifest order), followed by the `update-docs` meta-option. The meta-option collapses all four `docs` bundle tasks (`update-changelog`, `update-user-guide`, `document-decisions`, `suggest-improvements`) into a single "Update all documentation" checkbox — this preserves the existing one-click-docs UX. The meta-option is expanded back to the four real task ids in step 3 below.
+
+   c. **One question per remaining bundle** (`code-fixes`, `audits`, …). Options are every task with that `bundle:` field, in manifest order. If a bundle exceeds the 4-option per-question cap, split it into two questions sharing the bundle's `title:` plus a disambiguator (today: `audits` → "Find issues" with the `find-*` tasks + `dep-audit`, and "Measure & improve" with the `improve-*` tasks + `act-on-lhci-artifact`). The split predicate is verb-driven (does the task discover an issue, or measure / improve something), NOT alphabetical — keep tasks with the same intent in the same question so the user can reason about a group at a time.
+
+   d. **Cap total questions at 4** (the `AskUserQuestion` per-call ceiling). With today's manifest that's exactly 4: Plans+Docs, Code quality, Find issues, Measure & improve.
+
+3. Call `AskUserQuestion` with the questions built above, all `multiSelect: true`. Mention the repo URL and progress (`repo N of M`) in the first question. Each option's `label` is the task id (e.g. `find-bugs`); `description` is the task's `title:` field from `manifest.yml`. Phrase questions so the user understands every task is recommended by default — list the options without prejudging.
+
+   **Today's questions** (this list is just a preview of what the dynamic builder produces *as of* `NIGHT_SHIFT_VERSION` 2026-06-15b — it rebuilds itself the moment `manifest.yml` changes):
 
    **Question 1 — "Plans + Docs"** (header: `Plans+Docs`):
    - `build-planned-features` — Build planned features
@@ -128,23 +142,29 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    - `work-on-jira-issues` — Work on tagged Jira issues (requires per-repo Jira project key + the Atlassian Rovo MCP connector attached to the build routine; see "Atlassian Rovo (Jira)" below)
    - `update-docs` — Update all documentation (changelog, user guide, ADRs, suggestions)
 
-   **Question 2 — "Improve code quality"** (header: `Improve`):
+   **Question 2 — "Code quality"** (header: `Code quality`):
    - `add-tests` — Add tests
    - `improve-accessibility` — Improve accessibility
-   - `improve-seo` — Improve SEO
-   - `improve-performance` — Improve performance
    - `translate-ui` — Translate UI
+   - `lint-baseline-shrink` — Shrink lint baseline
 
    **Question 3 — "Find issues"** (header: `Find issues`):
    Warn that active tasks here open PRs nightly when they find issues.
    - `find-security-issues` — Find security issues
    - `find-bugs` — Find bugs
+   - `find-flaky-tests` — Find recurring flaky tests
+   - `dep-audit` — Audit dependencies
+
+   **Question 4 — "Measure & improve"** (header: `Measure`):
+   - `improve-seo` — Improve SEO
+   - `improve-performance` — Improve performance
+   - `act-on-lhci-artifact` — Act on Lighthouse CI artifact (measured findings)
 
    **Meta-option expansion.** `update-docs` is a picker shorthand, not a real task id. When building `selection[repo]`, expand it to the four individual doc task ids: `update-changelog`, `update-user-guide`, `document-decisions`, `suggest-improvements`. The allowlist and routine config always use real task ids from `manifest.yml` — never the meta-option name.
 
-3. Merge selected ids from all 3 questions into `selection[repo]` and move to the next repo. If the user selected nothing across all questions, record the empty set — the create step will skip the repo.
+4. Merge selected ids from every question into `selection[repo]` and move to the next repo. If the user selected nothing across all questions, record the empty set — the create step will skip the repo.
 
-4. **Jira follow-up (only if `work-on-jira-issues` was selected for this repo).** Ask one extra `AskUserQuestion` with two free-text fields:
+5. **Jira follow-up (only if `work-on-jira-issues` was selected for this repo).** Ask one extra `AskUserQuestion` with two free-text fields:
    - `jira_project_key` — required, e.g. `FGPW`. The Jira project whose tagged issues should become PRs in this repo.
    - `jira_label` — optional, default `night-shift`. The label to filter on.
 
@@ -156,7 +176,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
    >
    > I'll walk you through the Atlassian Rovo connector setup before I create the routines (it's a one-time per-account flow — connect Rovo, flip tool permissions to "Always allow", and a possible one-click bootstrap if no routine has Rovo attached yet). Until that's all in place the task self-skips silently — no failure noise.
 
-5. There is no `back` step. If the user wants to change a previous repo's picks, they can use "Change tasks for a repo" after setup completes.
+6. There is no `back` step. If the user wants to change a previous repo's picks, they can use "Change tasks for a repo" after setup completes.
 
 **Step 3 — Schedule confirm.**
 
