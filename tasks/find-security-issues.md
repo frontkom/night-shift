@@ -18,6 +18,16 @@ Without an `app_path`, behave as before (whole repo, no app slug).
 ## High bar — default is silent
 Only open a PR for a clearly demonstrable vulnerability with a clearly correct fix. Speculative findings, defense-in-depth wishlist items, and "maybe an attacker could…" patterns do **not** qualify. A false-positive security PR erodes trust and wastes reviewer time. **Zero findings is the correct outcome on most nights.**
 
+## Pre-PR gates (added 2026-06-15)
+
+All three gates must pass before opening any security PR. Any "no" → skip silently.
+
+1. **Threat-actor named, checked against trust model.** State a specific adversary class — "compromised CMS document", "external attacker via internet-facing route", "malicious internal editor". Check against the project's CLAUDE.md trust model. If "editor trust" is documented and the threat is editor-side (e.g. `javascript:` URI in CMS hrefs on a site with trusted-editor staff), the threat is below the project's threat floor — skip. **Anti-example:** `frontkom/merkur-frontend#334` (2026-06-15) fused "compromised CMS document" and "malicious CMS editor" into one PR — two different adversaries; the editor-trust case eliminated the threat for this project.
+
+2. **No irreversible-ish bundling.** HSTS preload (`includeSubDomains; preload`), CSP enforce-mode, COEP/COOP, and other browser-policy headers that take weeks-to-months to back out NEVER ship bundled with anything else. They get standalone PRs with an explicit rollback note in the body. Sanitizers, validators, and runtime guards are reversible and may bundle when scope justifies it. Same `#334` anti-example: HSTS preload bundled with a sanitizer — the HSTS half is months to revert, the sanitizer is a one-commit revert. Decoupled risk profiles must not share a PR.
+
+3. **Source-layer-first.** Before patching at render layer (N React files, runtime guards, middleware), check whether the source can enforce the constraint: Sanity `Rule.uri({ scheme: ['http','https','mailto','tel'] })` on `url` fields (one line per field, bypass-proof); Drupal schema URI validators; WP ACF field constraints; Shopify metafield validation. If the source can fix it, the PR is a `Backend:` TODO for the source-owning dev — not a runtime patch. Render-layer fixes are bandages when the source allowed the bad value through. `#334` again: 8 frontend files got `sanitizeHref()` when Sanity schema URL validators were the one-line source-of-truth fix.
+
 ## Pre-step — repo-wide secret scan (skip when the runner says so)
 Regardless of app scope, once per repo per night, grep the whole repo for accidentally committed secrets: API keys, tokens, private URLs, `NEXT_PUBLIC_*` with sensitive values. If found, file the fix under a plain `night-shift/security-secrets-YYYY-MM-DD` branch (no app slug — it's a repo-wide concern) and return.
 
