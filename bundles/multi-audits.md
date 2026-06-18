@@ -7,7 +7,7 @@ You are running the Night Shift **Audits** bundle across **all target repositori
 ```bash
 date -u +%FT%TZ > /tmp/night-shift-routine-started
 NS_VERSION="__NS_VERSION__"
-case "$NS_VERSION" in __NS_VERSION__) ;; *) printf '%s' "$NS_VERSION" > /tmp/night-shift-routine-version ;; esac
+case "$NS_VERSION" in __*) ;; *) printf '%s' "$NS_VERSION" > /tmp/night-shift-routine-version ;; esac
 echo "Night Shift audits bundle starting (multi-repo)..."
 ```
 

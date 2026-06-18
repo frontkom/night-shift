@@ -84,12 +84,12 @@ Right at the top of the wrapper invocation — **before** any repo is `cd`-ed in
 ```bash
 date -u +%FT%TZ > /tmp/night-shift-routine-started
 NS_VERSION="__NS_VERSION__"
-case "$NS_VERSION" in __NS_VERSION__) ;; *) printf '%s' "$NS_VERSION" > /tmp/night-shift-routine-version ;; esac
+case "$NS_VERSION" in __*) ;; *) printf '%s' "$NS_VERSION" > /tmp/night-shift-routine-version ;; esac
 ```
 
 The first sentinel (`/tmp/night-shift-routine-started`) is the routine's start ISO, used by every task's PR body footer (`_Routine started: <iso>_`) and by the dashboard to compute "time AI worked" per repo per night.
 
-The second sentinel (`/tmp/night-shift-routine-version`) is the **install-time version** of the Night Shift skill that wrote this routine. The literal token `__NS_VERSION__` is substituted by the `night-shift` skill's Step 4 (or the post-setup parse-merge-rewrite that touches the wrapper) with the live `NIGHT_SHIFT_VERSION` from `SKILL.md`. The `case` guard means: when the wrapper runs WITHOUT the substitution having happened (legacy install pre-version-stamping, direct task invocation, manual replay), the version sentinel file simply does not get written — and the **version label sweep** (see below) gracefully skips. Pre-existing PRs from legacy routines end up with no `ns-v:` label, which the dashboard renders as "unknown" — the desired signal for "this install is too old to identify itself".
+The second sentinel (`/tmp/night-shift-routine-version`) is the **install-time version** of the Night Shift skill that wrote this routine. The literal token `__NS_VERSION__` is substituted by the `night-shift` skill's Step 4 (or the post-setup parse-merge-rewrite that touches the wrapper) with the live `NIGHT_SHIFT_VERSION` from `SKILL.md`. The `__*` glob in the `case` guard matches *any* string still beginning with `__` — i.e. the literal placeholder survived substitution (legacy install pre-version-stamping, direct task invocation, manual replay). The guard pattern is intentionally generic so the skill's substitution pass can blindly replace every `__NS_VERSION__` token without breaking the guard. When the placeholder remains, the version sentinel file simply does not get written — and the **version label sweep** (see below) gracefully skips. Pre-existing PRs from legacy routines end up with no `ns-v:` label, which the dashboard renders as "unknown" — the desired signal for "this install is too old to identify itself".
 
 Every Task subagent in the routine shares this filesystem (same reason the PR-creation throttle uses `/tmp/night-shift-pr-last-created`), so a single write covers the whole fan-out across every repo, app, and task in the run.
 

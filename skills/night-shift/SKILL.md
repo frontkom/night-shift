@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-06-15b
+version: 2026-06-18a
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-06-15b -->
+<!-- NIGHT_SHIFT_VERSION: 2026-06-18a -->
 
 ## Version check (run this first, every invocation)
 
@@ -134,7 +134,7 @@ For each repo in the list, in the order the user gave them, run the picker loop 
 
 3. Call `AskUserQuestion` with the questions built above, all `multiSelect: true`. Mention the repo URL and progress (`repo N of M`) in the first question. Each option's `label` is the task id (e.g. `find-bugs`); `description` is the task's `title:` field from `manifest.yml`. Phrase questions so the user understands every task is recommended by default — list the options without prejudging.
 
-   **Today's questions** (this list is just a preview of what the dynamic builder produces *as of* `NIGHT_SHIFT_VERSION` 2026-06-15b — it rebuilds itself the moment `manifest.yml` changes):
+   **Today's questions** (this list is just a preview of what the dynamic builder produces *as of* `NIGHT_SHIFT_VERSION` 2026-06-18a — it rebuilds itself the moment `manifest.yml` changes):
 
    **Question 1 — "Plans + Docs"** (header: `Plans+Docs`):
    - `build-planned-features` — Build planned features
