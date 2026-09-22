@@ -1,5 +1,7 @@
 # Multi-repo runner — shared protocol
 
+**Model and effort:** Run this bundle and every nested task/subagent with **Claude Opus 5** (`claude-opus-5`) at **medium effort** (`medium`). Inherit these settings from a verified parent or set them explicitly through supported runtime controls. Do not downgrade models or increase effort. Prompt text alone does not configure the runtime; if these settings cannot be verified, report the blocker before dispatching work. See `skills/night-shift/SKILL.md` → **Model and effort** for setup and migration.
+
 This file documents the loop semantics used by the `multi-*.md` wrappers. It is not fetched by routines directly — it's reference reading for the wrappers and for humans editing them.
 
 ## Per-repo task allowlist (the `<night-shift-config>` block)

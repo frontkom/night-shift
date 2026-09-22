@@ -6,12 +6,12 @@ description: |
   Use this skill when the user explicitly asks to: install Night Shift, set up Night Shift, schedule Night Shift, run a Night Shift bundle, add a repo to Night Shift, remove a repo from Night Shift, pause Night Shift on a project, or check Night Shift status.
 
   MANDATORY TRIGGERS: night-shift, night shift, nightshift, /night-shift, set up night shift, install night shift, schedule night shift, run night shift, night shift setup, night shift install
-version: 2026-06-18a
+version: 2026-09-22a
 ---
 
 # Night Shift
 
-<!-- NIGHT_SHIFT_VERSION: 2026-06-18a -->
+<!-- NIGHT_SHIFT_VERSION: 2026-09-22a -->
 
 ## Version check (run this first, every invocation)
 
@@ -44,6 +44,18 @@ That's the canonical reference. If you ever need to check what a bundle does, lo
 - **Multi-* wrapper** — a meta prompt that auto-discovers all repos cloned into a session and dispatches one Task subagent per repo, then prints a summary table.
 - **Routine** — a scheduled remote agent (created via the `/schedule` skill or `RemoteTrigger` tool) that fires nightly and runs a multi-* wrapper. (The API tool is still called `RemoteTrigger`; the UI calls them "Routines".)
 - **Manifest** — `manifest.yml` in the night-shift repo, the source of truth for what tasks exist and how they group into bundles.
+
+## Model and effort — every Night Shift task
+
+Use **Claude Opus 5** (`claude-opus-5`) with **medium effort** (`medium`, the user's “middle” setting) for every Night Shift run: all four routines, every bundle and task, nested subagents, manual test runs, and reactive PR auto-fixes. Do not substitute a cheaper model or raise effort for harder tasks.
+
+Configure these as runtime settings, not just prompt text. For local runs, launch `claude --model claude-opus-5 --effort medium`. For routines, set `session_context.model` to `claude-opus-5` and configure medium effort using the supported routine control or its execution environment's `CLAUDE_CODE_EFFORT_LEVEL=medium`. Inspect the live tool schema before writing an effort field; do not assume the Messages API's `output_config` or the local settings key `effortLevel` is accepted in `session_context`. A shell export inside a running task cannot change its parent session's effort.
+
+On setup and every routine update, apply this policy and read back the saved model and effort configuration. Preserve schedules, repo selections, connectors, auto-fix, and enabled state. Existing installations need their saved routines updated; publishing a new skill alone does not migrate them. If the available controls cannot set or verify both values, report that routine as pending instead of claiming it is configured.
+
+Subagents must inherit the verified Opus 5 / medium configuration or explicitly select the same settings using their supported controls. Avoid agent definitions that override it with another model or effort. If the runtime cannot honor the settings, report the blocker before dispatching tasks.
+
+Reference: [Claude Code model and effort configuration](https://code.claude.com/docs/en/model-config).
 
 ## Operations
 
@@ -268,7 +280,7 @@ This only happens once — the `environment_id` is stable per account. Cache it 
     "ccr": {
       "environment_id": "<real environment_id — see fetching instructions above; NEVER use 'default'>",
       "session_context": {
-        "model": "claude-opus-4-8[1m]",
+        "model": "claude-opus-5",
         "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch", "Task"],
         "autofix_on_pr_create": true,
         "sources": [
@@ -471,7 +483,7 @@ Steps, for each of the four routines in turn:
 3. Parse the YAML, apply the change (add key, remove key, replace value), re-serialise.
 4. Splice the new YAML back between the delimiters, preserving everything else in the prompt.
 5. Update `sources[]` to match the union of `repos:` keys.
-6. Write back via `RemoteTrigger` (`action: "update"`), preserving the current `enabled` state exactly unless the user explicitly asked to re-enable the routine. **Send the full `job_config.ccr` block** — `environment_id`, `events` (with the modified prompt), and the **full** `session_context` (every key from the GET response). `update` replaces `ccr` wholesale; a slim body silently drops whatever you omitted. See the gotcha note under Step 4's API body section.
+6. Apply the **Model and effort** policy above, then write back via `RemoteTrigger` (`action: "update"`), preserving the current `enabled` state exactly unless the user explicitly asked to re-enable the routine. **Send the full `job_config.ccr` block** — `environment_id`, `events` (with the modified prompt), and the **full** `session_context` (every key from the GET response). `update` replaces `ccr` wholesale; a slim body silently drops whatever you omitted. See the gotcha note under Step 4's API body section.
 
 If merging produces an empty `repos:` map for a routine, **delete that routine** (not just update it). If a merge would re-populate a routine that was previously deleted, **re-create it** using the Step 4 template from the Setup runbook.
 

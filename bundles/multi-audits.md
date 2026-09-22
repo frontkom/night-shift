@@ -1,5 +1,7 @@
 # Multi-repo: Audits
 
+**Model and effort:** Run this bundle and every nested task/subagent with **Claude Opus 5** (`claude-opus-5`) at **medium effort** (`medium`). Inherit these settings from a verified parent or set them explicitly through supported runtime controls. Do not downgrade models or increase effort. Prompt text alone does not configure the runtime; if these settings cannot be verified, report the blocker before dispatching work. See `skills/night-shift/SKILL.md` → **Model and effort** for setup and migration.
+
 You are running the Night Shift **Audits** bundle across **all target repositories** cloned into this session.
 
 **Before doing anything else**, write the routine sentinels (start time + version) and print a single status line so the user sees immediate output:
