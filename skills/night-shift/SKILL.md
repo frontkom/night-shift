@@ -47,13 +47,13 @@ That's the canonical reference. If you ever need to check what a bundle does, lo
 
 ## Model and effort — every Night Shift task
 
-Use **Claude Opus 5** (`claude-opus-5`) with **medium effort** (`medium`, the user's “middle” setting) for every Night Shift run: all four routines, every bundle and task, nested subagents, manual test runs, and reactive PR auto-fixes. Do not substitute a cheaper model or raise effort for harder tasks.
+Use **Claude Opus 5.5** (`claude-opus-5-5`) with **medium effort** (`medium`, the user's “middle” setting) for every Night Shift run: all four routines, every bundle and task, nested subagents, manual test runs, and reactive PR auto-fixes. Do not substitute a cheaper model or raise effort for harder tasks.
 
-Configure these as runtime settings, not just prompt text. For local runs, launch `claude --model claude-opus-5 --effort medium`. For routines, set `session_context.model` to `claude-opus-5` and configure medium effort using the supported routine control or its execution environment's `CLAUDE_CODE_EFFORT_LEVEL=medium`. Inspect the live tool schema before writing an effort field; do not assume the Messages API's `output_config` or the local settings key `effortLevel` is accepted in `session_context`. A shell export inside a running task cannot change its parent session's effort.
+Configure these as runtime settings, not just prompt text. For local runs, launch `claude --model claude-opus-5-5 --effort medium`. For routines, set `session_context.model` to `claude-opus-5-5` and configure medium effort using the supported routine control or its execution environment's `CLAUDE_CODE_EFFORT_LEVEL=medium`. Inspect the live tool schema before writing an effort field; do not assume the Messages API's `output_config` or the local settings key `effortLevel` is accepted in `session_context`. A shell export inside a running task cannot change its parent session's effort.
 
 On setup and every routine update, apply this policy and read back the saved model and effort configuration. Preserve schedules, repo selections, connectors, auto-fix, and enabled state. Existing installations need their saved routines updated; publishing a new skill alone does not migrate them. If the available controls cannot set or verify both values, report that routine as pending instead of claiming it is configured.
 
-Subagents must inherit the verified Opus 5 / medium configuration or explicitly select the same settings using their supported controls. Avoid agent definitions that override it with another model or effort. If the runtime cannot honor the settings, report the blocker before dispatching tasks.
+Subagents must inherit the verified Opus 5.5 / medium configuration or explicitly select the same settings using their supported controls. Avoid agent definitions that override it with another model or effort. If the runtime cannot honor the settings, report the blocker before dispatching tasks.
 
 Reference: [Claude Code model and effort configuration](https://code.claude.com/docs/en/model-config).
 
@@ -280,7 +280,7 @@ This only happens once — the `environment_id` is stable per account. Cache it 
     "ccr": {
       "environment_id": "<real environment_id — see fetching instructions above; NEVER use 'default'>",
       "session_context": {
-        "model": "claude-opus-5",
+        "model": "claude-opus-5-5",
         "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch", "Task"],
         "autofix_on_pr_create": true,
         "sources": [
